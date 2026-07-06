@@ -1,7 +1,7 @@
 # Documentation Memory requirements
 
-Version: 0.2.0
-Status: production-ready specification (v1 scope frozen via best-practices research + interview; not yet implemented)
+Version: 0.3.0
+Status: Phase 1 implemented (v1 scope). CLI `gd-metapro memory` and init scaffold shipped; embeddings are Phase 3.
 
 `Documentation Memory` - модуль Metaproject для долговременной проектной памяти: lessons learned, decisions, constraints, known mistakes, historical context и повторно используемые patterns.
 

@@ -33,6 +33,26 @@ Purpose:
 - update the latest agent-readable health report for changed scope;
 - avoid heavy sources in hooks: tests, audit, coverage and external providers stay manual or orchestrator-controlled.
 
+## git post-commit testing hook
+
+When enabled during `gd-metapro init`, the Git `post-commit` hook refreshes testing context after relevant source, test, config or documentation changes.
+
+Purpose:
+
+- keep `.metaproject/data/testing/context.md` aligned with test stack and conventions;
+- stay non-blocking and avoid running heavy suites on every commit;
+- give agents fresh context before test generation or debugging.
+
+## git pre-push testing hook
+
+When enabled during `gd-metapro init`, the Git `pre-push` hook runs changed-scope tests and blocks the push on failure.
+
+Purpose:
+
+- catch focused test failures before remote publication;
+- use Testing Module related-test selection instead of always running the whole suite;
+- keep blocking behavior explicit and opt-in.
+
 ## post-update.d
 
 Executable files in `post-update.d/` run after `gd-metapro update`.

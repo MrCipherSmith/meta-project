@@ -1,6 +1,6 @@
 # Code Health: technical specification
 
-Version: 0.6.0
+Version: 0.7.0
 Status: Phase 1 + Phase 2 complete (module implemented; see section 21). Phase 3 (advanced) is future. Complexity is a token-based approximation; AST precision deferred.
 
 ## 1. Purpose
@@ -14,7 +14,7 @@ Markdown/JSON reports with a quality gate suitable for orchestrators and CI.
 
 | # | Decision | Choice |
 |---|---|---|
-| D1 | v1 first-class sources | ESLint, TypeScript, tests, coverage, dependency audit (Core-5). Sonar and external complexity tools are pluggable adapters. |
+| D1 | v1 first-class sources | ESLint, TypeScript, tests, coverage, dependency audit (Core-5). Testing Module owns test execution/reporting; Health imports normalized test reports when available. Sonar and external complexity tools are pluggable adapters. |
 | D2 | Scoring | Documented default formula with weights; overridable in config. |
 | D3 | Quality gate | Fail on critical/P0 or regression vs baseline; warn on thresholds; else pass. |
 | D4 | Baseline | Accept-current on enable; changes only via explicit `baseline update`. |
@@ -26,6 +26,7 @@ Markdown/JSON reports with a quality gate suitable for orchestrators and CI.
 | D10 | Scope metrics in v1 | finding counts, coverage, churn (git), cyclomatic complexity (token-based). |
 | D11 | Source failure semantics | Sources are `required` or `optional`; missing/failed required -> fail in `--strict`, warn otherwise; optional -> skipped, no gate impact. |
 | D12 | Finding schema | Versioned (`schemaVersion`) stable public contract; changes follow semver; consumers validate. |
+| D13 | Test execution ownership | `gd-metapro test` is the canonical owner of test context and execution reports. Health `tests` source consumes `.metaproject/data/testing/artifacts/latest.json` before legacy runner fallback. |
 
 ## 3. Placement
 
@@ -117,7 +118,8 @@ external tool. External complexity tools are added as adapters (section 5).
 
 Core-5 first-class sources: `eslint`, `typescript`, `tests`, `coverage`,
 `dependencyAudit`, plus a `sonarqube` adapter (import-oriented, disabled by
-default). The built-in complexity metric is also emitted as P2 findings.
+default). The `tests` source imports Testing Module reports first and only uses
+legacy direct runner fallback when no normalized test report exists. The built-in complexity metric is also emitted as P2 findings.
 Further external tools plug in through the same `SourceAdapter` contract.
 
 ```ts

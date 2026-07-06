@@ -4,6 +4,7 @@ export function renderIndexMarkdown({
   enableGdwiki,
   enableGdskills,
   enableHealth,
+  enableTesting,
   ruleSources,
 }: {
   enableGdgraph: boolean;
@@ -11,6 +12,7 @@ export function renderIndexMarkdown({
   enableGdwiki: boolean;
   enableGdskills: boolean;
   enableHealth: boolean;
+  enableTesting: boolean;
   ruleSources: string[];
 }): string {
   const moduleRows = [
@@ -28,6 +30,9 @@ export function renderIndexMarkdown({
       : "",
     enableHealth
       ? "| health | Code quality aggregation, scoring, and quality gate | modules/health.md |"
+      : "",
+    enableTesting
+      ? "| testing | Test context, related tests, execution reports, and test intelligence | modules/testing.md |"
       : "",
   ]
     .filter(Boolean)
@@ -52,6 +57,13 @@ export function renderIndexMarkdown({
         ]
       : []),
     ...(enableHealth ? ["- `data/health/artifacts/latest.md`"] : []),
+    ...(enableTesting
+      ? [
+          "- `data/testing/context.md`",
+          "- `data/testing/recommendations.md`",
+          "- `data/testing/artifacts/latest.md`",
+        ]
+      : []),
   ];
   const dataRefs = dataRefItems.length > 0
     ? dataRefItems.join("\n")
@@ -72,6 +84,9 @@ export function renderIndexMarkdown({
       : "",
     enableHealth
       ? "| health | Read data/health/artifacts/latest.md before claiming quality status or gate results | skills/health/SKILL.md |"
+      : "",
+    enableTesting
+      ? "| testing | Read testing context before creating/changing tests and normalized reports before raw test logs | skills/testing/SKILL.md |"
       : "",
   ]
     .filter(Boolean)
@@ -104,6 +119,11 @@ export function renderIndexMarkdown({
     ...(enableHealth
       ? [
           "For code quality status (lint, type, test, coverage, complexity, gate, regressions), read `data/health/artifacts/latest.md` or run `gd-metapro health run`; do not claim quality status from raw logs.",
+        ]
+      : []),
+    ...(enableTesting
+      ? [
+          "For creating, changing, debugging, reviewing, or running tests, read `data/testing/context.md` and use `skills/testing/SKILL.md`; read `data/testing/artifacts/latest.md` before raw test logs.",
         ]
       : []),
     "Use relevant skills from `skills/`.",
@@ -161,6 +181,7 @@ ${dataRefs}
 \`\`\`bash
 gd-metapro index refresh
 ${enableGdgraph ? "gd-metapro gdgraph build" : ""}
+${enableTesting ? "gd-metapro test analyze" : ""}
 \`\`\`
 `;
 }
@@ -180,6 +201,8 @@ For architecture, domain models, business rules, user scenarios, auth and other 
 For commands, search, diff, test logs, lint/build output, and large file reads that can produce long output, use the Metaproject gdctx skill by default before loading raw command output into context.
 
 For implementation, review, refactoring, planning, documentation, or quality tasks, use project-local Metaproject skills first: .metaproject/skills/catalog.md, .metaproject/project-skills/, then .metaproject/skills/gdskills/. External/global skills are fallback only when explicitly needed.
+
+For creating, changing, debugging, reviewing, or running tests, use the Metaproject testing skill and read .metaproject/data/testing/context.md before broad test search or raw logs.
 `;
 }
 
@@ -197,6 +220,10 @@ export function renderMetaprojectGitignoreBlock(): string {
 .metaproject/data/health/history/
 .metaproject/data/health/artifacts/latest.md
 .metaproject/data/health/artifacts/latest.json
+.metaproject/data/testing/history/
+.metaproject/data/testing/logs/
+.metaproject/data/testing/artifacts/latest.md
+.metaproject/data/testing/artifacts/latest.json
 .metaproject/reports/
 `;
 }
@@ -266,12 +293,14 @@ export function renderMetaprojectReadme({
   enableGdwiki,
   enableGdskills,
   enableHealth,
+  enableTesting,
 }: {
   enableGdgraph: boolean;
   enableGdctx: boolean;
   enableGdwiki: boolean;
   enableGdskills: boolean;
   enableHealth: boolean;
+  enableTesting: boolean;
 }): string {
   const moduleItems = [
     enableGdgraph ? "- `gdgraph`: code graph and affected context." : "",
@@ -286,6 +315,9 @@ export function renderMetaprojectReadme({
       : "",
     enableHealth
       ? "- `health`: code quality aggregation, scoring, and quality gate."
+      : "",
+    enableTesting
+      ? "- `testing`: test context, related tests, and normalized test reports."
       : "",
   ].filter(Boolean);
   const modules = moduleItems.length > 0
@@ -307,6 +339,7 @@ export function renderMetaprojectReadme({
         ]
       : []),
     ...(enableHealth ? ["gd-metapro health run", "gd-metapro health gate"] : []),
+    ...(enableTesting ? ["gd-metapro test analyze", "gd-metapro test run --changed"] : []),
   ];
 
   return `# Project Metaproject
@@ -379,6 +412,26 @@ Purpose:
 - detect obvious type/complexity regressions close to the commit that introduced them;
 - update the latest agent-readable health report for changed scope;
 - avoid heavy sources in hooks: tests, audit, coverage and external providers stay manual or orchestrator-controlled.
+
+## git post-commit testing hook
+
+When enabled during \`gd-metapro init\`, the Git \`post-commit\` hook refreshes testing context after relevant source, test, config or documentation changes.
+
+Purpose:
+
+- keep \`.metaproject/data/testing/context.md\` aligned with test stack and conventions;
+- stay non-blocking and avoid running heavy suites on every commit;
+- give agents fresh context before test generation or debugging.
+
+## git pre-push testing hook
+
+When enabled during \`gd-metapro init\`, the Git \`pre-push\` hook runs changed-scope tests and blocks the push on failure.
+
+Purpose:
+
+- catch focused test failures before remote publication;
+- use Testing Module related-test selection instead of always running the whole suite;
+- keep blocking behavior explicit and opt-in.
 
 ## post-update.d
 

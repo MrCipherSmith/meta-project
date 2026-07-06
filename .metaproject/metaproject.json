@@ -116,7 +116,8 @@
         "gate",
         "sources",
         "explain",
-        "baseline"
+        "baseline",
+        "trend"
       ],
       "hooks": {
         "gitPostCommit": ".git/hooks/post-commit",
@@ -124,7 +125,24 @@
       }
     },
     "testing": {
-      "enabled": false
+      "enabled": true,
+      "core": ".metaproject/core/testing",
+      "data": ".metaproject/data/testing",
+      "manifest": ".metaproject/modules/testing.md",
+      "commands": [
+        "init",
+        "analyze",
+        "run",
+        "status",
+        "context",
+        "explain",
+        "related",
+        "report"
+      ],
+      "hooks": {
+        "gitPostCommit": ".git/hooks/post-commit",
+        "postUpdate": ".metaproject/hooks/post-update.d"
+      }
     }
   },
   "agentEntrypoints": {

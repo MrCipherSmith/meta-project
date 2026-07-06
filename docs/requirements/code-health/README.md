@@ -1,7 +1,7 @@
 # Code Health requirements
 
-Version: 0.6.0
-Status: Phase 1 + Phase 2 complete (module implemented). Sonar adapter, complexity findings, skill/component scopes, gdskills learn-loop, and history trends shipped. Phase 3 (advanced) is future.
+Version: 0.7.0
+Status: Phase 1 + Phase 2 complete (module implemented). Sonar adapter, complexity findings, skill/component scopes, gdskills learn-loop, and history trends shipped. Testing Module is now the planned owner of test execution/reporting, with Code Health consuming normalized testing reports. Phase 3 (advanced) is future.
 
 `Code Health` - модуль Metaproject для агрегации качества кода. Он собирает технические источники качества, нормализует findings, считает health/risk metrics на разных уровнях гранулярности и превращает сырые логи в agent-readable Markdown/JSON reports.
 
@@ -24,6 +24,7 @@ Complexity — token-based приближение (не полный AST). Phase
 - `gdctx` - сохраняет raw outputs и compact summaries для команд health checks.
 - `gdgraph` - связывает findings с файлами, модулями, сущностями и affected scopes.
 - `gdskills` - использует health findings как signal для `skill-verify-skill` и `gd-metapro skills learn --from-health`.
+- `testing` - владеет test context/execution/reporting; Code Health читает `.metaproject/data/testing/artifacts/latest.json` как источник test findings.
 - `spec-orchestrator` - включает Code Health при `gd-metapro init` и предлагает optional lightweight hook.
 
 ## Рабочее имя CLI

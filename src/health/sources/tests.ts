@@ -1,5 +1,7 @@
 import { runCommand, toolVersion } from "../util";
 import { NoImportError, makeFinding, resolveBin } from "./helpers";
+import { loadTestingReport } from "../../testing/service";
+import type { TestingReport } from "../../testing/types";
 import type {
   Finding,
   HealthContext,
@@ -16,6 +18,9 @@ export const testsAdapter: SourceAdapter = {
   id: "tests",
 
   async detect(ctx: HealthContext): Promise<SourceStatus> {
+    if (await loadTestingReport(ctx.cwd)) {
+      return "available";
+    }
     if (!hasTestFiles(ctx)) {
       return "skipped";
     }
@@ -37,11 +42,27 @@ export const testsAdapter: SourceAdapter = {
     };
   },
 
-  async import(): Promise<RawSourceResult> {
-    throw new NoImportError("tests import not supported in v1");
+  async import(ctx: HealthContext): Promise<RawSourceResult> {
+    const report = await loadTestingReport(ctx.cwd);
+    if (!report) {
+      throw new NoImportError("testing report not found");
+    }
+    return {
+      source: "tests",
+      command: report.command,
+      toolVersion: report.runner,
+      exitCode: report.exitCode,
+      rawPath: report.rawLogPath ?? "",
+      content: JSON.stringify(report, null, 2),
+      imported: true,
+    };
   },
 
   parse(raw: RawSourceResult): Finding[] {
+    if (raw.imported) {
+      return parseTestingReport(raw);
+    }
+
     const findings: Finding[] = [];
     for (const line of raw.content.split("\n")) {
       const match = line.match(/\(fail\)\s+(.*)$/);
@@ -89,3 +110,29 @@ export const testsAdapter: SourceAdapter = {
     return findings;
   },
 };
+
+function parseTestingReport(raw: RawSourceResult): Finding[] {
+  let report: TestingReport;
+  try {
+    report = JSON.parse(raw.content) as TestingReport;
+  } catch {
+    return [];
+  }
+
+  return report.failures.map((failure) =>
+    makeFinding({
+      source: "tests",
+      severity: "error",
+      priority: "P0",
+      category: "test",
+      message: failure.message,
+      ruleKey: failure.name,
+      file: failure.file,
+      line: null,
+      suggestedAction: "Fix or update the failing test.",
+      command: report.command,
+      toolVersion: report.runner,
+      rawLog: report.rawLogPath,
+    }),
+  );
+}

@@ -30,6 +30,26 @@ import {
   renderHealthManifest,
   renderHealthSkillReadme,
 } from "../health/templates";
+import { renderMemoryConfig } from "../memory/config";
+import { MEMORY_TYPES } from "../memory/types";
+import {
+  renderMemoryCoreReadme,
+  renderMemoryEntryTemplate,
+  renderMemoryIndexScaffold,
+  renderMemoryManifest,
+  renderMemorySkillReadme,
+} from "../memory/templates";
+import { analyzeTestingProject } from "../testing/service";
+import {
+  renderTestingConfig,
+  renderTestingCoreReadme,
+  renderTestingManifest,
+  renderTestingPostCommitHook,
+  renderTestingPrePushHook,
+  renderTestingSkillReadme,
+  renderTestingWikiConventions,
+  renderTestingWikiReadme,
+} from "../testing/templates";
 import {
   renderAgentEntrypoint,
   renderGdctxCoreReadme,
@@ -62,9 +82,13 @@ type InitOptions = {
   noGdskills: boolean;
   gdskillsProfile: GdskillsProfile;
   noHealth: boolean;
+  noTesting: boolean;
+  noMemory: boolean;
   noGdgraphHook: boolean;
   noGdskillsHook: boolean;
   noHealthHook: boolean;
+  noTestingPostCommitHook: boolean;
+  noTestingPrePushHook: boolean;
 };
 
 type ModuleConfig =
@@ -89,6 +113,7 @@ type ModuleConfig =
       }>;
       hooks?: {
         gitPostCommit?: string;
+        prePush?: string;
         postUpdate?: string;
       };
     }
@@ -134,9 +159,13 @@ export async function initCommand(args: string[]): Promise<void> {
   let enableGdskills = true;
   let gdskillsProfile = options.gdskillsProfile;
   let enableHealth = true;
+  let enableTesting = true;
+  let enableMemory = true;
   let enableGdgraphHook = false;
   let enableGdskillsHook = false;
   let enableHealthHook = false;
+  let enableTestingPostCommitHook = false;
+  let enableTestingPrePushHook = false;
   if (options.noGdgraph) {
     enableGdgraph = false;
   } else if (!options.yes) {
@@ -186,6 +215,24 @@ export async function initCommand(args: string[]): Promise<void> {
     );
   }
 
+  if (options.noTesting) {
+    enableTesting = false;
+  } else if (!options.yes) {
+    enableTesting = await confirm(
+      "Enable Testing module to analyze test stack and create testing context? Recommended",
+      true,
+    );
+  }
+
+  if (options.noMemory) {
+    enableMemory = false;
+  } else if (!options.yes) {
+    enableMemory = await confirm(
+      "Enable Documentation Memory (lessons, decisions, constraints, known mistakes)? Recommended",
+      true,
+    );
+  }
+
   if (enableGdgraph) {
     if (options.noGdgraphHook) {
       enableGdgraphHook = false;
@@ -225,6 +272,30 @@ export async function initCommand(args: string[]): Promise<void> {
     }
   }
 
+  if (enableTesting) {
+    if (options.noTestingPostCommitHook) {
+      enableTestingPostCommitHook = false;
+    } else if (options.yes) {
+      enableTestingPostCommitHook = true;
+    } else {
+      enableTestingPostCommitHook = await confirm(
+        "Install git post-commit hook to refresh testing context after relevant changes? Recommended",
+        true,
+      );
+    }
+
+    if (options.noTestingPrePushHook) {
+      enableTestingPrePushHook = false;
+    } else if (options.yes) {
+      enableTestingPrePushHook = false;
+    } else {
+      enableTestingPrePushHook = await confirm(
+        "Install git pre-push hook to run changed-scope tests and block failing pushes?",
+        false,
+      );
+    }
+  }
+
   await createBaseStructure(metaprojectRoot);
   await syncGitignore(projectRoot);
   const agentRuleSources = await syncAgentRules(projectRoot, metaprojectRoot);
@@ -259,6 +330,21 @@ export async function initCommand(args: string[]): Promise<void> {
     }
   }
 
+  if (enableTesting) {
+    await createTestingStructure(metaprojectRoot, enableGdwiki);
+    if (enableTestingPostCommitHook) {
+      await installTestingPostCommitHook(projectRoot);
+    }
+    if (enableTestingPrePushHook) {
+      await installTestingPrePushHook(projectRoot);
+    }
+    await analyzeTestingProject(projectRoot);
+  }
+
+  if (enableMemory) {
+    await createMemoryStructure(metaprojectRoot);
+  }
+
   const manifest = buildManifest({
     projectName: path.basename(projectRoot),
     enableGdgraph,
@@ -267,9 +353,13 @@ export async function initCommand(args: string[]): Promise<void> {
     enableGdskills,
     gdskillsProfile,
     enableHealth,
+    enableTesting,
+    enableMemory,
     enableGdgraphHook,
     enableGdskillsHook,
     enableHealthHook,
+    enableTestingPostCommitHook,
+    enableTestingPrePushHook,
     agentRuleSources,
     existingManifest,
   });
@@ -281,7 +371,14 @@ export async function initCommand(args: string[]): Promise<void> {
 
   await writeTextIfMissing(
     path.join(metaprojectRoot, "README.md"),
-    renderMetaprojectReadme({ enableGdgraph, enableGdctx, enableGdwiki, enableGdskills, enableHealth }),
+    renderMetaprojectReadme({
+      enableGdgraph,
+      enableGdctx,
+      enableGdwiki,
+      enableGdskills,
+      enableHealth,
+      enableTesting,
+    }),
   );
   await writeTextIfMissing(
     path.join(metaprojectRoot, "core", "README.md"),
@@ -308,6 +405,7 @@ export async function initCommand(args: string[]): Promise<void> {
       enableGdwiki,
       enableGdskills,
       enableHealth,
+      enableTesting,
       ruleSources: agentRuleSources,
     }),
   );
@@ -385,6 +483,65 @@ export async function initCommand(args: string[]): Promise<void> {
     );
   }
 
+  if (enableTesting) {
+    await writeTextIfMissing(
+      path.join(metaprojectRoot, "testing.config.json"),
+      renderTestingConfig({
+        postCommitRefresh: enableTestingPostCommitHook,
+        prePushGate: enableTestingPrePushHook,
+      }),
+    );
+    await writeTextIfMissing(
+      path.join(metaprojectRoot, "modules", "testing.md"),
+      renderTestingManifest(),
+    );
+    await writeTextIfMissing(
+      path.join(metaprojectRoot, "core", "testing", "README.md"),
+      renderTestingCoreReadme(),
+    );
+    await writeTextIfChanged(
+      path.join(metaprojectRoot, "skills", "testing", "SKILL.md"),
+      renderTestingSkillReadme(),
+    );
+    if (enableGdwiki) {
+      await writeTextIfMissing(
+        path.join(metaprojectRoot, "wiki", "testing", "README.md"),
+        renderTestingWikiReadme(),
+      );
+      await writeTextIfMissing(
+        path.join(metaprojectRoot, "wiki", "testing", "conventions.md"),
+        renderTestingWikiConventions(),
+      );
+    }
+  }
+
+  if (enableMemory) {
+    await writeTextIfMissing(
+      path.join(metaprojectRoot, "memory.config.json"),
+      renderMemoryConfig(),
+    );
+    await writeTextIfMissing(
+      path.join(metaprojectRoot, "memory", "index.md"),
+      renderMemoryIndexScaffold(),
+    );
+    await writeTextIfMissing(
+      path.join(metaprojectRoot, "memory", "templates", "entry.md"),
+      renderMemoryEntryTemplate(),
+    );
+    await writeTextIfMissing(
+      path.join(metaprojectRoot, "modules", "memory.md"),
+      renderMemoryManifest(),
+    );
+    await writeTextIfMissing(
+      path.join(metaprojectRoot, "core", "memory", "README.md"),
+      renderMemoryCoreReadme(),
+    );
+    await writeTextIfChanged(
+      path.join(metaprojectRoot, "skills", "memory", "SKILL.md"),
+      renderMemorySkillReadme(),
+    );
+  }
+
   console.log(
     alreadyExists
       ? "Updated .metaproject structure."
@@ -395,6 +552,8 @@ export async function initCommand(args: string[]): Promise<void> {
   console.log(`gdwiki: ${enableGdwiki ? "enabled" : "disabled"}`);
   console.log(`gdskills: ${enableGdskills ? `enabled (${gdskillsProfile})` : "disabled"}`);
   console.log(`health: ${enableHealth ? "enabled" : "disabled"}`);
+  console.log(`testing: ${enableTesting ? "enabled" : "disabled"}`);
+  console.log(`memory: ${enableMemory ? "enabled" : "disabled"}`);
   if (enableGdgraph) {
     console.log(`gdgraph post-commit hook: ${enableGdgraphHook ? "enabled" : "disabled"}`);
   }
@@ -403,6 +562,10 @@ export async function initCommand(args: string[]): Promise<void> {
   }
   if (enableHealth) {
     console.log(`health post-commit hook: ${enableHealthHook ? "enabled" : "disabled"}`);
+  }
+  if (enableTesting) {
+    console.log(`testing post-commit hook: ${enableTestingPostCommitHook ? "enabled" : "disabled"}`);
+    console.log(`testing pre-push hook: ${enableTestingPrePushHook ? "enabled" : "disabled"}`);
   }
 }
 
@@ -416,9 +579,13 @@ function parseInitArgs(args: string[]): InitOptions {
     noGdskills: args.includes("--no-gdskills"),
     gdskillsProfile: normalizeGdskillsProfile(getArgValue(args, "--gdskills-profile")),
     noHealth: args.includes("--no-health"),
+    noTesting: args.includes("--no-testing"),
+    noMemory: args.includes("--no-memory"),
     noGdgraphHook: args.includes("--no-gdgraph-hook"),
     noGdskillsHook: args.includes("--no-gdskills-hook"),
     noHealthHook: args.includes("--no-health-hook"),
+    noTestingPostCommitHook: args.includes("--no-testing-post-commit-hook"),
+    noTestingPrePushHook: args.includes("--no-testing-pre-push-hook"),
   };
 }
 
@@ -426,7 +593,7 @@ function printInitHelp(): void {
   console.log(`gd-metapro init
 
 Usage:
-  gd-metapro init [--yes] [--no-gdgraph] [--no-gdctx] [--no-gdwiki] [--no-gdskills] [--gdskills-profile recommended] [--no-health] [--no-gdgraph-hook] [--no-gdskills-hook] [--no-health-hook]
+  gd-metapro init [--yes] [--no-gdgraph] [--no-gdctx] [--no-gdwiki] [--no-gdskills] [--gdskills-profile recommended] [--no-health] [--no-testing] [--no-memory] [--no-gdgraph-hook] [--no-gdskills-hook] [--no-health-hook] [--no-testing-post-commit-hook] [--no-testing-pre-push-hook]
 
 Options:
   --yes, -y             Use recommended defaults.
@@ -436,9 +603,13 @@ Options:
   --no-gdskills         Do not install bundled gdskills.
   --gdskills-profile    Install profile: minimal, recommended, full, custom.
   --no-health           Do not enable Code Health.
+  --no-testing          Do not enable Testing Module.
+  --no-memory           Do not enable Documentation Memory.
   --no-gdgraph-hook     Do not install the gdgraph post-commit hook.
   --no-gdskills-hook    Do not install the gdskills post-commit hook.
   --no-health-hook      Do not install the health post-commit hook.
+  --no-testing-post-commit-hook Do not install the testing post-commit refresh hook.
+  --no-testing-pre-push-hook    Do not install the testing pre-push gate hook.
 `);
 }
 
@@ -507,6 +678,34 @@ async function createHealthStructure(root: string): Promise<void> {
     path.join(root, "data", "health", "history"),
     path.join(root, "data", "health", "raw"),
     path.join(root, "skills", "health"),
+  ];
+
+  await Promise.all(dirs.map((dir) => mkdir(dir, { recursive: true })));
+}
+
+async function createMemoryStructure(root: string): Promise<void> {
+  const dirs = [
+    path.join(root, "memory", "templates"),
+    ...MEMORY_TYPES.map((entry) => path.join(root, "memory", entry.folder)),
+    path.join(root, "core", "memory"),
+    path.join(root, "data", "memory", "index"),
+    path.join(root, "data", "memory", "artifacts"),
+    path.join(root, "data", "memory", "queries"),
+    path.join(root, "data", "memory", "raw"),
+    path.join(root, "skills", "memory"),
+  ];
+
+  await Promise.all(dirs.map((dir) => mkdir(dir, { recursive: true })));
+}
+
+async function createTestingStructure(root: string, enableGdwiki: boolean): Promise<void> {
+  const dirs = [
+    path.join(root, "core", "testing"),
+    path.join(root, "data", "testing", "artifacts"),
+    path.join(root, "data", "testing", "history"),
+    path.join(root, "data", "testing", "logs"),
+    path.join(root, "skills", "testing"),
+    ...(enableGdwiki ? [path.join(root, "wiki", "testing")] : []),
   ];
 
   await Promise.all(dirs.map((dir) => mkdir(dir, { recursive: true })));
@@ -615,6 +814,60 @@ async function installHealthPostCommitHook(projectRoot: string): Promise<void> {
   await chmod(hookPath, 0o755);
 }
 
+async function installTestingPostCommitHook(projectRoot: string): Promise<void> {
+  const gitRoot = path.join(projectRoot, ".git");
+  if (!(await pathExists(gitRoot))) {
+    return;
+  }
+
+  const hooksRoot = path.join(gitRoot, "hooks");
+  await mkdir(hooksRoot, { recursive: true });
+
+  const hookPath = path.join(hooksRoot, "post-commit");
+  const blockStart = "# gd-metapro:testing-post-commit:begin";
+  const blockEnd = "# gd-metapro:testing-post-commit:end";
+  const managedBlock = `${blockStart}\n${renderTestingPostCommitHook().trim()}\n${blockEnd}`;
+  const existing = (await pathExists(hookPath))
+    ? await readFile(hookPath, "utf8")
+    : "#!/usr/bin/env sh\n";
+  const blockPattern = new RegExp(
+    `${escapeRegExp(blockStart)}[\\s\\S]*?${escapeRegExp(blockEnd)}`,
+  );
+  const next = blockPattern.test(existing)
+    ? existing.replace(blockPattern, managedBlock)
+    : `${existing.trimEnd()}\n\n${managedBlock}\n`;
+
+  await writeFile(hookPath, next, "utf8");
+  await chmod(hookPath, 0o755);
+}
+
+async function installTestingPrePushHook(projectRoot: string): Promise<void> {
+  const gitRoot = path.join(projectRoot, ".git");
+  if (!(await pathExists(gitRoot))) {
+    return;
+  }
+
+  const hooksRoot = path.join(gitRoot, "hooks");
+  await mkdir(hooksRoot, { recursive: true });
+
+  const hookPath = path.join(hooksRoot, "pre-push");
+  const blockStart = "# gd-metapro:testing-pre-push:begin";
+  const blockEnd = "# gd-metapro:testing-pre-push:end";
+  const managedBlock = `${blockStart}\n${renderTestingPrePushHook().trim()}\n${blockEnd}`;
+  const existing = (await pathExists(hookPath))
+    ? await readFile(hookPath, "utf8")
+    : "#!/usr/bin/env sh\n";
+  const blockPattern = new RegExp(
+    `${escapeRegExp(blockStart)}[\\s\\S]*?${escapeRegExp(blockEnd)}`,
+  );
+  const next = blockPattern.test(existing)
+    ? existing.replace(blockPattern, managedBlock)
+    : `${existing.trimEnd()}\n\n${managedBlock}\n`;
+
+  await writeFile(hookPath, next, "utf8");
+  await chmod(hookPath, 0o755);
+}
+
 async function removeLegacyGdgraphSkillReadme(root: string): Promise<void> {
   const legacyReadmePath = path.join(root, "skills", "gdgraph", "README.md");
   if (!(await pathExists(legacyReadmePath))) {
@@ -665,9 +918,13 @@ function buildManifest({
   enableGdskills,
   gdskillsProfile,
   enableHealth,
+  enableTesting,
+  enableMemory,
   enableGdgraphHook,
   enableGdskillsHook,
   enableHealthHook,
+  enableTestingPostCommitHook,
+  enableTestingPrePushHook,
   agentRuleSources,
   existingManifest,
 }: {
@@ -678,9 +935,13 @@ function buildManifest({
   enableGdskills: boolean;
   gdskillsProfile: GdskillsProfile;
   enableHealth: boolean;
+  enableTesting: boolean;
+  enableMemory: boolean;
   enableGdgraphHook: boolean;
   enableGdskillsHook: boolean;
   enableHealthHook: boolean;
+  enableTestingPostCommitHook: boolean;
+  enableTestingPrePushHook: boolean;
   agentRuleSources: string[];
   existingManifest?: MetaprojectManifest | undefined;
 }): MetaprojectManifest {
@@ -765,7 +1026,17 @@ function buildManifest({
         : {
             enabled: false,
           },
-      memory: { enabled: false },
+      memory: enableMemory
+        ? {
+            enabled: true,
+            core: ".metaproject/core/memory",
+            data: ".metaproject/data/memory",
+            manifest: ".metaproject/modules/memory.md",
+            commands: ["new", "index", "search", "ingest", "check"],
+          }
+        : {
+            enabled: false,
+          },
       tasks: { enabled: false },
       health: enableHealth
         ? {
@@ -784,7 +1055,26 @@ function buildManifest({
         : {
             enabled: false,
           },
-      testing: { enabled: false },
+      testing: enableTesting
+        ? {
+            enabled: true,
+            core: ".metaproject/core/testing",
+            data: ".metaproject/data/testing",
+            manifest: ".metaproject/modules/testing.md",
+            commands: ["init", "analyze", "run", "status", "context", "explain", "related", "report"],
+            hooks: {
+              ...(enableTestingPostCommitHook
+                ? { gitPostCommit: ".git/hooks/post-commit" }
+                : {}),
+              ...(enableTestingPrePushHook
+                ? { prePush: ".git/hooks/pre-push" }
+                : {}),
+              postUpdate: ".metaproject/hooks/post-update.d",
+            },
+          }
+        : {
+            enabled: false,
+          },
     },
     agentEntrypoints: {
       index: ".metaproject/index.md",
@@ -860,6 +1150,8 @@ async function ensureMetaprojectReference(filePath: string): Promise<void> {
     "For commands, search, diff, test logs, lint/build output, and large file reads that can produce long output, use the Metaproject gdctx skill by default before loading raw command output into context.";
   const gdskillsPolicy =
     "For implementation, review, refactoring, planning, documentation, or quality tasks, use project-local Metaproject skills first: .metaproject/skills/catalog.md, .metaproject/project-skills/, then .metaproject/skills/gdskills/. External/global skills are fallback only when explicitly needed.";
+  const testingPolicy =
+    "For creating, changing, debugging, reviewing, or running tests, use the Metaproject testing skill and read .metaproject/data/testing/context.md before broad test search or raw logs.";
 
   if (content.includes(marker)) {
     let next = content;
@@ -873,12 +1165,14 @@ async function ensureMetaprojectReference(filePath: string): Promise<void> {
     next = collapseDuplicatePolicy(next, wikiPolicy);
     next = collapseDuplicatePolicy(next, ctxPolicy);
     next = collapseDuplicatePolicy(next, gdskillsPolicy);
+    next = collapseDuplicatePolicy(next, testingPolicy);
 
     const missingPolicies = [
       ...(next.includes(graphPolicy) ? [] : [graphPolicy]),
       ...(next.includes(wikiPolicy) ? [] : [wikiPolicy]),
       ...(next.includes(ctxPolicy) ? [] : [ctxPolicy]),
       ...(next.includes(gdskillsPolicy) ? [] : [gdskillsPolicy]),
+      ...(next.includes(testingPolicy) ? [] : [testingPolicy]),
     ];
     if (missingPolicies.length > 0) {
       const suffix = next.endsWith("\n") ? "" : "\n";
@@ -895,7 +1189,7 @@ async function ensureMetaprojectReference(filePath: string): Promise<void> {
   const suffix = content.endsWith("\n") ? "" : "\n";
   await writeFile(
     filePath,
-    `${content}${suffix}\n${marker}\n## Metaproject\n\nRead [.metaproject/index.md](.metaproject/index.md) before planning, implementing, or reviewing this repository.\n\n${graphPolicy}\n\n${wikiPolicy}\n\n${ctxPolicy}\n\n${gdskillsPolicy}\n`,
+    `${content}${suffix}\n${marker}\n## Metaproject\n\nRead [.metaproject/index.md](.metaproject/index.md) before planning, implementing, or reviewing this repository.\n\n${graphPolicy}\n\n${wikiPolicy}\n\n${ctxPolicy}\n\n${gdskillsPolicy}\n\n${testingPolicy}\n`,
     "utf8",
   );
 }
