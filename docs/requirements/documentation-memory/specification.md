@@ -1,7 +1,7 @@
 # Documentation Memory: technical specification
 
-Version: 0.2.0
-Status: production-ready specification (v1 scope frozen via best-practices research + interview)
+Version: 0.3.0
+Status: Phase 1 implemented (v1 scope; see section 21). Retrieval is keyword+metadata (embedding-free); embeddings are Phase 3.
 
 ## 1. Purpose
 
@@ -345,15 +345,15 @@ Ignored: `.metaproject/data/memory/index/**`, `.metaproject/data/memory/artifact
 
 ## 21. Implementation phases
 
-### Phase 1 - v1 production (frozen)
+### Phase 1 - v1 production (implemented)
 
-- `memory.config.json` + init integration (`--no-memory`);
-- typed registry + MVP templates + entry validation;
-- `memory new`, `memory index` (inverted index + chunking);
-- `memory search` with the documented ranking formula and filters;
-- `memory ingest` (propose-as-draft + provenance);
-- deterministic dedup/conflict + `memory check`;
-- versioned layered search output; manifest, module doc, skill.
+- [x] `memory.config.json` + init integration (`--no-memory`);
+- [x] typed registry + templates + entry validation;
+- [x] `memory new`, `memory index`;
+- [x] `memory search` with the documented ranking formula and filters;
+- [x] `memory ingest` (propose-as-draft + provenance);
+- [x] deterministic dedup/conflict + `memory check`;
+- [x] versioned layered search output; manifest, module doc, skill.
 
 ### Phase 2 - reconcile and consolidation
 

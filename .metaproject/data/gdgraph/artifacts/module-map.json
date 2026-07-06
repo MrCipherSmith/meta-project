@@ -7,8 +7,10 @@
     "src/commands/gdgraph.ts",
     "src/commands/health.ts",
     "src/commands/init.ts",
+    "src/commands/memory.ts",
     "src/commands/skills.ts",
     "src/commands/status.ts",
+    "src/commands/test.ts",
     "src/commands/update.ts",
     "src/commands/wiki.ts"
   ],
@@ -68,6 +70,27 @@
     "src/lib/fs.ts",
     "src/lib/prompt.ts",
     "src/lib/templates.ts"
+  ],
+  "memory": [
+    "src/memory/check.ts",
+    "src/memory/config.ts",
+    "src/memory/dedup.test.ts",
+    "src/memory/dedup.ts",
+    "src/memory/ingest.ts",
+    "src/memory/search.test.ts",
+    "src/memory/search.ts",
+    "src/memory/service.ts",
+    "src/memory/store.test.ts",
+    "src/memory/store.ts",
+    "src/memory/templates.ts",
+    "src/memory/text.ts",
+    "src/memory/types.ts"
+  ],
+  "testing": [
+    "src/testing/service.test.ts",
+    "src/testing/service.ts",
+    "src/testing/templates.ts",
+    "src/testing/types.ts"
   ],
   "wiki": [
     "src/wiki/service.ts",

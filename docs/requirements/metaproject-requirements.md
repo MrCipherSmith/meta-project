@@ -1,6 +1,6 @@
 # Требования к Metaproject
 
-Version: 0.7.0
+Version: 0.8.0
 
 ## 1. Идея
 
@@ -265,17 +265,28 @@ Markdown-часть:
 
 Документация модуля: `docs/requirements/gdskills/`.
 
-### 4.8 Testing Tools
+### 4.8 Testing Module
 
-Назначение: единый слой для запуска и интерпретации тестов.
+Назначение: единый слой тестового контекста, запуска тестов, интерпретации
+результатов и выдачи короткого agent-readable отчета.
 
 Ожидаемая реализация:
 
 - основа: TS/Bun;
-- запуск unit, integration, e2e и smoke-тестов;
-- генерация моков;
-- нормализация ошибок;
-- выдача краткого отчета для агента: pass/fail, причина, затронутые файлы, следующий шаг.
+- namespace CLI: `gd-metapro test`;
+- при `init` анализирует тестовый стек проекта, scripts, configs, CI, тестовые
+  файлы и инструкции из docs/AGENTS/CLAUDE/wiki/rules;
+- создает hybrid context: `skills/testing/SKILL.md`,
+  `data/testing/context.md/json`, recommendations и wiki pages при включенном
+  `gdwiki`;
+- запуск unit, integration, e2e и smoke-тестов через существующий test runner;
+- нормализация ошибок в `data/testing/artifacts/latest.json` и краткий
+  `latest.md` для агента;
+- changed-scope selection: runner related mode -> `gdgraph` -> naming fallback;
+- optional hooks: post-commit context refresh и pre-push changed-scope gate;
+- `Code Health` потребляет normalized testing report и не владеет test execution.
+
+Документация модуля: `docs/requirements/testing/`.
 
 ### 4.9 gdctx
 

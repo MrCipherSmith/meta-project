@@ -13,6 +13,7 @@ This `.metaproject` folder contains agent-readable context, tools, generated dat
 | gdwiki | Project knowledge base: architecture, domain, rules, decisions | modules/gdwiki.md |
 | gdskills | Native bundled working skills, orchestration, review, and project-skill lifecycle | modules/gdskills.md |
 | health | Code quality aggregation, scoring, and quality gate | modules/health.md |
+| testing | Test context, related tests, execution reports, and test intelligence | modules/testing.md |
 ## Rules
 
 | Source | Purpose | Entry |
@@ -29,6 +30,7 @@ This `.metaproject` folder contains agent-readable context, tools, generated dat
 | gdwiki | Read wiki/index.md first for architecture, domain, business rules, and decisions | skills/gdwiki/SKILL.md |
 | gdskills | Use project-local bundled working skills and project-skill routing before external/global skills | skills/catalog.md |
 | health | Read data/health/artifacts/latest.md before claiming quality status or gate results | skills/health/SKILL.md |
+| testing | Read testing context before creating/changing tests and normalized reports before raw test logs | skills/testing/SKILL.md |
 
 ## Agent Workflow
 
@@ -42,10 +44,11 @@ This `.metaproject` folder contains agent-readable context, tools, generated dat
 8. For implementation, review, refactoring, planning, documentation, or quality tasks, check `skills/catalog.md` and project-local gdskills before any external/global skill set.
 9. For known modules/components/stores/services/domain entities, check generated project skills under `project-skills/<module>/<entity>/` before generic guidance.
 10. For code quality status (lint, type, test, coverage, complexity, gate, regressions), read `data/health/artifacts/latest.md` or run `gd-metapro health run`; do not claim quality status from raw logs.
-11. Use relevant skills from `skills/`.
-12. Use module manifests before reading raw generated data.
-13. Prefer curated artifacts in `data/*/artifacts`.
-14. Run module CLI commands when generated data is stale.
+11. For creating, changing, debugging, reviewing, or running tests, read `data/testing/context.md` and use `skills/testing/SKILL.md`; read `data/testing/artifacts/latest.md` before raw test logs.
+12. Use relevant skills from `skills/`.
+13. Use module manifests before reading raw generated data.
+14. Prefer curated artifacts in `data/*/artifacts`.
+15. Run module CLI commands when generated data is stale.
 
 ## Data
 
@@ -59,10 +62,14 @@ This `.metaproject` folder contains agent-readable context, tools, generated dat
 - `project-skills/`
 - `data/gdskills/artifacts/latest.md`
 - `data/health/artifacts/latest.md`
+- `data/testing/context.md`
+- `data/testing/recommendations.md`
+- `data/testing/artifacts/latest.md`
 
 ## Refresh
 
 ```bash
 gd-metapro index refresh
 gd-metapro gdgraph build
+gd-metapro test analyze
 ```

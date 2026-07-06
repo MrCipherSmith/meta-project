@@ -6,6 +6,8 @@ import { gdgraphCommand } from "./commands/gdgraph";
 import { wikiCommand } from "./commands/wiki";
 import { skillVerifySkillCommand, skillsCommand } from "./commands/skills";
 import { healthCommand } from "./commands/health";
+import { testCommand } from "./commands/test";
+import { memoryCommand } from "./commands/memory";
 import { statusCommand } from "./commands/status";
 import { updateCommand } from "./commands/update";
 
@@ -70,6 +72,16 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (command === "test") {
+    await testCommand(args.slice(1));
+    return;
+  }
+
+  if (command === "memory") {
+    await memoryCommand(args.slice(1));
+    return;
+  }
+
   console.error(`Unknown command: ${command}`);
   printHelp();
   process.exitCode = 1;
@@ -79,7 +91,7 @@ function printHelp(): void {
   console.log(`gd-metapro ${VERSION}
 
 Usage:
-  gd-metapro init [--yes] [--no-gdgraph] [--no-gdctx] [--no-gdwiki] [--no-gdskills] [--gdskills-profile recommended] [--no-health] [--no-gdgraph-hook] [--no-gdskills-hook] [--no-health-hook]
+  gd-metapro init [--yes] [--no-gdgraph] [--no-gdctx] [--no-gdwiki] [--no-gdskills] [--gdskills-profile recommended] [--no-health] [--no-testing] [--no-gdgraph-hook] [--no-gdskills-hook] [--no-health-hook] [--no-testing-post-commit-hook] [--no-testing-pre-push-hook]
   gd-metapro status
   gd-metapro update
   gd-metapro gdgraph build
@@ -104,6 +116,13 @@ Usage:
   gd-metapro skills sync --runtime codex|claude --target <dir>
   gd-metapro skill-verify-skill <skill-or-target>
   gd-metapro skills contracts validate <file> --schema subagent-result
+  gd-metapro test analyze
+  gd-metapro test run [--changed]
+  gd-metapro test status
+  gd-metapro memory new <type> --title "<title>"
+  gd-metapro memory search "<query>" [--status accepted]
+  gd-metapro memory index
+  gd-metapro memory ingest --from-review <path>
   gd-metapro --version
 
 Commands:
@@ -115,6 +134,8 @@ Commands:
   wiki      Manage the local project knowledge base
   skills    Manage bundled Metaproject working skills
   health    Aggregate code quality signals and run the quality gate
+  test      Analyze testing context and normalize test reports
+  memory    Store and search long-term project memory
 `);
 }
 
