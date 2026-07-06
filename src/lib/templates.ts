@@ -1,25 +1,67 @@
 export function renderIndexMarkdown({
   enableGdgraph,
+  enableGdctx,
   ruleSources,
 }: {
   enableGdgraph: boolean;
+  enableGdctx: boolean;
   ruleSources: string[];
 }): string {
-  const moduleRows = enableGdgraph
-    ? "| gdgraph | Code graph, dependencies, symbols, affected context | modules/gdgraph.md |\n"
-    : "";
+  const moduleRows = [
+    enableGdgraph
+      ? "| gdgraph | Code graph, dependencies, symbols, affected context | modules/gdgraph.md |"
+      : "",
+    enableGdctx
+      ? "| gdctx | Token-aware command output and context compression | modules/gdctx.md |"
+      : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
 
-  const dataRefs = enableGdgraph
-    ? [
-        "- `data/gdgraph/artifacts/summary.md`",
-        "- `data/gdgraph/artifacts/module-map.json`",
-        "- `data/gdgraph/queries/latest.md`",
-      ].join("\n")
+  const dataRefItems = [
+    ...(enableGdgraph
+      ? [
+          "- `data/gdgraph/artifacts/summary.md`",
+          "- `data/gdgraph/artifacts/module-map.json`",
+          "- `data/gdgraph/queries/latest.md`",
+        ]
+      : []),
+    ...(enableGdctx ? ["- `data/gdctx/artifacts/latest.md`"] : []),
+  ];
+  const dataRefs = dataRefItems.length > 0
+    ? dataRefItems.join("\n")
     : "- No module data generated yet.";
 
-  const skillsRefs = enableGdgraph
-    ? "| gdgraph | Default navigation layer for finding relevant project files before broad raw search | skills/gdgraph/SKILL.md |"
-    : "";
+  const skillsRefs = [
+    enableGdgraph
+      ? "| gdgraph | Default navigation layer for finding relevant project files before broad raw search | skills/gdgraph/SKILL.md |"
+      : "",
+    enableGdctx
+      ? "| gdctx | Use compact command/search/read outputs before loading large raw output | skills/gdctx/SKILL.md |"
+      : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const workflowItems = [
+    "Read this file first.",
+    "Check enabled modules.",
+    "Load relevant rules from `rules/`.",
+    enableGdgraph
+      ? "For project navigation, file discovery, code understanding, implementation, review, debugging, or refactoring, use `skills/gdgraph/SKILL.md` before broad raw file search when gdgraph is enabled."
+      : "Use relevant skills from `skills/` before broad raw file search.",
+    ...(enableGdctx
+      ? [
+          "For commands, search, diff, test logs, and large file reads that can produce long output, use `skills/gdctx/SKILL.md` when gdctx is enabled.",
+        ]
+      : []),
+    "Use relevant skills from `skills/`.",
+    "Use module manifests before reading raw generated data.",
+    "Prefer curated artifacts in `data/*/artifacts`.",
+    "Run module CLI commands when generated data is stale.",
+  ]
+    .map((item, index) => `${index + 1}. ${item}`)
+    .join("\n");
 
   const rulesRows =
     ruleSources.length > 0
@@ -41,7 +83,7 @@ This \`.metaproject\` folder contains agent-readable context, tools, generated d
 
 | Module | Purpose | Entry |
 |--------|---------|-------|
-${moduleRows || "| _none_ | No modules enabled yet | - |\n"}
+${moduleRows || "| _none_ | No modules enabled yet | - |"}
 ## Rules
 
 | Source | Purpose | Entry |
@@ -57,14 +99,7 @@ ${skillsRefs}
 
 ## Agent Workflow
 
-1. Read this file first.
-2. Check enabled modules.
-3. Load relevant rules from \`rules/\`.
-4. For project navigation, file discovery, code understanding, implementation, review, debugging, or refactoring, use \`skills/gdgraph/SKILL.md\` before broad raw file search when gdgraph is enabled.
-5. Use relevant skills from \`skills/\`.
-6. Use module manifests before reading raw generated data.
-7. Prefer curated artifacts in \`data/*/artifacts\`.
-8. Run module CLI commands when generated data is stale.
+${workflowItems}
 
 ## Data
 
@@ -88,6 +123,8 @@ export function renderAgentEntrypoint({ source }: { source: string }): string {
 Read [.metaproject/index.md](.metaproject/index.md) before planning, implementing, or reviewing this repository.
 
 For project navigation, file discovery, and code-related tasks, use the Metaproject gdgraph skill by default before broad raw file search.
+
+When gdctx is enabled, use the Metaproject gdctx skill for commands, search, diff, test logs, and large file reads that can produce long output.
 `;
 }
 
@@ -96,6 +133,7 @@ export function renderMetaprojectGitignoreBlock(): string {
 .metaproject/runtime/
 .metaproject/core/**/*.ts
 .metaproject/data/**/storage/
+.metaproject/data/**/raw/
 .metaproject/data/**/queries/
 .metaproject/data/**/summaries/
 .metaproject/reports/
@@ -163,20 +201,28 @@ ${sourceList}
 
 export function renderMetaprojectReadme({
   enableGdgraph,
+  enableGdctx,
 }: {
   enableGdgraph: boolean;
+  enableGdctx: boolean;
 }): string {
-  const modules = enableGdgraph
-    ? "- `gdgraph`: code graph and affected context."
+  const moduleItems = [
+    enableGdgraph ? "- `gdgraph`: code graph and affected context." : "",
+    enableGdctx
+      ? "- `gdctx`: compact command/search/read output and raw output archive."
+      : "",
+  ].filter(Boolean);
+  const modules = moduleItems.length > 0
+    ? moduleItems.join("\n")
     : "- No modules enabled yet.";
 
-  const commands = enableGdgraph
-    ? [
-        "gd-metapro status",
-        "gd-metapro gdgraph build",
-        'gd-metapro gdgraph query "module pipelines"',
-      ]
-    : ["gd-metapro status"];
+  const commands = [
+    "gd-metapro status",
+    ...(enableGdgraph
+      ? ["gd-metapro gdgraph build", 'gd-metapro gdgraph query "module pipelines"']
+      : []),
+    ...(enableGdctx ? ["gd-metapro ctx status", "gd-metapro ctx diff"] : []),
+  ];
 
   return `# Project Metaproject
 
@@ -517,5 +563,92 @@ When answering, include a short graph context note:
 - \`graph_context: unavailable\` with the reason.
 
 Graph output is navigation context, not proof. Verify behavior in actual code before making claims.
+`;
+}
+
+export function renderGdctxManifest(): string {
+  return `# gdctx
+
+## Purpose
+
+Runs common project context commands with token-aware filtering and stores raw output separately.
+
+## Commands
+
+- \`gd-metapro ctx status\`
+- \`gd-metapro ctx diff\`
+- \`gd-metapro ctx rg "<pattern>"\`
+- \`gd-metapro ctx read <file>\`
+- \`gd-metapro ctx run -- <command...>\`
+- \`gd-metapro ctx show latest\`
+
+## Data
+
+- \`data/gdctx/artifacts/latest.md\`
+- \`data/gdctx/raw/\`
+- \`data/gdctx/queries/\`
+
+## Skills
+
+- \`skills/gdctx/\`
+`;
+}
+
+export function renderGdctxCoreReadme(): string {
+  return `# gdctx Core
+
+Local gdctx service layer installed by \`gd-metapro init\`.
+
+Responsibilities:
+
+- run project context commands through \`gd-metapro ctx ...\`;
+- preserve raw stdout/stderr under \`.metaproject/data/gdctx/raw\`;
+- write compact curated summaries under \`.metaproject/data/gdctx/artifacts\`;
+- use gdgraph artifacts for narrowing when graph context is available;
+- expose a service layer for future CLI and MCP commands.
+
+MVP note: executable gdctx scripts are added after the requirements/spec phase. This directory is reserved now so project-local overrides have a stable location.
+`;
+}
+
+export function renderGdctxSkillReadme(): string {
+  return `---
+name: gdctx
+description: Use for commands, search, diff, test logs, lint/build output, and large file reads that can produce long output; prefer compact gd-metapro ctx output before loading raw command output into agent context.
+---
+
+# gdctx Skill
+
+Use this skill when a task needs command output, search results, git diff/status, test logs, lint/build output, or large file reads that may produce more context than the agent should load directly.
+
+## Workflow
+
+1. Check whether \`.metaproject/modules/gdctx.md\` exists.
+2. For potentially long output, prefer \`gd-metapro ctx ...\` over raw shell output.
+3. For project navigation or file relationship questions, use gdgraph first when available, then use gdctx for compact command/file output.
+4. Treat gdctx summaries as navigation context. Verify important claims against source files before editing or reporting.
+5. Use raw output only when the compact summary is insufficient.
+
+## Commands
+
+\`\`\`bash
+gd-metapro ctx status
+gd-metapro ctx diff
+gd-metapro ctx rg "<pattern>"
+gd-metapro ctx read <file> --mode outline
+gd-metapro ctx read <file> --mode compact
+gd-metapro ctx run -- <command...>
+gd-metapro ctx show latest
+\`\`\`
+
+## Skip When
+
+- The command output is already tiny and exact raw output is more useful.
+- The user explicitly asks for literal full file contents.
+- \`gd-metapro ctx\` is unavailable.
+
+## Reporting
+
+When gdctx is used, mention the commands run and whether raw output was saved.
 `;
 }

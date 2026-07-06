@@ -13,6 +13,9 @@ import { pathExists } from "../lib/fs";
 import { confirm } from "../lib/prompt";
 import {
   renderAgentEntrypoint,
+  renderGdctxCoreReadme,
+  renderGdctxManifest,
+  renderGdctxSkillReadme,
   renderGdgraphCoreCli,
   renderGdgraphManifest,
   renderGdgraphPostCommitHook,
@@ -29,8 +32,10 @@ import {
 } from "../lib/templates";
 
 type InitOptions = {
+  help: boolean;
   yes: boolean;
   noGdgraph: boolean;
+  noGdctx: boolean;
   noGdgraphHook: boolean;
 };
 
@@ -72,16 +77,31 @@ type MetaprojectManifest = {
 
 export async function initCommand(args: string[]): Promise<void> {
   const options = parseInitArgs(args);
+  if (options.help) {
+    printInitHelp();
+    return;
+  }
+
   const projectRoot = process.cwd();
   const metaprojectRoot = path.join(projectRoot, ".metaproject");
   const alreadyExists = await pathExists(metaprojectRoot);
 
   let enableGdgraph = true;
+  let enableGdctx = true;
   let enableGdgraphHook = false;
   if (options.noGdgraph) {
     enableGdgraph = false;
   } else if (!options.yes) {
     enableGdgraph = await confirm("Enable gdgraph module? Recommended", true);
+  }
+
+  if (options.noGdctx) {
+    enableGdctx = false;
+  } else if (!options.yes) {
+    enableGdctx = await confirm(
+      "Enable gdctx module for compact command/search/read output? Recommended",
+      true,
+    );
   }
 
   if (enableGdgraph) {
@@ -109,9 +129,14 @@ export async function initCommand(args: string[]): Promise<void> {
     }
   }
 
+  if (enableGdctx) {
+    await createGdctxStructure(metaprojectRoot);
+  }
+
   const manifest = buildManifest({
     projectName: path.basename(projectRoot),
     enableGdgraph,
+    enableGdctx,
     enableGdgraphHook,
     agentRuleSources,
   });
@@ -123,7 +148,7 @@ export async function initCommand(args: string[]): Promise<void> {
 
   await writeTextIfMissing(
     path.join(metaprojectRoot, "README.md"),
-    renderMetaprojectReadme({ enableGdgraph }),
+    renderMetaprojectReadme({ enableGdgraph, enableGdctx }),
   );
   await writeTextIfMissing(
     path.join(metaprojectRoot, "core", "README.md"),
@@ -144,7 +169,11 @@ export async function initCommand(args: string[]): Promise<void> {
 
   await writeTextIfChanged(
     path.join(metaprojectRoot, "index.md"),
-    renderIndexMarkdown({ enableGdgraph, ruleSources: agentRuleSources }),
+    renderIndexMarkdown({
+      enableGdgraph,
+      enableGdctx,
+      ruleSources: agentRuleSources,
+    }),
   );
 
   if (enableGdgraph) {
@@ -163,12 +192,28 @@ export async function initCommand(args: string[]): Promise<void> {
     await removeLegacyGdgraphSkillReadme(metaprojectRoot);
   }
 
+  if (enableGdctx) {
+    await writeTextIfMissing(
+      path.join(metaprojectRoot, "modules", "gdctx.md"),
+      renderGdctxManifest(),
+    );
+    await writeTextIfMissing(
+      path.join(metaprojectRoot, "core", "gdctx", "README.md"),
+      renderGdctxCoreReadme(),
+    );
+    await writeTextIfChanged(
+      path.join(metaprojectRoot, "skills", "gdctx", "SKILL.md"),
+      renderGdctxSkillReadme(),
+    );
+  }
+
   console.log(
     alreadyExists
       ? "Updated .metaproject structure."
       : "Created .metaproject structure.",
   );
   console.log(`gdgraph: ${enableGdgraph ? "enabled" : "disabled"}`);
+  console.log(`gdctx: ${enableGdctx ? "enabled" : "disabled"}`);
   if (enableGdgraph) {
     console.log(`gdgraph post-commit hook: ${enableGdgraphHook ? "enabled" : "disabled"}`);
   }
@@ -176,10 +221,26 @@ export async function initCommand(args: string[]): Promise<void> {
 
 function parseInitArgs(args: string[]): InitOptions {
   return {
+    help: args.includes("--help") || args.includes("-h"),
     yes: args.includes("--yes") || args.includes("-y"),
     noGdgraph: args.includes("--no-gdgraph"),
+    noGdctx: args.includes("--no-gdctx"),
     noGdgraphHook: args.includes("--no-gdgraph-hook"),
   };
+}
+
+function printInitHelp(): void {
+  console.log(`gd-metapro init
+
+Usage:
+  gd-metapro init [--yes] [--no-gdgraph] [--no-gdctx] [--no-gdgraph-hook]
+
+Options:
+  --yes, -y             Use recommended defaults.
+  --no-gdgraph          Do not enable gdgraph.
+  --no-gdctx            Do not enable gdctx.
+  --no-gdgraph-hook     Do not install the gdgraph post-commit hook.
+`);
 }
 
 async function createBaseStructure(root: string): Promise<void> {
@@ -208,6 +269,18 @@ async function createGdgraphStructure(root: string): Promise<void> {
     path.join(root, "data", "gdgraph", "summaries"),
     path.join(root, "data", "gdgraph", "queries"),
     path.join(root, "skills", "gdgraph"),
+  ];
+
+  await Promise.all(dirs.map((dir) => mkdir(dir, { recursive: true })));
+}
+
+async function createGdctxStructure(root: string): Promise<void> {
+  const dirs = [
+    path.join(root, "core", "gdctx"),
+    path.join(root, "data", "gdctx", "raw"),
+    path.join(root, "data", "gdctx", "artifacts"),
+    path.join(root, "data", "gdctx", "queries"),
+    path.join(root, "skills", "gdctx"),
   ];
 
   await Promise.all(dirs.map((dir) => mkdir(dir, { recursive: true })));
@@ -292,11 +365,13 @@ function runtimeSourcePath(relativePath: string): string {
 function buildManifest({
   projectName,
   enableGdgraph,
+  enableGdctx,
   enableGdgraphHook,
   agentRuleSources,
 }: {
   projectName: string;
   enableGdgraph: boolean;
+  enableGdctx: boolean;
   enableGdgraphHook: boolean;
   agentRuleSources: string[];
 }): MetaprojectManifest {
@@ -326,6 +401,17 @@ function buildManifest({
                 : {}),
               postUpdate: ".metaproject/hooks/post-update.d",
             },
+          }
+        : {
+            enabled: false,
+          },
+      gdctx: enableGdctx
+        ? {
+            enabled: true,
+            core: ".metaproject/core/gdctx",
+            data: ".metaproject/data/gdctx",
+            manifest: ".metaproject/modules/gdctx.md",
+            commands: ["status", "diff", "rg", "read", "run", "show"],
           }
         : {
             enabled: false,
