@@ -55,6 +55,15 @@
 
 Основной bootstrap-вариант:
 
+Для приватного репозитория через GitHub CLI:
+
+```bash
+gh auth setup-git
+gh api repos/MrCipherSmith/meta-project/contents/scripts/install.sh --jq .content | base64 -d | bash -s -- --global
+```
+
+Для публичного raw URL:
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/MrCipherSmith/meta-project/main/scripts/install.sh | bash -s -- --global
 ```
@@ -76,10 +85,24 @@ pnpm add -g gd-metapro
 Если пользователь не хочет глобальную команду, bootstrap-скрипт должен уметь установиться прямо в проект и сразу выполнить `init`.
 
 ```bash
+gh auth setup-git
+gh api repos/MrCipherSmith/meta-project/contents/scripts/install.sh --jq .content | base64 -d | bash -s -- --project
+```
+
+или для публичного raw URL:
+
+```bash
 curl -fsSL https://raw.githubusercontent.com/MrCipherSmith/meta-project/main/scripts/install.sh | bash -s -- --project
 ```
 
 Non-interactive режим:
+
+```bash
+gh auth setup-git
+gh api repos/MrCipherSmith/meta-project/contents/scripts/install.sh --jq .content | base64 -d | bash -s -- --project --yes
+```
+
+или для публичного raw URL:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/MrCipherSmith/meta-project/main/scripts/install.sh | bash -s -- --project --yes
