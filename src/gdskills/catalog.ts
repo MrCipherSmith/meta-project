@@ -38,9 +38,10 @@ export const BUNDLED_GDSKILLS: BundledSkill[] = [
   skill("entity-skill-creator", "core", ["minimal", "recommended", "full"], "Create canonical project-skills from a path, symbol, wiki page, module, component, store, service, or domain entity.", [
     "Normalize the target into module, entity, files, symbols, and wiki references.",
     "Collect evidence from gdgraph, gdctx, gdwiki, health, and memory when available.",
-    "Create a concise procedural `SKILL.md` with references/templates only when needed.",
-    "Create `skill-changelog.md` and mark generated sections clearly.",
-  ], ["create skill", "generate project skill", "new entity skill"]),
+    "Run `gd-metapro skills create <target> --module <module> --name <skill-name>`; infer module/name from the target when the user did not provide them.",
+    "Run `gd-metapro skills route <target>` and `gd-metapro skills inspect <module>/<skill-name>` to confirm registration and routing.",
+    "Run `gd-metapro skills verify <module>/<skill-name>` and finish with `gd-metapro skills status`.",
+  ], ["create skill", "generate project skill", "new entity skill", "создай скил", "создай скилл для <path>"]),
   skill("entity-skill-verifier", "core", ["minimal", "recommended", "full"], "Verify project-skills against current code, graph, wiki, health, memory, tests, and review lessons.", [
     "Resolve candidate skills through ownership and gdgraph affected context.",
     "Compare skill claims with current code, wiki decisions, health reports, and memory.",
@@ -347,6 +348,7 @@ export function getBundledSkillsForProfile(profile: GdskillsProfile): BundledSki
 export function renderBundledSkill(skillEntry: BundledSkill): string {
   const triggers = skillEntry.triggers.map((trigger) => `- ${trigger}`).join("\n");
   const workflow = skillEntry.workflow.map((step, index) => `${index + 1}. ${step}`).join("\n");
+  const commandContract = renderAgentCommandContract(skillEntry);
 
   return `---
 name: ${skillEntry.name}
@@ -365,7 +367,7 @@ ${triggers}
 
 ## Workflow
 
-${workflow}
+${workflow}${commandContract}
 
 ## Local-First Rules
 
@@ -374,6 +376,37 @@ ${workflow}
 3. Use \`gdgraph\`, \`gdctx\`, \`gdwiki\`, Code Health, and Documentation Memory when they provide narrower context.
 4. Treat external/global skills only as explicit fallback when local Metaproject does not provide the capability.
 5. Verify conclusions against source files before reporting or editing.
+`;
+}
+
+function renderAgentCommandContract(skillEntry: BundledSkill): string {
+  if (skillEntry.name !== "entity-skill-creator") {
+    return "";
+  }
+
+  return `
+
+## Agent Command Contract
+
+When the user asks in natural language to create a skill, for example \`создай скил для init.ts\`, \`создай скилл для src/commands/init.ts\`, or \`create a skill for <path>\`, the agent must run the CLI flow itself. Do not ask the user to run these commands manually.
+
+Required flow:
+
+\`\`\`bash
+gd-metapro skills create <target> --module <module> --name <skill-name>
+gd-metapro skills route <target>
+gd-metapro skills inspect <module>/<skill-name>
+gd-metapro skills verify <module>/<skill-name>
+gd-metapro skills status
+\`\`\`
+
+Inference rules:
+
+1. If the user gives only a basename such as \`init.ts\`, resolve it with graph/search first and use the matching project path.
+2. Infer \`--module\` from the closest stable project area when omitted.
+3. Infer \`--name\` from the entity or file purpose, using kebab-case.
+4. If multiple targets match, ask one short clarification question before creating anything.
+5. Report created files, verification status, and next recommended action.
 `;
 }
 
@@ -400,6 +433,12 @@ Resolution order:
 3. \`.metaproject/project-skills/**\`
 4. \`.metaproject/skills/gdskills/**\`
 5. Explicitly allowed global fallback skills
+
+## Agent Shortcuts
+
+- User says \`создай скил для <path>\`, \`создай скилл для <file>\`, or \`create a skill for <target>\`: load \`gdskills/core/entity-skill-creator/SKILL.md\` and run the create-route-inspect-verify-status CLI flow yourself.
+- User asks which project skill applies to a file/task: run \`gd-metapro skills route <query-or-target>\` before reading broad files.
+- User asks whether a project skill is still valid: run \`gd-metapro skills verify <skill-or-target>\`.
 
 | Skill | Category | Purpose | Entry |
 |---|---|---|---|

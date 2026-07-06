@@ -114,6 +114,7 @@ export async function runHealth(input: HealthRunInput): Promise<HealthRunResult>
     coverage,
     churn,
     baseline,
+    scopeSelector: selector,
   });
   const projectMetrics = metrics.find((m) => m.key === "project");
   const gate = computeGate({
