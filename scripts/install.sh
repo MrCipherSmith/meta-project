@@ -74,6 +74,10 @@ clone_or_update() {
 require_command git
 require_command bun
 
+if command -v gh >/dev/null 2>&1; then
+  gh auth setup-git >/dev/null 2>&1 || true
+fi
+
 if [ "$MODE" = "global" ]; then
   INSTALL_DIR="${GD_METAPRO_HOME:-$HOME/.gd-metapro/gd-metapro}"
   BIN_DIR="${GD_METAPRO_BIN_DIR:-$HOME/.local/bin}"

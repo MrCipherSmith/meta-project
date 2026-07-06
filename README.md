@@ -6,6 +6,16 @@ The public command is `gd-metapro`.
 
 ## Global Install
 
+Private repository install through GitHub CLI:
+
+```bash
+gh auth setup-git
+gh api repos/MrCipherSmith/meta-project/contents/scripts/install.sh --jq .content | base64 -d | bash -s -- --global
+gd-metapro init
+```
+
+Public/raw install:
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/MrCipherSmith/meta-project/main/scripts/install.sh | bash -s -- --global
 gd-metapro init
@@ -22,6 +32,15 @@ export PATH="$HOME/.local/bin:$PATH"
 ## Project-Local Install And Init
 
 Use this when you do not want to install a global command. It installs the runtime into the current project and immediately runs init.
+
+Private repository:
+
+```bash
+gh auth setup-git
+gh api repos/MrCipherSmith/meta-project/contents/scripts/install.sh --jq .content | base64 -d | bash -s -- --project
+```
+
+Public/raw:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/MrCipherSmith/meta-project/main/scripts/install.sh | bash -s -- --project
