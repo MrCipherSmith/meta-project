@@ -13,6 +13,12 @@ Resolution order:
 4. `.metaproject/skills/gdskills/**`
 5. Explicitly allowed global fallback skills
 
+## Agent Shortcuts
+
+- User says `создай скил для <path>`, `создай скилл для <file>`, or `create a skill for <target>`: load `gdskills/core/entity-skill-creator/SKILL.md` and run the create-route-inspect-verify-status CLI flow yourself.
+- User asks which project skill applies to a file/task: run `gd-metapro skills route <query-or-target>` before reading broad files.
+- User asks whether a project skill is still valid: run `gd-metapro skills verify <skill-or-target>`.
+
 | Skill | Category | Purpose | Entry |
 |---|---|---|---|
 | context-router | core | Choose between gdgraph, gdctx, gdwiki, memory, health, and project-skills before raw file reads. | gdskills/core/context-router/SKILL.md |
@@ -38,3 +44,11 @@ Resolution order:
 | review-orchestrator | review | Route review requests to specialized reviewers and consolidate findings. | gdskills/review/review-orchestrator/SKILL.md |
 | review-strict | review | Perform a strict meta-review over findings, weak assumptions, and residual risk. | gdskills/review/review-strict/SKILL.md |
 | review-style | review | Review naming, readability, duplication, dead code, and maintainability. | gdskills/review/review-style/SKILL.md |
+
+<!-- gdskills:project-skills:start -->
+## Project Skills
+
+| Module | Skill | Target | Entry |
+|---|---|---|---|
+| metaproject | init-command | `src/commands/init.ts` | .metaproject/project-skills/metaproject/init-command/SKILL.md |
+<!-- gdskills:project-skills:end -->

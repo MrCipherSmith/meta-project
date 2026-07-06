@@ -1,6 +1,6 @@
 # gdskills: technical specification
 
-Version: 0.19.0
+Version: 0.20.0
 
 ## 1. Purpose
 
@@ -395,6 +395,34 @@ First implementation slice:
 - does not mutate `SKILL.md` during proposal creation;
 - applies proposals only through explicit `gd-metapro skills learn apply <proposal.json>`;
 - on apply, updates `SKILL.md`, bumps patch version, appends `skill-changelog.md` and writes an `.applied.json` audit file.
+
+### 4.3.1 Agent-facing create shortcut
+
+The user should not need to know or type the full project-skill lifecycle command chain.
+
+When the user asks in natural language to create a skill, for example:
+
+- `создай скил для init.ts`;
+- `создай скилл для src/commands/init.ts`;
+- `create a skill for src/commands/init.ts`;
+
+the agent must invoke `entity-skill-creator` and run the CLI flow itself:
+
+```bash
+gd-metapro skills create <target> --module <module> --name <skill-name>
+gd-metapro skills route <target>
+gd-metapro skills inspect <module>/<skill-name>
+gd-metapro skills verify <module>/<skill-name>
+gd-metapro skills status
+```
+
+Target inference rules:
+
+1. If the user gives only a basename such as `init.ts`, resolve it with `gdgraph`/`gdctx`/search first.
+2. Infer `--module` from the closest stable project area when the user did not provide one.
+3. Infer `--name` from the entity or file purpose using kebab-case.
+4. If multiple targets match, ask one short clarification question before creating anything.
+5. Final response must report created files, verification status and the next recommended action.
 
 ### 4.4 status
 

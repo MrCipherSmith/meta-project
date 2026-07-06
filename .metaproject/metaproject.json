@@ -77,7 +77,18 @@
       "hooks": {
         "gitPostCommit": ".git/hooks/post-commit",
         "postUpdate": ".metaproject/hooks/post-update.d"
-      }
+      },
+      "projectSkillRegistry": [
+        {
+          "module": "metaproject",
+          "name": "init-command",
+          "target": "src/commands/init.ts",
+          "path": ".metaproject/project-skills/metaproject/init-command",
+          "version": "0.1.0",
+          "status": "active",
+          "updatedAt": "2026-07-06T18:43:45.720Z"
+        }
+      ]
     },
     "memory": {
       "enabled": false

@@ -19,6 +19,7 @@ import type {
   Priority,
   ScopeKind,
   ScopeMetrics,
+  ScopeSelector,
   Severity,
 } from "./types";
 
@@ -33,8 +34,9 @@ export async function computeMetrics(input: {
   coverage: CoverageData;
   churn: Map<string, number>;
   baseline: Map<string, BaselineEntry>;
+  scopeSelector?: ScopeSelector;
 }): Promise<ScopeMetrics[]> {
-  const { cwd, config, findings, sourceFiles, coverage, churn, baseline } = input;
+  const { cwd, config, findings, sourceFiles, coverage, churn, baseline, scopeSelector } = input;
 
   const locByFile = new Map<string, number>();
   const complexityByFile = new Map<string, number[]>();
@@ -133,10 +135,13 @@ export async function computeMetrics(input: {
     );
   }
 
-  const findingFiles = [
-    ...new Set(findings.map((f) => f.file).filter((f): f is string => Boolean(f))),
-  ].sort();
-  for (const file of findingFiles) {
+  const findingFiles = findings.map((f) => f.file).filter((f): f is string => Boolean(f));
+  const scopedFiles =
+    scopeSelector?.kind === "file" && sourceFiles.includes(scopeSelector.path)
+      ? [scopeSelector.path]
+      : [];
+  const filesToReport = [...new Set([...findingFiles, ...scopedFiles])].sort();
+  for (const file of filesToReport) {
     scopes.push(
       build(
         "file",
