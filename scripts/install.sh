@@ -6,11 +6,12 @@ REF="${GD_METAPRO_REF:-main}"
 MODE="project"
 YES_FLAG=""
 NO_GDGRAPH_FLAG=""
+NO_GDCTX_FLAG=""
 
 usage() {
   cat <<'USAGE'
 Usage:
-  install.sh --project [--yes] [--no-gdgraph]
+  install.sh --project [--yes] [--no-gdgraph] [--no-gdctx]
   install.sh --global
 
 Modes:
@@ -36,6 +37,9 @@ while [ "$#" -gt 0 ]; do
       ;;
     --no-gdgraph)
       NO_GDGRAPH_FLAG="--no-gdgraph"
+      ;;
+    --no-gdctx)
+      NO_GDCTX_FLAG="--no-gdctx"
       ;;
     --help|-h)
       usage
@@ -129,7 +133,7 @@ PROJECT_ROOT="$(pwd)"
 RUNTIME_DIR="$PROJECT_ROOT/.metaproject/runtime/gd-metapro"
 
 clone_or_update "$RUNTIME_DIR"
-"$BUN_BIN" "$RUNTIME_DIR/src/cli.ts" init ${YES_FLAG:+$YES_FLAG} ${NO_GDGRAPH_FLAG:+$NO_GDGRAPH_FLAG}
+"$BUN_BIN" "$RUNTIME_DIR/src/cli.ts" init ${YES_FLAG:+$YES_FLAG} ${NO_GDGRAPH_FLAG:+$NO_GDGRAPH_FLAG} ${NO_GDCTX_FLAG:+$NO_GDCTX_FLAG}
 
 echo "gd-metapro installed for project:"
 echo "  $RUNTIME_DIR"

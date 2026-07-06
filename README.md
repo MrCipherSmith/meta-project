@@ -114,6 +114,22 @@ Graph navigation skill:
 
 This skill tells agents to use `gd-metapro gdgraph ...` by default for project navigation, file discovery, and code-related work before broad raw file search. The user does not need to ask for graph usage explicitly.
 
+If `gdctx` is enabled, init also creates:
+
+```text
+.metaproject/
+  core/gdctx/
+    README.md
+  data/gdctx/
+    raw/
+    artifacts/
+    queries/
+  modules/gdctx.md
+  skills/gdctx/SKILL.md
+```
+
+The `gdctx` skill tells agents to use compact command/search/read output before loading large raw command output into context.
+
 ## Versioning Policy
 
 `gd-metapro init` keeps agent-facing Metaproject files versioned and ignores executable/generated internals.
@@ -133,6 +149,7 @@ Ignored by default:
 - `.metaproject/runtime/`
 - `.metaproject/core/**/*.ts`
 - `.metaproject/data/**/storage/`
+- `.metaproject/data/**/raw/`
 - `.metaproject/data/**/queries/`
 - `.metaproject/data/**/summaries/`
 - `.metaproject/reports/`
@@ -144,6 +161,7 @@ gd-metapro --version
 gd-metapro init
 gd-metapro init --yes
 gd-metapro init --no-gdgraph
+gd-metapro init --no-gdctx
 gd-metapro init --no-gdgraph-hook
 gd-metapro status
 gd-metapro update
@@ -151,12 +169,15 @@ gd-metapro gdgraph build
 gd-metapro gdgraph query cycles
 gd-metapro gdgraph query orphans
 gd-metapro gdgraph affected src/example.ts
+gd-metapro ctx status
+gd-metapro ctx diff
 ```
 
 ## Current Modules
 
 - `spec-orchestrator`: CLI, install, init, manifest, and `.metaproject` structure.
 - `gdgraph`: code graph module for dependencies and affected context.
+- `gdctx`: context module for compact command/search/read output.
 
 ## gdgraph MVP
 

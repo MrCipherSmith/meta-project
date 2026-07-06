@@ -28,6 +28,20 @@
         "postUpdate": ".metaproject/hooks/post-update.d"
       }
     },
+    "gdctx": {
+      "enabled": true,
+      "core": ".metaproject/core/gdctx",
+      "data": ".metaproject/data/gdctx",
+      "manifest": ".metaproject/modules/gdctx.md",
+      "commands": [
+        "status",
+        "diff",
+        "rg",
+        "read",
+        "run",
+        "show"
+      ]
+    },
     "wiki": {
       "enabled": false
     },
