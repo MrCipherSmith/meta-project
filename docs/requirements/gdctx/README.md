@@ -1,5 +1,7 @@
 # gdctx requirements
 
+Version: 0.1.0
+
 `gdctx` - модуль Metaproject для token-aware работы с контекстом: командами shell, поиском, чтением файлов, diff/status output и длинными логами.
 
 Цель модуля - возвращать агенту короткий, проверяемый и релевантный вывод вместо сырых больших outputs, сохраняя полный результат в `.metaproject/data/gdctx/raw/`.
