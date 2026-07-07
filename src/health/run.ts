@@ -15,6 +15,7 @@ import {
   commandExists,
   dataRoot,
   listSourceFiles,
+  matchesAnyPattern,
   moduleOfFile,
   runCommand,
   writeRaw,
@@ -66,8 +67,9 @@ export async function runHealth(input: HealthRunInput): Promise<HealthRunResult>
       }),
   );
   for (const outcome of adapterOutcomes) {
-    sourceInfos.push(outcome.info);
-    findings.push(...outcome.findings);
+    const filteredFindings = filterIgnoredFindings(outcome.findings, config);
+    sourceInfos.push({ ...outcome.info, findings: filteredFindings.length });
+    findings.push(...filteredFindings);
   }
 
   const coverage = await getCoverage(cwd);
@@ -90,7 +92,8 @@ export async function runHealth(input: HealthRunInput): Promise<HealthRunResult>
     const complexityFindings = enabled
       ? await getComplexityFindings(cwd, sourceFiles, config, sourceAnalysis)
       : [];
-    findings.push(...complexityFindings);
+    const filteredComplexityFindings = filterIgnoredFindings(complexityFindings, config);
+    findings.push(...filteredComplexityFindings);
     sourceInfos.push({
       source: "complexity",
       status: cfg.mode === "disabled" ? "skipped" : sourceFiles.length > 0 ? "available" : "skipped",
@@ -99,7 +102,7 @@ export async function runHealth(input: HealthRunInput): Promise<HealthRunResult>
       imported: false,
       command: "builtin: cyclomatic (token-based)",
       toolVersion: null,
-      findings: complexityFindings.length,
+      findings: filteredComplexityFindings.length,
     });
   }
   // sonarqube is a real adapter now (handled in the FINDING_ADAPTERS loop).
@@ -156,6 +159,15 @@ export async function runHealth(input: HealthRunInput): Promise<HealthRunResult>
   }
 
   return { report, markdownPath: paths.markdownPath, jsonPath: paths.jsonPath };
+}
+
+function filterIgnoredFindings(findings: Finding[], config: HealthConfig): Finding[] {
+  return findings.filter((finding) => {
+    if (!finding.file) {
+      return true;
+    }
+    return !matchesAnyPattern(finding.file, config.ignore.paths);
+  });
 }
 
 async function runAdapter(

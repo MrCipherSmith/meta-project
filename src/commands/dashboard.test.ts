@@ -38,7 +38,27 @@ test("build refreshes dashboard from existing data without touching data artifac
       JSON.stringify({
         gate: { status: "pass" },
         sources: [{ source: "typescript", status: "available", findings: 0, required: true }],
-        metrics: [{ key: "project", health_score: 98, findingCounts: { total: 0, byPriority: {} } }],
+        findings: [{ source: "tests", priority: "P0", file: null }],
+        metrics: [
+          {
+            key: "project",
+            health_score: 98,
+            risk_score: 100,
+            loc: 1000,
+            coverage: null,
+            complexity: { max: 12, aboveThreshold: 1 },
+            findingCounts: { total: 1, byPriority: { P0: 1 }, bySource: { tests: 1 } },
+          },
+          {
+            key: "module:public",
+            kind: "module",
+            name: "public",
+            health_score: 0,
+            risk_score: 5,
+            complexity: { max: 99 },
+            findingCounts: { total: 1 },
+          },
+        ],
       }),
       "utf8",
     );
@@ -57,6 +77,10 @@ test("build refreshes dashboard from existing data without touching data artifac
     expect(dashboard).toContain("<h2>Graph</h2>");
     expect(dashboard).toContain("<b>1</b><span>files</span>");
     expect(dashboard).toContain("What needs attention");
+    expect(dashboard).toContain("Why this score?");
+    expect(dashboard).toContain("Report diagnostics");
+    expect(dashboard).toContain("Generated/static scopes are present");
+    expect(dashboard).toContain("unmapped findings");
     expect(dashboard).toContain("gdmHealthFilter");
     expect(dashboard).toContain("data-gdm-table=\"health-files\"");
     expect(rebuiltDashboard).toBe(dashboard);

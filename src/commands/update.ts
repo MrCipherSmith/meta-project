@@ -551,17 +551,36 @@ async function collectHealthDashboardData(
     gate?: { status?: unknown };
     sources?: Array<Record<string, unknown>>;
     metrics?: Array<Record<string, unknown>>;
+    findings?: Array<Record<string, unknown>>;
   };
   const metrics = Array.isArray(report.metrics) ? report.metrics : [];
+  const findings = Array.isArray(report.findings) ? report.findings : [];
   const project = metrics.find((metric) => metric.key === "project") ?? {};
   const counts = (project.findingCounts ?? {}) as {
     total?: unknown;
     byPriority?: Record<string, unknown>;
+    bySource?: Record<string, unknown>;
   };
   const byPriority = counts.byPriority ?? {};
+  const bySource = counts.bySource ?? {};
+  const priorityWeights = { P0: 100, P1: 20, P2: 5, P3: 1 };
+  const riskByPriority = Object.entries(priorityWeights).map(([priority, weight]) => {
+    const count = numberValue(byPriority[priority]);
+    return { priority, findings: count, weight, risk: count * weight };
+  });
+  const findingsBySource = Object.entries(bySource)
+    .map(([source, value]) => ({ source, findings: numberValue(value) }))
+    .sort((a, b) => b.findings - a.findings);
+  const findingsWithoutFile = findings.filter((finding) => !finding.file).length;
   const sortedMetrics = metrics
     .filter((metric) => metric.key !== "project")
     .sort((a, b) => numberValue(b.risk_score) - numberValue(a.risk_score));
+  const dataQualityWarnings = healthDataQualityWarnings({
+    metrics: sortedMetrics,
+    sources: report.sources ?? [],
+    findingsWithoutFile,
+    coverage: project.coverage,
+  });
   const scopes = sortedMetrics
     .filter((metric) => String(metric.kind ?? "") !== "file" && numberValue((metric.findingCounts as { total?: unknown } | undefined)?.total) > 0)
     .slice(0, 12)
@@ -585,6 +604,14 @@ async function collectHealthDashboardData(
     p0: numberValue(byPriority.P0),
     p1: numberValue(byPriority.P1),
     p2: numberValue(byPriority.P2),
+    risk: numberValue(project.risk_score),
+    loc: numberValue(project.loc),
+    complexityMax: numberOrDash((project.complexity as { max?: unknown } | undefined)?.max),
+    complexityAbove: numberValue((project.complexity as { aboveThreshold?: unknown } | undefined)?.aboveThreshold),
+    riskByPriority,
+    findingsBySource,
+    dataQualityWarnings,
+    findingsWithoutFile,
     sources: (report.sources ?? []).map((source) => ({
       source: String(source.source ?? "unknown"),
       status: String(source.status ?? "unknown"),
@@ -595,6 +622,58 @@ async function collectHealthDashboardData(
     files,
     reportHref: "data/health/artifacts/latest.md",
   };
+}
+
+function healthDataQualityWarnings({
+  metrics,
+  sources,
+  findingsWithoutFile,
+  coverage,
+}: {
+  metrics: Array<Record<string, unknown>>;
+  sources: Array<Record<string, unknown>>;
+  findingsWithoutFile: number;
+  coverage: unknown;
+}): Array<{ tone: string; message: string }> {
+  const generatedScopes = metrics
+    .filter((metric) => {
+      const name = String(metric.name ?? metric.key ?? "");
+      return /(^|\/)(public|storybook-static|dist|build|coverage|generated|static|assets)(\/|$)/.test(name);
+    })
+    .filter((metric) => numberValue((metric.findingCounts as { total?: unknown } | undefined)?.total) > 0)
+    .slice(0, 6)
+    .map((metric) => String(metric.name ?? metric.key));
+  const warnings: Array<{ tone: string; message: string }> = [];
+
+  if (generatedScopes.length > 0) {
+    warnings.push({
+      tone: "bad",
+      message: `Generated/static scopes are present in health findings: ${generatedScopes.join(", ")}. Check ignore rules and rerun health before trusting the project score.`,
+    });
+  }
+  if (findingsWithoutFile > 0) {
+    warnings.push({
+      tone: "warn",
+      message: `${findingsWithoutFile} finding(s) do not point to a file. Navigation and file-level ownership are incomplete until the source parser provides file paths.`,
+    });
+  }
+  if (coverage === null || coverage === undefined) {
+    warnings.push({
+      tone: "warn",
+      message: "Coverage is missing. The score currently reflects lint/type/test/audit/complexity only.",
+    });
+  }
+  const failedSources = sources
+    .filter((source) => String(source.status ?? "") === "configured-but-failed")
+    .map((source) => String(source.source ?? "unknown"));
+  if (failedSources.length > 0) {
+    warnings.push({
+      tone: "bad",
+      message: `Configured source(s) failed: ${failedSources.join(", ")}.`,
+    });
+  }
+
+  return warnings;
 }
 
 function metricToScope(metric: Record<string, unknown>): {

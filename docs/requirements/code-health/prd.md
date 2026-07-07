@@ -1,6 +1,6 @@
 # Code Health: PRD
 
-Version: 0.2.0
+Version: 0.2.1
 Status: production-ready scope frozen (see [specification.md](specification.md) section 2 and [brainstorm.md](brainstorm.md) section 5)
 
 ## 1. Purpose
@@ -37,9 +37,9 @@ ESLint, TypeScript, tests, coverage, SonarQube, complexity tools и dependency a
 - Полная замена SonarQube (Sonar подключается как адаптер).
 - Complexity сверх встроенной cyclomatic-метрики на TS/JS; продвинутые/внешние complexity-алгоритмы — через адаптеры.
 - Поддержка всех языков (v1 TS/JS-first; прочие — через адаптеры, иначе `skipped`).
-- entity/component/store и skill-owned scopes (Phase 2).
+- semantic entity/store scopes (component directory and skill-owned scopes are shipped in Phase 2).
 - Сквозной gdskills learning в рантайме health (health лишь пишет findings; gdskills читает их сам).
-- UI dashboard.
+- Full analytics UI beyond the current dashboard diagnostics.
 - Блокирующий pre-commit hook по умолчанию (hook опционален и lightweight).
 
 ## 6. User Stories
@@ -111,4 +111,5 @@ Mitigations:
 - Optional lightweight hooks only.
 - Source status and command provenance in every report.
 - Critical findings always visible independent of aggregate score.
+- Dashboard explains score/risk/gate separately and warns when reports contain generated/static scopes, missing coverage, failed sources, or findings without file paths.
 - `gdskills` learning requires source/provenance/confidence and respects protected manual sections.

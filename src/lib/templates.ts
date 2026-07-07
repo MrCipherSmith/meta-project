@@ -255,6 +255,14 @@ export type MetaprojectDashboardData = {
     p0: number;
     p1: number;
     p2: number;
+    risk: number;
+    loc: number;
+    complexityMax: number | string;
+    complexityAbove: number;
+    riskByPriority: Array<{ priority: string; findings: number; weight: number; risk: number }>;
+    findingsBySource: Array<{ source: string; findings: number }>;
+    dataQualityWarnings: Array<{ tone: string; message: string }>;
+    findingsWithoutFile: number;
     sources: Array<{ source: string; status: string; findings: number; required: boolean }>;
     scopes: Array<{ name: string; kind: string; score: number | string; findings: number; risk: number; complexity?: number | string }>;
     files: Array<{ name: string; score: number | string; findings: number; risk: number; complexity?: number | string }>;
@@ -489,6 +497,20 @@ export function renderMetaprojectDashboardHtml({
               <td>${metricBadge(source.findings, source.findings === 0 ? "good" : "warn")}</td>
               <td>${source.required ? "yes" : "no"}</td>
             </tr>`).join("") ?? "";
+  const healthRiskRows = health?.riskByPriority.map((item) => `
+            <tr class="health-row" data-search="${escapeHtml(`${item.priority} ${item.findings} ${item.weight} ${item.risk}`)}">
+              <td>${escapeHtml(item.priority)}</td>
+              <td>${metricBadge(item.findings, item.findings === 0 ? "good" : "warn")}</td>
+              <td>${item.weight}</td>
+              <td>${metricBadge(item.risk, riskTone(item.risk))}</td>
+            </tr>`).join("") ?? "";
+  const healthSourceRows = health?.findingsBySource.map((item) => `
+            <tr class="health-row" data-search="${escapeHtml(`${item.source} ${item.findings}`)}">
+              <td>${escapeHtml(item.source)}</td>
+              <td>${metricBadge(item.findings, item.findings === 0 ? "good" : "warn")}</td>
+            </tr>`).join("") ?? "";
+  const healthWarnings = health?.dataQualityWarnings.map((warning) => `
+            <div class="diag ${escapeHtml(warning.tone)}">${escapeHtml(warning.message)}</div>`).join("") ?? "";
   const healthScopes = health?.scopes.map((scope) => `
             <tr class="health-row" data-search="${escapeHtml(`${scope.name} ${scope.kind} ${scope.score} ${scope.findings} ${scope.risk} ${scope.complexity ?? ""}`)}">
               <td>${escapeHtml(scope.name)}</td>
@@ -711,6 +733,16 @@ export function renderMetaprojectDashboardHtml({
     .metric.good { color:var(--good); background:var(--good-bg); border-color:transparent; } .metric.warn { color:var(--warn); background:var(--warn-bg); border-color:transparent; } .metric.bad { color:var(--bad); background:var(--bad-bg); border-color:transparent; }
     .note { display:grid; gap:5px; margin:0 0 14px; padding:12px 14px; border:1px solid var(--line); border-radius:10px; background:var(--panel2); }
     .note b { font-size:12px; } .note p { margin:0; color:var(--muted); font-size:12px; }
+    .health-explain { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:12px; margin:0 0 14px; }
+    .health-explain > div { border:1px solid var(--line); border-radius:10px; background:var(--panel2); padding:12px; min-width:0; }
+    .health-explain h3 { margin:0 0 6px; }
+    .health-explain p { margin:0 0 10px; color:var(--muted); font-size:12px; }
+    .table-wrap.compact { margin-top:8px; }
+    .table-wrap.compact table { min-width:320px; font-size:12px; }
+    .diag { border:1px solid var(--line); border-radius:9px; padding:9px 10px; margin:0 0 8px; color:var(--muted); background:var(--panel); font-size:12px; }
+    .diag.good { color:var(--good); background:var(--good-bg); border-color:transparent; }
+    .diag.warn { color:var(--warn); background:var(--warn-bg); border-color:transparent; }
+    .diag.bad { color:var(--bad); background:var(--bad-bg); border-color:transparent; }
     .empty { color:var(--muted); border:1px dashed var(--line); border-radius:10px; padding:16px; background:var(--panel2); font-size:13px; }
     .empty code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--ink); }
     .empty-state { display:grid; gap:10px; color:var(--muted); border:1px dashed var(--line); border-radius:10px; padding:16px; background:var(--panel2); }
@@ -812,6 +844,28 @@ ${cards || "          <p class=\"empty\">No modules enabled.</p>"}
             <div class="kpi"><b><span class="pill ${healthClass}">${escapeHtml(health.status)}</span></b><span>gate</span></div>
             <div class="kpi ${health.findings === 0 ? "good" : "warn"}"><b>${health.findings}</b><span>findings</span></div>
             <div class="kpi ${health.p0 > 0 ? "bad" : (health.p1 > 0 || health.p2 > 0 ? "warn" : "good")}"><b>${health.p0}/${health.p1}/${health.p2}</b><span>P0 / P1 / P2</span></div>
+            <div class="kpi ${riskTone(health.risk)}"><b>${health.risk}</b><span>risk</span></div>
+            <div class="kpi ${complexityTone(health.complexityMax)}"><b>${health.complexityMax}</b><span>max complexity</span></div>
+            <div class="kpi"><b>${health.loc}</b><span>LOC</span></div>
+            <div class="kpi ${health.findingsWithoutFile > 0 ? "warn" : "good"}"><b>${health.findingsWithoutFile}</b><span>unmapped findings</span></div>
+          </div>
+          <div class="health-explain">
+            <div>
+              <h3>Why this score?</h3>
+              <p>Risk is the weighted sum of findings. The numeric score is normalized by LOC; the gate is stricter and can fail on blocker priorities even when module scores look high.</p>
+              <div class="table-wrap compact"><table data-gdm-table="health-risk">
+                <thead><tr><th><button type="button" data-sort-col="0">Priority</button></th><th><button type="button" data-sort-col="1">Findings</button></th><th><button type="button" data-sort-col="2">Weight</button></th><th><button type="button" data-sort-col="3">Risk</button></th></tr></thead>
+                <tbody>${healthRiskRows || `<tr><td colspan="4">No risk rows.</td></tr>`}</tbody>
+              </table></div>
+            </div>
+            <div>
+              <h3>Report diagnostics</h3>
+              ${healthWarnings || `<div class="diag good">No report-quality warnings detected.</div>`}
+              <div class="table-wrap compact"><table data-gdm-table="health-source-breakdown">
+                <thead><tr><th><button type="button" data-sort-col="0">Finding source</button></th><th><button type="button" data-sort-col="1">Findings</button></th></tr></thead>
+                <tbody>${healthSourceRows || `<tr><td colspan="2">No finding source rows.</td></tr>`}</tbody>
+              </table></div>
+            </div>
           </div>
           <div class="table-tools">
             <input id="gdmHealthFilter" type="search" placeholder="Filter health tables by file, scope, source, score..." aria-label="Filter health tables">

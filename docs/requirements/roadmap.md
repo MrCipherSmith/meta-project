@@ -1,6 +1,6 @@
 # Metaproject Roadmap
 
-Version: 0.8.7
+Version: 0.8.8
 
 ## 1. Purpose
 
@@ -103,7 +103,10 @@ Recent technical-feedback fixes shipped in the current implementation track:
   imports;
 - `Code Health`: finding adapters run in parallel while report ordering stays
   deterministic; complexity remains token-based but nested function bodies are
-  counted separately from their parent function;
+  counted separately from their parent function; default generated/static
+  ignores are additive with local config, ignored findings are filtered after
+  source parsing, and the dashboard explains score/risk/gate plus report-quality
+  warnings;
 - Git hooks: `gd-metapro update --hooks` updates only marked managed blocks and
   preserves existing user hook content;
 - CLI parsing: first command slice migrated to the shared `parseArgs` helper.

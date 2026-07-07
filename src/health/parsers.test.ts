@@ -1,4 +1,7 @@
 import { test, expect } from "bun:test";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { eslintAdapter } from "./sources/eslint";
 import { typescriptAdapter } from "./sources/typescript";
 import { dependencyAuditAdapter } from "./sources/dependency-audit";
@@ -81,4 +84,24 @@ test("config falls back to defaults when file is absent", async () => {
   expect(config.sources.typescript?.required).toBe(true);
   expect(config.gate.failOnPriorities).toContain("P0");
   expect(config.metrics.complexityThreshold).toBe(10);
+});
+
+test("config merges default ignored paths with project-specific ignored paths", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "gd-health-config-"));
+  try {
+    await mkdir(path.join(root, ".metaproject"), { recursive: true });
+    await writeFile(
+      path.join(root, ".metaproject", "health.config.json"),
+      JSON.stringify({ ignore: { paths: ["custom-generated/**"] } }),
+      "utf8",
+    );
+
+    const config = await loadHealthConfig(root);
+    expect(config.ignore.paths).toContain("custom-generated/**");
+    expect(config.ignore.paths).toContain("storybook-static/**");
+    expect(config.ignore.paths).toContain("public/**");
+    expect(config.ignore.paths).toContain("**/public/**");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });

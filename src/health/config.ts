@@ -71,7 +71,7 @@ export async function loadHealthConfig(cwd: string): Promise<HealthConfig> {
   return {
     schemaVersion: parsed.schemaVersion ?? base.schemaVersion,
     ignore: {
-      paths: parsed.ignore?.paths ?? base.ignore.paths,
+      paths: [...new Set([...base.ignore.paths, ...(parsed.ignore?.paths ?? [])])],
     },
     sources: { ...base.sources, ...(parsed.sources ?? {}) },
     metrics: { ...base.metrics, ...(parsed.metrics ?? {}) },

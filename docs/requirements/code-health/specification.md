@@ -1,7 +1,7 @@
 # Code Health: technical specification
 
-Version: 0.8.3
-Status: Phase 1 + Phase 2 complete (module implemented; see section 21). Phase 3 (advanced) is future. Complexity is a token-based approximation with nested function bodies counted separately; full AST precision deferred.
+Version: 0.8.4
+Status: Phase 1 + Phase 2 complete (module implemented; see section 21). Phase 3 (advanced) is future. Complexity is a token-based approximation with nested function bodies counted separately; full AST precision deferred. Dashboard diagnostics, additive ignore defaults, and post-parse ignored finding filtering are shipped for large frontend projects.
 
 ## 1. Purpose
 
@@ -27,6 +27,8 @@ Markdown/JSON reports with a quality gate suitable for orchestrators and CI.
 | D11 | Source failure semantics | Sources are `required` or `optional`; missing/failed required -> fail in `--strict`, warn otherwise; optional -> skipped, no gate impact. |
 | D12 | Finding schema | Versioned (`schemaVersion`) stable public contract; changes follow semver; consumers validate. |
 | D13 | Test execution ownership | `gd-metapro test` is the canonical owner of test context and execution reports. Health `tests` source consumes only compatible `.metaproject/data/testing/artifacts/latest.json` reports and does not run a full test suite implicitly in `auto` mode. |
+| D14 | Score vs gate | Gate remains strict and can fail on P0. Dashboard must explain score/risk/gate separately so a blocked project is not reduced to an opaque `0` score. |
+| D15 | Ignore semantics | Default generated/static ignore paths are additive with project-specific config, and normalized findings with ignored file paths are filtered after every source parser. |
 
 ## 3. Placement
 
@@ -128,6 +130,11 @@ Default config written on enable:
 
 `complexity.mode: auto` refers to the built-in token-based metric (section 9), not an
 external tool. External complexity tools are added as adapters (section 5).
+
+Default ignore paths are merged with project-specific `ignore.paths`, not replaced
+by them. This lets already-initialized projects inherit newer generated/static
+defaults (`**/public/**`, `**/storybook-static/**`, assets/static/generated)
+without losing their local ignores.
 
 ## 5. Sources and the SourceAdapter contract
 
@@ -325,7 +332,8 @@ gd-metapro health trend [--scope <scope-key>] [--limit <n>]
 2. Detect sources; resolve scope; honor `--strict`.
 3. Run/import enabled finding adapters in parallel while preserving deterministic
    report ordering by adapter registry order.
-4. Normalize findings; map to scopes via file paths and gdgraph when available.
+4. Normalize findings; remove findings whose `file` matches ignored paths; map to
+   scopes via file paths and gdgraph when available.
 5. Compute metrics, scores, trend, regression vs baseline.
 6. Evaluate gate.
 7. Write layered outputs.
@@ -347,6 +355,14 @@ summary; trend/regression summary; suggested next action.
 
 `latest.json` contains the full normalized findings, per-scope metrics, gate
 result, and `schemaVersion`.
+
+The HTML dashboard reads `latest.json` and must show:
+
+- score, gate, findings, risk, LOC, max complexity and unmapped finding count;
+- risk breakdown by priority (`count * weight`);
+- finding breakdown by source;
+- data-quality warnings for generated/static scopes in findings, missing
+  coverage, configured-but-failed sources and findings without file paths.
 
 ## 15. Service contract
 
