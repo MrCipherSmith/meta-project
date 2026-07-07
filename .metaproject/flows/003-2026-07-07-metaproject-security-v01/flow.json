@@ -1,0 +1,122 @@
+{
+  "schemaVersion": 1,
+  "id": "003",
+  "slug": "metaproject-security-v01",
+  "title": "Implement Metaproject Security v0.1 (Phase 1+2: security command + deterministic engine)",
+  "status": "in-progress",
+  "createdAt": "2026-07-07T18:56:14.858Z",
+  "updatedAt": "2026-07-07T19:43:34.482Z",
+  "source": {
+    "type": "description",
+    "ref": null
+  },
+  "acChecksum": "sha256:58741408141f545e5229de988a49ecd9223d74654a26db6d7b3081f2d3d886ce",
+  "acConfirmed": {},
+  "pr": {
+    "url": null
+  },
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Collect remaining context",
+      "kind": "context",
+      "status": "done"
+    },
+    {
+      "id": "T2",
+      "title": "Implement per plan",
+      "kind": "implement",
+      "status": "done"
+    },
+    {
+      "id": "T3",
+      "title": "Add/adjust tests and make them pass",
+      "kind": "test",
+      "status": "done"
+    },
+    {
+      "id": "T4",
+      "title": "Self-review and prepare draft PR",
+      "kind": "review",
+      "status": "todo"
+    },
+    {
+      "id": "T5",
+      "title": "CLI src/commands/security.ts + cli.ts wiring + printHelp",
+      "kind": "implement",
+      "status": "done"
+    },
+    {
+      "id": "T6",
+      "title": "Module registration: init/update manifest+scaffold, MODULE_COMMANDS, profiles, gitignore",
+      "kind": "implement",
+      "status": "done"
+    },
+    {
+      "id": "T7",
+      "title": "Docs: cli-reference, modules/architecture, roadmap, README, security spec status",
+      "kind": "docs",
+      "status": "done"
+    }
+  ],
+  "history": [
+    {
+      "at": "2026-07-07T18:56:14.858Z",
+      "event": "created"
+    },
+    {
+      "at": "2026-07-07T18:58:22.949Z",
+      "event": "task-added",
+      "detail": "T5: CLI src/commands/security.ts + cli.ts wiring + printHelp"
+    },
+    {
+      "at": "2026-07-07T18:58:22.994Z",
+      "event": "task-added",
+      "detail": "T6: Module registration: init/update manifest+scaffold, MODULE_COMMANDS, profiles, gitignore"
+    },
+    {
+      "at": "2026-07-07T18:58:23.038Z",
+      "event": "task-added",
+      "detail": "T7: Docs: cli-reference, modules/architecture, roadmap, README, security spec status"
+    },
+    {
+      "at": "2026-07-07T18:58:23.094Z",
+      "event": "frozen",
+      "detail": "9 criteria; checksum recorded"
+    },
+    {
+      "at": "2026-07-07T18:58:23.141Z",
+      "event": "started"
+    },
+    {
+      "at": "2026-07-07T18:58:23.188Z",
+      "event": "task-done",
+      "detail": "T1: Collect remaining context"
+    },
+    {
+      "at": "2026-07-07T19:14:49.422Z",
+      "event": "task-done",
+      "detail": "T2: Implement per plan"
+    },
+    {
+      "at": "2026-07-07T19:14:49.514Z",
+      "event": "task-done",
+      "detail": "T5: CLI src/commands/security.ts + cli.ts wiring + printHelp"
+    },
+    {
+      "at": "2026-07-07T19:14:49.610Z",
+      "event": "task-done",
+      "detail": "T3: Add/adjust tests and make them pass"
+    },
+    {
+      "at": "2026-07-07T19:26:31.156Z",
+      "event": "task-done",
+      "detail": "T6: Module registration: init/update manifest+scaffold, MODULE_COMMANDS, profiles, gitignore"
+    },
+    {
+      "at": "2026-07-07T19:43:34.482Z",
+      "event": "task-done",
+      "detail": "T7: Docs: cli-reference, modules/architecture, roadmap, README, security spec status"
+    }
+  ]
+}
