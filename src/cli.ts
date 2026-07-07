@@ -11,6 +11,7 @@ import { memoryCommand } from "./commands/memory";
 import { flowCommand } from "./commands/flow";
 import { rulesCommand } from "./commands/rules";
 import { statusCommand } from "./commands/status";
+import { modulesCommand } from "./commands/modules";
 import { updateCommand } from "./commands/update";
 import { dashboardCommand } from "./commands/dashboard";
 import packageJson from "../package.json" with { type: "json" };
@@ -38,6 +39,11 @@ export async function main(): Promise<void> {
 
   if (command === "status") {
     await statusCommand();
+    return;
+  }
+
+  if (command === "modules") {
+    await modulesCommand(args.slice(1));
     return;
   }
 
@@ -117,6 +123,7 @@ function printHelp(): void {
 Usage:
   gd-metapro init [--yes] [--no-gdgraph] [--no-gdctx] [--no-gdwiki] [--no-gdskills] [--gdskills-profile recommended] [--no-health] [--no-testing] [--no-memory] [--no-gdgraph-hook] [--no-gdskills-hook] [--no-health-hook] [--no-testing-post-commit-hook] [--no-testing-pre-push-hook]
   gd-metapro status
+  gd-metapro modules [status | enable <name> | disable <name>]
   gd-metapro update [--skip-runtime] [--hooks]
   gd-metapro dashboard build
   gd-metapro dashboard open
@@ -161,6 +168,7 @@ Usage:
 Commands:
   init      Initialize .metaproject in the current project
   status    Show local Metaproject status
+  modules   View and toggle Metaproject modules (interactive)
   update    Refresh managed service files without touching data artifacts
   dashboard Build or open the project admin dashboard
   dash      Rebuild and open .metaproject/gd-metapro-dashboard.html
