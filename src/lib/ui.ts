@@ -74,3 +74,25 @@ export function nextSteps(steps: string[]): void {
 export function note(message: string): void {
   console.log(`  ${style.dim(message)}`);
 }
+
+export type HelpOption = { flag: string; desc: string };
+
+// Bold command name plus a dim one-line summary; the header for `--help` output.
+export function helpTitle(command: string, summary: string): void {
+  console.log(`${style.bold(command)} ${style.dim(`— ${summary}`)}`);
+}
+
+export function helpUsage(lines: string[]): void {
+  heading("Usage");
+  for (const line of lines) {
+    console.log(`  ${style.cyan(line)}`);
+  }
+}
+
+export function helpOptions(options: HelpOption[]): void {
+  heading("Options");
+  const width = Math.max(...options.map((option) => option.flag.length));
+  for (const option of options) {
+    console.log(`  ${style.cyan(option.flag.padEnd(width))}  ${style.dim(option.desc)}`);
+  }
+}
