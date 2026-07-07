@@ -299,6 +299,21 @@ This lists the most common entry points only. Each command has additional
 subcommands and flags; run `gd-metapro <command> --help` (or `gd-metapro`
 with no arguments) for the full subcommand and flag surface.
 
+## Developer Documentation
+
+Full developer documentation — reverse-engineered from the source — lives under
+[docs/docs/](docs/docs/):
+
+- **[Onboarding](docs/docs/onboarding.md)** — install paths, first-run walkthrough, the build loop, TTY/CI behavior.
+- **[Architecture](docs/docs/architecture.md)** — the four-layer pattern, the two invariants, cross-module data flows, integrations.
+- **[Module reference](docs/docs/modules.md)** — one section per module: purpose, CLI surface, key files, mechanics, data paths.
+- **[CLI reference](docs/docs/cli-reference.md)** — every command, subcommand, and flag.
+- **[Workspace & lifecycle](docs/docs/workspace-and-lifecycle.md)** — the `.metaproject/` contract and `init`/`update` lifecycle.
+
+Product specifications (the intended design) live separately under
+[docs/requirements/](docs/requirements/). Where the two disagree, `docs/docs/`
+describes current behavior.
+
 ## Current Modules
 
 The `gd-metapro` CLI itself is the toolkit core: it provides install, `init`,
