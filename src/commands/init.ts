@@ -11,7 +11,18 @@ import { fileURLToPath } from "node:url";
 import { optionValue } from "../lib/args";
 import { pathExists } from "../lib/fs";
 import { choice, confirm } from "../lib/prompt";
-import { banner, heading, note, statusLine, style, symbols, nextSteps } from "../lib/ui";
+import {
+  banner,
+  heading,
+  helpOptions,
+  helpTitle,
+  helpUsage,
+  note,
+  statusLine,
+  style,
+  symbols,
+  nextSteps,
+} from "../lib/ui";
 import {
   GDSKILLS_PROFILES,
   type GdskillsProfile,
@@ -719,28 +730,25 @@ function parseInitArgs(args: string[]): InitOptions {
 }
 
 function printInitHelp(): void {
-  console.log(`gd-metapro init
-
-Usage:
-  gd-metapro init [--yes] [--no-gdgraph] [--no-gdctx] [--no-gdwiki] [--no-gdskills] [--gdskills-profile recommended] [--no-health] [--no-testing] [--no-memory] [--no-tasks] [--no-gdgraph-hook] [--no-gdskills-hook] [--no-health-hook] [--no-testing-post-commit-hook] [--no-testing-pre-push-hook]
-
-Options:
-  --yes, -y             Use recommended defaults.
-  --no-gdgraph          Do not enable gdgraph.
-  --no-gdctx            Do not enable gdctx.
-  --no-gdwiki           Do not enable gdwiki.
-  --no-gdskills         Do not install bundled gdskills.
-  --gdskills-profile    Install profile: minimal, recommended, full, custom.
-  --no-health           Do not enable Code Health.
-  --no-testing          Do not enable Testing Module.
-  --no-memory           Do not enable Documentation Memory.
-  --no-tasks            Do not enable Task Manager.
-  --no-gdgraph-hook     Do not install the gdgraph post-commit hook.
-  --no-gdskills-hook    Do not install the gdskills post-commit hook.
-  --no-health-hook      Do not install the health post-commit hook.
-  --no-testing-post-commit-hook Do not install the testing post-commit refresh hook.
-  --no-testing-pre-push-hook    Do not install the testing pre-push gate hook.
-`);
+  helpTitle("gd-metapro init", "set up a .metaproject workspace");
+  helpUsage(["gd-metapro init [options]"]);
+  helpOptions([
+    { flag: "--yes, -y", desc: "Use recommended defaults (non-interactive)." },
+    { flag: "--no-gdgraph", desc: "Do not enable gdgraph." },
+    { flag: "--no-gdctx", desc: "Do not enable gdctx." },
+    { flag: "--no-gdwiki", desc: "Do not enable gdwiki." },
+    { flag: "--no-gdskills", desc: "Do not install bundled gdskills." },
+    { flag: "--gdskills-profile", desc: "Install profile: minimal, recommended, full, custom." },
+    { flag: "--no-health", desc: "Do not enable Code Health." },
+    { flag: "--no-testing", desc: "Do not enable Testing Module." },
+    { flag: "--no-memory", desc: "Do not enable Documentation Memory." },
+    { flag: "--no-tasks", desc: "Do not enable Task Manager." },
+    { flag: "--no-gdgraph-hook", desc: "Do not install the gdgraph post-commit hook." },
+    { flag: "--no-gdskills-hook", desc: "Do not install the gdskills post-commit hook." },
+    { flag: "--no-health-hook", desc: "Do not install the health post-commit hook." },
+    { flag: "--no-testing-post-commit-hook", desc: "Do not install the testing post-commit refresh hook." },
+    { flag: "--no-testing-pre-push-hook", desc: "Do not install the testing pre-push gate hook." },
+  ]);
 }
 
 async function createBaseStructure(root: string): Promise<void> {

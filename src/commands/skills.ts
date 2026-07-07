@@ -16,6 +16,7 @@ import {
   validateContractFile,
 } from "../gdskills/contracts";
 import { installGdskills } from "../gdskills/install";
+import { banner, heading, note, style, symbols, nextSteps } from "../lib/ui";
 import {
   applyLearningProposal,
   learnProjectSkill,
@@ -88,18 +89,26 @@ export async function skillsCommand(args: string[]): Promise<void> {
   if (command === "install") {
     const profile = normalizeGdskillsProfile(optionValue(args, "--profile"));
     const metaprojectRoot = path.join(process.cwd(), ".metaproject");
+    banner("gd-metapro skills install", `Profile: ${profile}`);
     if (!(await pathExists(metaprojectRoot))) {
-      console.error("Metaproject is not initialized. Run: gd-metapro init");
+      console.log(`  ${style.red(symbols.cross)} Metaproject is not initialized.`);
+      console.log(`  ${style.cyan(symbols.arrow)} Run ${style.cyan("gd-metapro init")} first.`);
       process.exitCode = 1;
       return;
     }
 
     const result = await installGdskills(metaprojectRoot, profile);
-    console.log(`Installed gdskills profile: ${result.profile}`);
-    console.log(`Installed skills: ${result.installedSkills}`);
-    console.log(`Skills root: ${relativeToCwd(result.skillsRoot)}`);
-    console.log(`Catalog: ${relativeToCwd(result.catalogPath)}`);
-    console.log(`Manifest: ${relativeToCwd(result.manifestPath)}`);
+    console.log(
+      `  ${style.green(symbols.ok)} Installed ${style.bold(String(result.installedSkills))} skills for profile ${style.bold(result.profile)}`,
+    );
+    heading("Locations");
+    note(`skills   ${relativeToCwd(result.skillsRoot)}`);
+    note(`catalog  ${relativeToCwd(result.catalogPath)}`);
+    note(`manifest ${relativeToCwd(result.manifestPath)}`);
+    nextSteps([
+      `Browse the catalog: ${style.cyan("gd-metapro skills catalog")}.`,
+      `Route a request: ${style.cyan("gd-metapro skills route <target>")}.`,
+    ]);
     return;
   }
 

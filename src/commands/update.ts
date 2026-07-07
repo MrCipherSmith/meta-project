@@ -37,7 +37,18 @@ import {
   renderWikiPageTemplate,
 } from "../wiki/templates";
 import { pathExists } from "../lib/fs";
-import { banner, heading, note, statusLine, style, symbols, nextSteps } from "../lib/ui";
+import {
+  banner,
+  heading,
+  helpOptions,
+  helpTitle,
+  helpUsage,
+  note,
+  statusLine,
+  style,
+  symbols,
+  nextSteps,
+} from "../lib/ui";
 import {
   renderGdctxCoreReadme,
   renderGdctxConfig,
@@ -1164,21 +1175,21 @@ function escapeRegExp(value: string): string {
 }
 
 function printHelp(): void {
-  console.log(`gd-metapro update
-
-Usage:
-  gd-metapro update [--skip-runtime] [--hooks] [--no-tasks]
-
-Default behavior:
-  - updates managed runtime when present;
-  - refreshes .metaproject service files, core scripts, managed skills, module manifests, dashboard and hooks;
-  - backfills the Task Manager (tasks) module for projects initialized before it existed;
-  - migrates agent entrypoint policies (AGENTS.md/CLAUDE.md);
-  - does not write .metaproject/data artifacts.
-
-Options:
-  --skip-runtime  Refresh local service files without fetching the managed runtime.
-  --hooks         Run executable .metaproject/hooks/post-update.d hooks explicitly.
-  --no-tasks      Do not backfill/enable the Task Manager module.
-`);
+  helpTitle("gd-metapro update", "refresh .metaproject service files (data left untouched)");
+  helpUsage(["gd-metapro update [--skip-runtime] [--hooks] [--no-tasks]"]);
+  heading("Default behavior");
+  for (const line of [
+    "updates managed runtime when present;",
+    "refreshes service files, core scripts, managed skills, manifests, dashboard, hooks;",
+    "backfills the Task Manager (tasks) module for projects initialized before it existed;",
+    "migrates agent entrypoint policies (AGENTS.md/CLAUDE.md);",
+    "does not write .metaproject/data artifacts.",
+  ]) {
+    console.log(`  ${style.dim(symbols.bullet)} ${style.dim(line)}`);
+  }
+  helpOptions([
+    { flag: "--skip-runtime", desc: "Refresh local service files without fetching the managed runtime." },
+    { flag: "--hooks", desc: "Run executable .metaproject/hooks/post-update.d hooks explicitly." },
+    { flag: "--no-tasks", desc: "Do not backfill/enable the Task Manager module." },
+  ]);
 }
