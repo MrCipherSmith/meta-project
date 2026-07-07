@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "assets": {
+    "treesitter-grammars": {
+      "version": "0.22.0",
+      "url": "https://assets.gd-metapro.dev/treesitter/grammars-0.22.0.tar.gz",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 1048576
+    }
+  }
+}

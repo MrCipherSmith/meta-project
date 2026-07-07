@@ -12,6 +12,7 @@ import {
 import { syncAgentRules } from "../rules/agent-entrypoints";
 import { hasDistilledEntrypoints } from "../rules/distill";
 import { STANDARD_VERSION, computeProfiles } from "../standard/profiles";
+import { reconcileCapabilitiesOnUpdate } from "../capability/registry";
 import { renderHealthConfig } from "../health/config";
 import {
   renderHealthCoreReadme,
@@ -458,6 +459,11 @@ async function refreshServiceFiles(projectRoot: string, options: UpdateOptions):
   }
 
   await updateManifestAgentEntrypoints(metaprojectRoot, ruleSources);
+
+  // Reconcile registered opt-in capabilities into the manifest without changing
+  // their enabled state or disabling any module. No-op with the empty Block 0
+  // registry (golden rule, AC0-12).
+  await reconcileCapabilitiesOnUpdate(projectRoot);
 
   return {
     modules: {
