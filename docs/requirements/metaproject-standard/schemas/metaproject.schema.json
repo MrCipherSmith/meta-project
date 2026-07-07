@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://metaproject.dev/schemas/metaproject.schema.json",
+  "title": "Metaproject Manifest",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schemaVersion", "standardVersion", "createdBy", "paths", "modules"],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "standardVersion": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(-[A-Za-z0-9.-]+)?$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "createdBy": {
+      "type": "string",
+      "minLength": 1
+    },
+    "projectType": {
+      "type": "string"
+    },
+    "languages": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "profiles": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["minimal", "agent", "ci", "full"]
+      },
+      "uniqueItems": true
+    },
+    "paths": {
+      "$ref": "#/$defs/paths"
+    },
+    "modules": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "module.schema.json"
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "paths": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "required": ["root", "data", "rules", "skills", "modules"],
+      "properties": {
+        "root": { "type": "string" },
+        "core": { "type": "string" },
+        "data": { "type": "string" },
+        "rules": { "type": "string" },
+        "skills": { "type": "string" },
+        "projectSkills": { "type": "string" },
+        "modules": { "type": "string" },
+        "reports": { "type": "string" },
+        "templates": { "type": "string" }
+      }
+    }
+  }
+}
+

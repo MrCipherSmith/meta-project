@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://metaproject.dev/schemas/module.schema.json",
+  "title": "Metaproject Module",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["enabled", "manifest"],
+  "properties": {
+    "enabled": {
+      "type": "boolean"
+    },
+    "version": {
+      "type": "string"
+    },
+    "manifest": {
+      "type": "string"
+    },
+    "core": {
+      "type": "string"
+    },
+    "data": {
+      "type": "string"
+    },
+    "skills": {
+      "type": "string"
+    },
+    "projectSkills": {
+      "type": "string"
+    },
+    "wiki": {
+      "type": "string"
+    },
+    "memory": {
+      "type": "string"
+    },
+    "commands": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "capabilities": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "hooks": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "schema": {
+      "type": "string"
+    }
+  },
+  "anyOf": [
+    { "required": ["data"] },
+    { "required": ["core"] },
+    { "required": ["skills"] },
+    { "required": ["projectSkills"] },
+    { "required": ["wiki"] },
+    { "required": ["memory"] }
+  ]
+}
+

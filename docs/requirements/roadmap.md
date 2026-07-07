@@ -1,6 +1,6 @@
 # Metaproject Roadmap
 
-Version: 0.8.2
+Version: 0.8.3
 
 ## 1. Purpose
 
@@ -15,6 +15,8 @@ registry to human-readable status and points at each module's requirements.
 - `implemented` - shipped and enabled by default in `gd-metapro init`.
 - `in progress` - partially shipped; some phases remain.
 - `spec ready` - production-ready requirements frozen; implementation not started.
+- `draft spec package` - requirements/specification package exists, but the
+  implementation contract is not frozen yet.
 - `planned` - drafted or idea stage, not yet spec-frozen (manifest entry disabled).
 
 ## 3. Module Status
@@ -30,6 +32,7 @@ registry to human-readable status and points at each module's requirements.
 | Code Health | `gd-metapro health` | `health` | implemented (Phase 1 + 2) | [code-health/](code-health/) |
 | Testing Module | `gd-metapro test` | `testing` | implemented (MVP) | [testing/](testing/) |
 | gdskills / Project Skills | `gd-metapro skills` | `gdskills` | implemented (Phase 1 + bundled orchestrators) | [gdskills/](gdskills/) |
+| Metaproject Standard | future `gd-metapro standard` | - | draft spec package | [metaproject-standard/](metaproject-standard/) |
 
 ## 4. gdwiki (implemented, MVP + collector)
 
@@ -79,9 +82,10 @@ Remaining:
 Order is indicative, not committed:
 
 1. Task Manager Phase 2 (`gd-metapro flow`) - Notion/Jira adapters, flow board artifact, memory/wiki links.
-2. gdwiki release metrics and richer dashboard navigation.
-3. gdskills semantic verification against entity ownership maps.
-4. Code Health Phase 3 (`gd-metapro health`) - advanced trend analytics and larger-project tuning.
+2. Metaproject Standard validator (`gd-metapro standard validate|doctor|capabilities`) from the draft schemas.
+3. gdwiki release metrics and richer dashboard navigation.
+4. gdskills semantic verification against entity ownership maps.
+5. Code Health Phase 3 (`gd-metapro health`) - advanced trend analytics and larger-project tuning.
 
 ## 7. Technical Remediation Status
 
