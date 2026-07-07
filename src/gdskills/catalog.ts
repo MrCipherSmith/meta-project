@@ -329,12 +329,12 @@ export const BUNDLED_GDSKILLS: BundledSkill[] = [
     "Flag contradictions, missing constraints, and unsupported claims.",
     "Suggest minimal updates with provenance.",
   ], ["check consistency", "validate spec", "doc contradictions"]),
-  skill("requirements-package-orchestrator", "planning", ["recommended", "full"], "Create or update Metaproject requirements packages under docs/requirements with PRD, specification, README, optional protocols/schemas, verification, review, and roadmap updates. Use autodoc-orchestrator instead for reverse-engineering current codebase documentation.", [
+  skill("docpack-orchestrator", "planning", ["recommended", "full"], "Create or update Metaproject requirements packages under docs/requirements with PRD, specification, README, optional protocols/schemas, verification, review, and roadmap updates. Use autodoc-orchestrator instead for reverse-engineering current codebase documentation.", [
     "Design the required file set from requirements-package-standard.",
     "Write or update README, PRD, specification, optional policies/protocols/schemas.",
-    "Run structural verification and requirements-package-reviewer before final output.",
+    "Run structural verification and docpack-review before final output.",
   ], ["requirements package", "create requirements package", "module documentation", "оформи пакет документации"]),
-  skill("requirements-package-reviewer", "planning", ["recommended", "full"], "Review Metaproject requirements packages for completeness, versioning, consistency, schema references, roadmap updates, and unsupported implementation claims.", [
+  skill("docpack-review", "planning", ["recommended", "full"], "Review Metaproject requirements packages for completeness, versioning, consistency, schema references, roadmap updates, and unsupported implementation claims.", [
     "Check every file in the package against requirements-package-standard.",
     "Report blockers, warnings, and audit trail without rewriting docs.",
     "Verify README/PRD/spec consistency and honest implementation status.",
@@ -548,7 +548,7 @@ Resolution order:
 - User says \`создай скил для <path>\`, \`создай скилл для <file>\`, or \`create a skill for <target>\`: load \`gdskills/core/entity-skill-creator/SKILL.md\` and run the create-route-inspect-verify-status CLI flow yourself.
 - User asks which project skill applies to a file/task: run \`gd-metapro skills route <query-or-target>\` before reading broad files.
 - User asks whether a project skill is still valid: run \`gd-metapro skills verify <skill-or-target>\`.
-- User asks to create/update a Metaproject requirements package, PRD/spec package, or \`docs/requirements/<name>\` documentation: load \`gdskills/planning/requirements-package-orchestrator/SKILL.md\`; use \`autodoc-orchestrator\` instead only for reverse-engineering documentation from the current codebase.
+- User asks to create/update a Metaproject requirements package, PRD/spec package, or \`docs/requirements/<name>\` documentation: load \`gdskills/planning/docpack-orchestrator/SKILL.md\`; use \`autodoc-orchestrator\` instead only for reverse-engineering documentation from the current codebase.
 
 | Skill | Category | Purpose | Entry |
 |---|---|---|---|

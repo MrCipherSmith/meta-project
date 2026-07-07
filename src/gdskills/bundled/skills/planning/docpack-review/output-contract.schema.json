@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "requirements-package-reviewer-output-contract",
+  "$id": "docpack-review-output-contract",
   "title": "Requirements Package Reviewer Output",
   "type": "object",
   "additionalProperties": false,

@@ -1,5 +1,5 @@
 ---
-name: requirements-package-orchestrator
+name: docpack-orchestrator
 description: "Use when creating or updating a Metaproject requirements package under docs/requirements: PRD, specification, README, policies/protocols/schemas, roadmap updates, verification, and package review. Use for requests like 'create requirements package', 'prepare module documentation', 'write PRD/spec for module', or 'оформи пакет документации'. Not for reverse-engineering current codebase documentation; use autodoc-orchestrator for that."
 triggers:
   - "create requirements package"
@@ -16,7 +16,7 @@ license: "MIT"
 compatibility: "cursor,codex,zed,opencode,claude"
 ---
 
-# requirements-package-orchestrator
+# docpack-orchestrator
 
 Top-level orchestrator for Metaproject requirements packages under
 `docs/requirements/<name>/`.
@@ -43,7 +43,7 @@ Phase 1  Evidence    -> collect source notes, decisions, existing docs and code 
 Phase 2  Design      -> decide required files and schemas
 Phase 3  Write       -> create/update README, PRD, specification and optional docs
 Phase 4  Verify      -> structural/version/link/schema checks
-Phase 5  Review      -> requirements-package-reviewer pass
+Phase 5  Review      -> docpack-review pass
 Phase 6  Report      -> concise summary, changed files, gaps and next steps
 ```
 
@@ -118,7 +118,7 @@ Run a local verification pass:
 
 ## Phase 5: Review
 
-Use `requirements-package-reviewer` for an adversarial pass. Fix blockers before
+Use `docpack-review` for an adversarial pass. Fix blockers before
 final output. Warnings may remain only if called out clearly.
 
 ## Final Response

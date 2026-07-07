@@ -126,8 +126,8 @@ Orchestration:
 | `code-verifier` | Runs and summarizes verification gates: typecheck, lint, tests, build and import checks. |
 | `feature-analyzer` | Analyzes a feature/module/branch area and produces an implementation or migration map. |
 | `feature-dev` | Guided feature workflow from requirements to implementation, verification and PR-ready summary. |
-| `requirements-package-orchestrator` | Creates Metaproject requirements packages under `docs/requirements` with README, PRD, spec, optional protocols/schemas, verification and review. Use `autodoc-orchestrator` for reverse-engineering current-codebase documentation. |
-| `requirements-package-reviewer` | Reviews requirements packages for structure, versioning, links, consistency, schemas, roadmap updates and unsupported implementation claims. |
+| `docpack-orchestrator` | Creates Metaproject requirements packages under `docs/requirements` with README, PRD, spec, optional protocols/schemas, verification and review. Use `autodoc-orchestrator` for reverse-engineering current-codebase documentation. |
+| `docpack-review` | Reviews requirements packages for structure, versioning, links, consistency, schemas, roadmap updates and unsupported implementation claims. |
 
 Routing rule: when Task Manager is enabled and the user asks for a managed
 flow/story implementation, local-first routing should select `flow-orchestrator`

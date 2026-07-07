@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "requirements-package-orchestrator-input-contract",
+  "$id": "docpack-orchestrator-input-contract",
   "title": "Requirements Package Orchestrator Input",
   "type": "object",
   "additionalProperties": false,

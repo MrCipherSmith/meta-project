@@ -1,6 +1,6 @@
 ---
-name: requirements-package-reviewer
-description: "Use when reviewing or verifying a Metaproject requirements package under docs/requirements for completeness, versioning, README/PRD/spec consistency, schema references, roadmap updates, unsupported claims, and implementation-status accuracy. Usually dispatched by requirements-package-orchestrator. Not for reviewing autodoc-generated current-codebase documentation."
+name: docpack-review
+description: "Use when reviewing or verifying a Metaproject requirements package under docs/requirements for completeness, versioning, README/PRD/spec consistency, schema references, roadmap updates, unsupported claims, and implementation-status accuracy. Usually dispatched by docpack-orchestrator. Not for reviewing autodoc-generated current-codebase documentation."
 triggers:
   - "review requirements package"
   - "verify requirements package"
@@ -15,7 +15,7 @@ license: "MIT"
 compatibility: "cursor,codex,zed,opencode,claude"
 ---
 
-# requirements-package-reviewer
+# docpack-review
 
 Adversarial reviewer for Metaproject requirements packages.
 

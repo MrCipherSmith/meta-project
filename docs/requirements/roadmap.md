@@ -71,7 +71,7 @@ Shipped:
 - learning proposals and explicit apply flow under `.metaproject/data/gdskills/proposals/`;
 - runtime export/sync for Codex and Claude artifacts;
 - JSON Schema contracts for orchestrator and subagent communication;
-- bundled `requirements-package-orchestrator` and `requirements-package-reviewer`
+- bundled `docpack-orchestrator` and `docpack-review`
   for Metaproject `docs/requirements` package creation and verification;
 - bundled `metaproject-security` skill for security module policy workflows;
 - optional git post-commit hook for project-skill verification;
