@@ -1,9 +1,10 @@
 import { spawn } from "node:child_process";
-import { chmod, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readFile, readdir, realpath, writeFile } from "node:fs/promises";
 import { access, constants, existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { installGdskills } from "../gdskills/install";
+import { ensureMetaprojectReference } from "./init";
 import {
   normalizeGdskillsProfile,
   type GdskillsProfile,
@@ -52,6 +53,7 @@ import {
   renderIndexMarkdown,
   renderMetaprojectCoreReadme,
   renderMetaprojectDashboardHtml,
+  renderMetaprojectDashboardPostCommitHook,
   renderMetaprojectReadme,
   renderProjectRulesReadme,
   renderProjectRulesSkillReadme,
@@ -86,10 +88,17 @@ type MetaprojectManifest = {
   };
 };
 
+type ManifestReadResult = {
+  exists: boolean;
+  valid: boolean;
+  manifest: MetaprojectManifest;
+};
+
 type UpdateOptions = {
   help: boolean;
   hooks: boolean;
   skipRuntime: boolean;
+  noTasks: boolean;
 };
 
 export async function updateCommand(args: string[] = []): Promise<void> {
@@ -111,7 +120,7 @@ export async function updateCommand(args: string[] = []): Promise<void> {
     await updateRuntime(projectRoot);
   }
 
-  await refreshServiceFiles(projectRoot);
+  await refreshServiceFiles(projectRoot, options);
   console.log("Updated .metaproject service files without touching data artifacts.");
 
   if (options.hooks) {
@@ -121,9 +130,10 @@ export async function updateCommand(args: string[] = []): Promise<void> {
   }
 }
 
-async function refreshServiceFiles(projectRoot: string): Promise<void> {
+async function refreshServiceFiles(projectRoot: string, options: UpdateOptions): Promise<void> {
   const metaprojectRoot = path.join(projectRoot, ".metaproject");
-  const manifest = await readManifest(metaprojectRoot);
+  const manifestState = await readManifest(metaprojectRoot);
+  const manifest = manifestState.manifest;
   const enableGdgraph = moduleEnabled(manifest, "gdgraph");
   const enableGdctx = moduleEnabled(manifest, "gdctx");
   const enableGdwiki = moduleEnabled(manifest, "gdwiki");
@@ -131,7 +141,16 @@ async function refreshServiceFiles(projectRoot: string): Promise<void> {
   const enableHealth = moduleEnabled(manifest, "health");
   const enableTesting = moduleEnabled(manifest, "testing");
   const enableMemory = moduleEnabled(manifest, "memory");
-  const enableTasks = moduleEnabled(manifest, "tasks");
+
+  // Task Manager backfill: projects initialized before the tasks module have a
+  // bare `tasks: { enabled: false }` stub. `update` enables and scaffolds it
+  // (skip with --no-tasks).
+  let enableTasks = moduleEnabled(manifest, "tasks");
+  const backfillTasks = !enableTasks && !options.noTasks;
+  if (backfillTasks) {
+    enableTasks = true;
+  }
+
   const gdskillsProfile = normalizeGdskillsProfile(manifest.modules?.gdskills?.profile);
   const ruleSources = await syncAgentRules(projectRoot, metaprojectRoot, manifest.agentEntrypoints?.root ?? []);
 
@@ -257,6 +276,15 @@ async function refreshServiceFiles(projectRoot: string): Promise<void> {
     }
   }
 
+  if (await shouldInstallDashboardPostCommitHook(projectRoot, manifest)) {
+    await installManagedHook(
+      projectRoot,
+      "post-commit",
+      "metaproject-dashboard-post-commit",
+      renderMetaprojectDashboardPostCommitHook(),
+    );
+  }
+
   if (enableMemory) {
     await writeTextIfMissing(path.join(metaprojectRoot, "memory.config.json"), renderMemoryConfig());
     await writeTextIfMissing(path.join(metaprojectRoot, "memory", "templates", "entry.md"), renderMemoryEntryTemplate());
@@ -273,6 +301,158 @@ async function refreshServiceFiles(projectRoot: string): Promise<void> {
     await writeTextIfChanged(path.join(metaprojectRoot, "skills", "flow", "manage.md"), renderFlowManageSkill());
     await writeTextIfChanged(path.join(metaprojectRoot, "skills", "flow", "complete.md"), renderFlowCompleteSkill());
   }
+
+  if (!manifestState.exists || !manifestState.valid) {
+    await writeRecoveredManifest(metaprojectRoot, {
+      enableGdgraph,
+      enableGdctx,
+      enableGdwiki,
+      enableGdskills,
+      enableHealth,
+      enableTesting,
+      enableMemory,
+      enableTasks,
+    });
+    console.log("Recovered .metaproject/metaproject.json from existing service/data folders.");
+  } else if (backfillTasks) {
+    await enableTasksInManifest(metaprojectRoot);
+    console.log(
+      "Task Manager (tasks) module was missing - backfilled: flows/, skills/flow, modules/tasks.md, manifest entry. Use `gd-metapro update --no-tasks` to skip.",
+    );
+  }
+}
+
+async function shouldInstallDashboardPostCommitHook(projectRoot: string, manifest: MetaprojectManifest): Promise<boolean> {
+  const modules = manifest.modules ?? {};
+  if (Object.values(modules).some((module) => Boolean(module.hooks?.gitPostCommit))) {
+    return true;
+  }
+  const hookPath = path.join(projectRoot, ".git", "hooks", "post-commit");
+  if (!(await pathExists(hookPath))) {
+    return false;
+  }
+  return (await readFile(hookPath, "utf8")).includes("# gd-metapro:");
+}
+
+async function writeRecoveredManifest(
+  metaprojectRoot: string,
+  modules: {
+    enableGdgraph: boolean;
+    enableGdctx: boolean;
+    enableGdwiki: boolean;
+    enableGdskills: boolean;
+    enableHealth: boolean;
+    enableTesting: boolean;
+    enableMemory: boolean;
+    enableTasks: boolean;
+  },
+): Promise<void> {
+  const manifest = {
+    version: 1,
+    generatedBy: "gd-metapro update",
+    modules: {
+      gdgraph: modules.enableGdgraph
+        ? {
+            enabled: true,
+            core: ".metaproject/core/gdgraph",
+            data: ".metaproject/data/gdgraph",
+            manifest: ".metaproject/modules/gdgraph.md",
+            commands: ["build", "affected", "query"],
+          }
+        : { enabled: false },
+      gdctx: modules.enableGdctx
+        ? {
+            enabled: true,
+            core: ".metaproject/core/gdctx",
+            data: ".metaproject/data/gdctx",
+            manifest: ".metaproject/modules/gdctx.md",
+            commands: ["status", "diff", "rg", "read", "run"],
+          }
+        : { enabled: false },
+      gdwiki: modules.enableGdwiki
+        ? {
+            enabled: true,
+            data: ".metaproject/wiki",
+            manifest: ".metaproject/modules/gdwiki.md",
+            commands: ["status", "new", "index", "check-links"],
+          }
+        : { enabled: false },
+      gdskills: modules.enableGdskills
+        ? {
+            enabled: true,
+            data: ".metaproject/project-skills",
+            manifest: ".metaproject/modules/gdskills.md",
+            commands: ["status", "route", "inspect", "verify", "learn"],
+          }
+        : { enabled: false },
+      health: modules.enableHealth
+        ? {
+            enabled: true,
+            core: ".metaproject/core/health",
+            data: ".metaproject/data/health",
+            manifest: ".metaproject/modules/health.md",
+            commands: ["run", "status"],
+          }
+        : { enabled: false },
+      testing: modules.enableTesting
+        ? {
+            enabled: true,
+            core: ".metaproject/core/testing",
+            data: ".metaproject/data/testing",
+            manifest: ".metaproject/modules/testing.md",
+            commands: ["analyze", "run", "status"],
+          }
+        : { enabled: false },
+      memory: modules.enableMemory
+        ? {
+            enabled: true,
+            core: ".metaproject/core/memory",
+            data: ".metaproject/memory",
+            manifest: ".metaproject/modules/memory.md",
+            commands: ["new", "search", "index", "ingest"],
+          }
+        : { enabled: false },
+      tasks: modules.enableTasks
+        ? {
+            enabled: true,
+            core: ".metaproject/flows",
+            data: ".metaproject/data/tasks",
+            manifest: ".metaproject/modules/tasks.md",
+            commands: ["init", "list", "status", "freeze", "start", "task", "ac", "implemented", "complete", "block", "unblock", "check"],
+          }
+        : { enabled: false },
+    },
+    agentEntrypoints: {
+      root: ["AGENTS.md", "CLAUDE.md"],
+      metaproject: ".metaproject/index.md",
+    },
+  };
+
+  await writeFile(path.join(metaprojectRoot, "metaproject.json"), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+}
+
+// Enables the tasks module in metaproject.json without disturbing other keys.
+async function enableTasksInManifest(metaprojectRoot: string): Promise<void> {
+  const manifestPath = path.join(metaprojectRoot, "metaproject.json");
+  if (!(await pathExists(manifestPath))) {
+    return;
+  }
+  let raw: Record<string, unknown>;
+  try {
+    raw = JSON.parse(await readFile(manifestPath, "utf8")) as Record<string, unknown>;
+  } catch {
+    return;
+  }
+  const modules = (raw.modules ?? {}) as Record<string, unknown>;
+  modules.tasks = {
+    enabled: true,
+    core: ".metaproject/flows",
+    data: ".metaproject/data/tasks",
+    manifest: ".metaproject/modules/tasks.md",
+    commands: ["init", "list", "status", "freeze", "start", "task", "ac", "implemented", "complete", "block", "unblock", "check"],
+  };
+  raw.modules = modules;
+  await writeFile(manifestPath, `${JSON.stringify(raw, null, 2)}\n`, "utf8");
 }
 
 async function updateRuntime(projectRoot: string): Promise<void> {
@@ -409,6 +589,9 @@ async function syncAgentRules(
     if (!(await pathExists(sourcePath))) {
       continue;
     }
+    // Migrate always-on Metaproject policies (gdgraph/wiki/ctx/skills/testing/
+    // memory/flow) into existing entrypoints - keeps old projects discoverable.
+    await ensureMetaprojectReference(sourcePath);
     const ruleFile = `${source.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}.md`;
     await writeTextIfChanged(
       path.join(metaprojectRoot, "rules", ruleFile),
@@ -424,24 +607,74 @@ async function syncAgentRules(
 async function findAgentEntrypoints(projectRoot: string, manifestSources: string[]): Promise<string[]> {
   const candidates = [...new Set([...manifestSources, "AGENTS.md", "agents.md", "CLAUDE.md", "claude.md"])];
   const existing: string[] = [];
+  const seenRealPaths = new Set<string>();
   for (const candidate of candidates) {
-    if (await pathExists(path.join(projectRoot, candidate))) {
+    const candidatePath = path.join(projectRoot, candidate);
+    if (await pathExists(candidatePath)) {
+      const resolved = await realpath(candidatePath);
+      if (seenRealPaths.has(resolved)) {
+        continue;
+      }
+      seenRealPaths.add(resolved);
       existing.push(candidate);
     }
   }
   return existing;
 }
 
-async function readManifest(metaprojectRoot: string): Promise<MetaprojectManifest> {
+async function readManifest(metaprojectRoot: string): Promise<ManifestReadResult> {
   const manifestPath = path.join(metaprojectRoot, "metaproject.json");
   if (!(await pathExists(manifestPath))) {
-    return {};
+    return {
+      exists: false,
+      valid: false,
+      manifest: await inferManifestFromExistingMetaproject(metaprojectRoot),
+    };
   }
   try {
-    return JSON.parse(await readFile(manifestPath, "utf8")) as MetaprojectManifest;
+    return {
+      exists: true,
+      valid: true,
+      manifest: JSON.parse(await readFile(manifestPath, "utf8")) as MetaprojectManifest,
+    };
   } catch {
-    return {};
+    return {
+      exists: true,
+      valid: false,
+      manifest: await inferManifestFromExistingMetaproject(metaprojectRoot),
+    };
   }
+}
+
+async function inferManifestFromExistingMetaproject(metaprojectRoot: string): Promise<MetaprojectManifest> {
+  const modules: Record<string, ManifestModule> = {};
+  const checks: Record<string, string[]> = {
+    gdgraph: ["core/gdgraph", "data/gdgraph", "modules/gdgraph.md", "skills/gdgraph"],
+    gdctx: ["core/gdctx", "data/gdctx", "gdctx.config.json", "modules/gdctx.md", "skills/gdctx"],
+    gdwiki: ["wiki", "data/gdwiki", "modules/gdwiki.md", "skills/gdwiki"],
+    gdskills: ["skills/gdskills", "skills/catalog.md", "project-skills", "data/gdskills"],
+    health: ["core/health", "data/health", "health.config.json", "modules/health.md", "skills/health"],
+    testing: ["core/testing", "data/testing", "testing.config.json", "modules/testing.md", "skills/testing"],
+    memory: ["core/memory", "memory", "data/memory", "memory.config.json", "modules/memory.md", "skills/memory"],
+    tasks: ["flows", "data/tasks", "modules/tasks.md", "skills/flow"],
+  };
+
+  for (const [moduleName, candidates] of Object.entries(checks)) {
+    modules[moduleName] = {
+      enabled: await anyPathExists(metaprojectRoot, candidates),
+    };
+  }
+
+  return { modules };
+}
+
+async function anyPathExists(root: string, candidates: string[]): Promise<boolean> {
+  for (const candidate of candidates) {
+    if (await pathExists(path.join(root, candidate))) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function moduleEnabled(manifest: MetaprojectManifest, name: string): boolean {
@@ -453,6 +686,7 @@ function parseUpdateArgs(args: string[]): UpdateOptions {
     help: args.includes("--help") || args.includes("-h"),
     hooks: args.includes("--hooks"),
     skipRuntime: args.includes("--skip-runtime"),
+    noTasks: args.includes("--no-tasks"),
   };
 }
 
@@ -560,15 +794,18 @@ function printHelp(): void {
   console.log(`gd-metapro update
 
 Usage:
-  gd-metapro update [--skip-runtime] [--hooks]
+  gd-metapro update [--skip-runtime] [--hooks] [--no-tasks]
 
 Default behavior:
   - updates managed runtime when present;
   - refreshes .metaproject service files, core scripts, managed skills, module manifests, dashboard and hooks;
+  - backfills the Task Manager (tasks) module for projects initialized before it existed;
+  - migrates agent entrypoint policies (AGENTS.md/CLAUDE.md);
   - does not write .metaproject/data artifacts.
 
 Options:
   --skip-runtime  Refresh local service files without fetching the managed runtime.
   --hooks         Run executable .metaproject/hooks/post-update.d hooks explicitly.
+  --no-tasks      Do not backfill/enable the Task Manager module.
 `);
 }

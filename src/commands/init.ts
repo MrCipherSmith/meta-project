@@ -70,6 +70,7 @@ import {
   renderGdgraphPostCommitHook,
   renderHealthPostCommitHook,
   renderGdskillsPostCommitHook,
+  renderMetaprojectDashboardPostCommitHook,
   renderGdgraphCoreReadme,
   renderGdgraphSkillReadme,
   renderHooksReadme,
@@ -355,6 +356,9 @@ export async function initCommand(args: string[]): Promise<void> {
     await createTestingStructure(metaprojectRoot, enableGdwiki);
     if (enableTestingPostCommitHook) {
       await installTestingPostCommitHook(projectRoot);
+    }
+    if (enableGdgraphHook || enableGdskillsHook || enableHealthHook || enableTestingPostCommitHook) {
+      await installMetaprojectDashboardPostCommitHook(projectRoot);
     }
     if (enableTestingPrePushHook) {
       await installTestingPrePushHook(projectRoot);
@@ -832,6 +836,10 @@ async function installTestingPostCommitHook(projectRoot: string): Promise<void> 
   await installManagedHook(projectRoot, "post-commit", "testing-post-commit", renderTestingPostCommitHook());
 }
 
+async function installMetaprojectDashboardPostCommitHook(projectRoot: string): Promise<void> {
+  await installManagedHook(projectRoot, "post-commit", "metaproject-dashboard-post-commit", renderMetaprojectDashboardPostCommitHook());
+}
+
 async function installTestingPrePushHook(projectRoot: string): Promise<void> {
   await installManagedHook(projectRoot, "pre-push", "testing-pre-push", renderTestingPrePushHook());
 }
@@ -1155,7 +1163,7 @@ async function createDefaultAgentEntrypoint(projectRoot: string): Promise<string
   return source;
 }
 
-async function ensureMetaprojectReference(filePath: string): Promise<void> {
+export async function ensureMetaprojectReference(filePath: string): Promise<void> {
   const content = await readFile(filePath, "utf8");
   const marker = "<!-- gd-metapro:index -->";
   const oldGraphPolicy =
