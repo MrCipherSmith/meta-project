@@ -1,0 +1,138 @@
+{
+  "schemaVersion": 1,
+  "id": "004",
+  "slug": "metaproject-security-phase3",
+  "title": "Metaproject Security Phase 3: write-seam integrations (advisory-by-default gates)",
+  "status": "in-progress",
+  "createdAt": "2026-07-07T19:48:01.595Z",
+  "updatedAt": "2026-07-07T20:11:32.222Z",
+  "source": {
+    "type": "description",
+    "ref": null
+  },
+  "acChecksum": "sha256:66ca94afe0ce61d6975e1f31852e2eee562349de6f446e7ee4378a1b1121e53e",
+  "acConfirmed": {},
+  "pr": {
+    "url": null
+  },
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Collect remaining context",
+      "kind": "context",
+      "status": "done"
+    },
+    {
+      "id": "T2",
+      "title": "Implement per plan",
+      "kind": "implement",
+      "status": "done"
+    },
+    {
+      "id": "T3",
+      "title": "Add/adjust tests and make them pass",
+      "kind": "test",
+      "status": "done"
+    },
+    {
+      "id": "T4",
+      "title": "Self-review and prepare draft PR",
+      "kind": "review",
+      "status": "todo"
+    },
+    {
+      "id": "T5",
+      "title": "memory ingest + wiki collect security seams",
+      "kind": "implement",
+      "status": "done"
+    },
+    {
+      "id": "T6",
+      "title": "testing publish + gdctx raw security seams",
+      "kind": "implement",
+      "status": "done"
+    },
+    {
+      "id": "T7",
+      "title": "flow completion security gate",
+      "kind": "implement",
+      "status": "done"
+    },
+    {
+      "id": "T8",
+      "title": "Docs: security spec/README Phase 3, roadmap, docs/docs seam notes",
+      "kind": "docs",
+      "status": "done"
+    }
+  ],
+  "history": [
+    {
+      "at": "2026-07-07T19:48:01.595Z",
+      "event": "created"
+    },
+    {
+      "at": "2026-07-07T19:50:18.413Z",
+      "event": "task-added",
+      "detail": "T5: memory ingest + wiki collect security seams"
+    },
+    {
+      "at": "2026-07-07T19:50:18.458Z",
+      "event": "task-added",
+      "detail": "T6: testing publish + gdctx raw security seams"
+    },
+    {
+      "at": "2026-07-07T19:50:18.504Z",
+      "event": "task-added",
+      "detail": "T7: flow completion security gate"
+    },
+    {
+      "at": "2026-07-07T19:50:18.551Z",
+      "event": "task-added",
+      "detail": "T8: Docs: security spec/README Phase 3, roadmap, docs/docs seam notes"
+    },
+    {
+      "at": "2026-07-07T19:50:18.598Z",
+      "event": "frozen",
+      "detail": "9 criteria; checksum recorded"
+    },
+    {
+      "at": "2026-07-07T19:50:18.645Z",
+      "event": "started"
+    },
+    {
+      "at": "2026-07-07T19:50:18.691Z",
+      "event": "task-done",
+      "detail": "T1: Collect remaining context"
+    },
+    {
+      "at": "2026-07-07T20:04:07.602Z",
+      "event": "task-done",
+      "detail": "T2: Implement per plan"
+    },
+    {
+      "at": "2026-07-07T20:04:07.647Z",
+      "event": "task-done",
+      "detail": "T5: memory ingest + wiki collect security seams"
+    },
+    {
+      "at": "2026-07-07T20:04:07.693Z",
+      "event": "task-done",
+      "detail": "T6: testing publish + gdctx raw security seams"
+    },
+    {
+      "at": "2026-07-07T20:04:07.738Z",
+      "event": "task-done",
+      "detail": "T7: flow completion security gate"
+    },
+    {
+      "at": "2026-07-07T20:04:07.783Z",
+      "event": "task-done",
+      "detail": "T3: Add/adjust tests and make them pass"
+    },
+    {
+      "at": "2026-07-07T20:11:32.222Z",
+      "event": "task-done",
+      "detail": "T8: Docs: security spec/README Phase 3, roadmap, docs/docs seam notes"
+    }
+  ]
+}
