@@ -56,9 +56,35 @@ test("recovers manifest and dashboard for existing metaprojects without metaproj
   const root = await mkdtemp(path.join(tmpdir(), "gd-metapro-update-legacy-"));
   const previousCwd = process.cwd();
   const graphStoragePath = path.join(root, ".metaproject", "data", "gdgraph", "storage", "nodes.jsonl");
+  const graphEdgesPath = path.join(root, ".metaproject", "data", "gdgraph", "storage", "edges.jsonl");
   const healthReportPath = path.join(root, ".metaproject", "data", "health", "artifacts", "latest.md");
-  const graphStorage = "{\"id\":\"src/a.ts\"}\n";
+  const healthJsonPath = path.join(root, ".metaproject", "data", "health", "artifacts", "latest.json");
+  const graphStorage = "{\"id\":\"src/a.ts\",\"kind\":\"file\",\"path\":\"src/a.ts\"}\n{\"id\":\"src/b.ts\",\"kind\":\"file\",\"path\":\"src/b.ts\"}\n";
+  const graphEdges = "{\"id\":\"edge:1\",\"from\":\"src/a.ts\",\"to\":\"src/b.ts\",\"kind\":\"imports\"}\n";
   const healthReport = "# Code Health: PASS\n";
+  const healthJson = JSON.stringify({
+    gate: { status: "pass" },
+    sources: [{ source: "typescript", status: "available", findings: 0, required: true }],
+    metrics: [
+      {
+        key: "project",
+        kind: "project",
+        name: "project",
+        health_score: 97,
+        risk_score: 3,
+        findingCounts: { total: 1, byPriority: { P0: 0, P1: 1, P2: 0 } },
+      },
+      {
+        key: "module:src",
+        kind: "module",
+        name: "src",
+        health_score: 91,
+        risk_score: 3,
+        findingCounts: { total: 1 },
+        complexity: { max: 8 },
+      },
+    ],
+  });
 
   try {
     await mkdir(path.dirname(graphStoragePath), { recursive: true });
@@ -67,7 +93,9 @@ test("recovers manifest and dashboard for existing metaprojects without metaproj
     await mkdir(path.join(root, ".metaproject", "data", "testing"), { recursive: true });
     await mkdir(path.join(root, ".metaproject", "data", "gdctx"), { recursive: true });
     await writeFile(graphStoragePath, graphStorage, "utf8");
+    await writeFile(graphEdgesPath, graphEdges, "utf8");
     await writeFile(healthReportPath, healthReport, "utf8");
+    await writeFile(healthJsonPath, healthJson, "utf8");
     await writeFile(path.join(root, "AGENTS.md"), "Use metaproject rules.\n", "utf8");
     await writeFile(
       path.join(root, ".git", "hooks", "post-commit"),
@@ -91,6 +119,10 @@ test("recovers manifest and dashboard for existing metaprojects without metaproj
     expect(manifest.modules.tasks?.enabled).toBe(false);
     expect(dashboard).toContain("<span class=\"module-name\">gdgraph</span>");
     expect(dashboard).toContain("<span class=\"module-name\">health</span>");
+    expect(dashboard).toContain("<h2>Health</h2>");
+    expect(dashboard).toContain("<strong>97</strong><span>health score</span>");
+    expect(dashboard).toContain("<h2>Graph</h2>");
+    expect(dashboard).toContain("<strong>2</strong><span>files</span>");
     expect(dashboard).not.toContain("No modules enabled.");
     await expectDashboardLinksToExist(root, dashboard);
     expect(await readFile(path.join(root, ".git", "hooks", "post-commit"), "utf8")).toContain(

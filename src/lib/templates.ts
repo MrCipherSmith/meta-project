@@ -223,6 +223,48 @@ ${enableMemory ? "gd-metapro memory index" : ""}
 `;
 }
 
+export type MetaprojectDashboardData = {
+  generatedAt?: string;
+  health?: {
+    status: string;
+    score: number | string;
+    trend?: string;
+    findings: number;
+    p0: number;
+    p1: number;
+    p2: number;
+    sources: Array<{ source: string; status: string; findings: number; required: boolean }>;
+    scopes: Array<{ name: string; kind: string; score: number | string; findings: number; risk: number; complexity?: number | string }>;
+    files: Array<{ name: string; score: number | string; findings: number; risk: number; complexity?: number | string }>;
+    reportHref?: string;
+  };
+  graph?: {
+    nodes: number;
+    files: number;
+    assets: number;
+    edges: number;
+    imports: number;
+    assetsEdges: number;
+    unresolved: number;
+    topModules: Array<{ name: string; files: number; edges: number }>;
+    storageHref?: string;
+  };
+  testing?: {
+    status: string;
+    runner?: string;
+    tests?: number;
+    failures?: number;
+    contextHref?: string;
+    reportHref?: string;
+  };
+  wiki?: {
+    pages: Array<{ title: string; href: string; group: string }>;
+  };
+  memory?: {
+    entries: Array<{ title: string; href: string; group: string }>;
+  };
+};
+
 export function renderMetaprojectDashboardHtml({
   enableGdgraph,
   enableGdctx,
@@ -232,6 +274,7 @@ export function renderMetaprojectDashboardHtml({
   enableTesting,
   enableMemory,
   enableTasks,
+  data,
 }: {
   enableGdgraph: boolean;
   enableGdctx: boolean;
@@ -241,6 +284,7 @@ export function renderMetaprojectDashboardHtml({
   enableTesting: boolean;
   enableMemory: boolean;
   enableTasks: boolean;
+  data?: MetaprojectDashboardData;
 }): string {
   const modules = [
     {
@@ -382,6 +426,56 @@ export function renderMetaprojectDashboardHtml({
     ["Manifest", "metaproject.json"],
     enableGdskills ? ["Skills catalog", "skills/catalog.md"] : ["Project rules", "skills/project-rules/README.md"],
   ];
+  const health = data?.health;
+  const graph = data?.graph;
+  const testing = data?.testing;
+  const wikiPages = data?.wiki?.pages ?? [];
+  const memoryEntries = data?.memory?.entries ?? [];
+  const qualityStatus = health?.status ?? (enableHealth ? "missing" : "disabled");
+  const graphStatus = graph ? `${graph.files} files` : (enableGdgraph ? "missing" : "disabled");
+  const healthClass = health?.status === "pass" ? "good" : health?.status === "warn" ? "warn" : health?.status === "fail" ? "bad" : "";
+  const healthSources = health?.sources.map((source) => `
+            <tr>
+              <td>${escapeHtml(source.source)}</td>
+              <td><span class="pill ${source.status === "available" ? "good" : source.status === "missing" ? "warn" : ""}">${escapeHtml(source.status)}</span></td>
+              <td>${source.findings}</td>
+              <td>${source.required ? "yes" : "no"}</td>
+            </tr>`).join("") ?? "";
+  const healthScopes = health?.scopes.map((scope) => `
+            <tr>
+              <td>${escapeHtml(scope.name)}</td>
+              <td>${escapeHtml(scope.kind)}</td>
+              <td>${scope.score}</td>
+              <td>${scope.findings}</td>
+              <td>${scope.risk}</td>
+              <td>${scope.complexity ?? "-"}</td>
+            </tr>`).join("") ?? "";
+  const healthFiles = health?.files.map((file) => `
+            <tr>
+              <td>${escapeHtml(file.name)}</td>
+              <td>${file.score}</td>
+              <td>${file.findings}</td>
+              <td>${file.risk}</td>
+              <td>${file.complexity ?? "-"}</td>
+            </tr>`).join("") ?? "";
+  const graphRows = graph?.topModules.map((module) => `
+            <tr>
+              <td>${escapeHtml(module.name)}</td>
+              <td>${module.files}</td>
+              <td>${module.edges}</td>
+            </tr>`).join("") ?? "";
+  const wikiRows = wikiPages.map((page) => `
+            <tr>
+              <td><a href="${page.href}">${escapeHtml(page.title)}</a></td>
+              <td>${escapeHtml(page.group)}</td>
+              <td>${escapeHtml(page.href)}</td>
+            </tr>`).join("");
+  const memoryRows = memoryEntries.map((entry) => `
+            <tr>
+              <td><a href="${entry.href}">${escapeHtml(entry.title)}</a></td>
+              <td>${escapeHtml(entry.group)}</td>
+              <td>${escapeHtml(entry.href)}</td>
+            </tr>`).join("");
 
   return `<!doctype html>
 <html lang="en">
@@ -398,6 +492,9 @@ export function renderMetaprojectDashboardHtml({
       --muted: #64748b;
       --line: #d9dee8;
       --soft: #eef2f7;
+      --good: #15803d;
+      --warn: #b45309;
+      --bad: #b91c1c;
     }
     * { box-sizing: border-box; }
     body {
@@ -421,6 +518,11 @@ export function renderMetaprojectDashboardHtml({
     h2 {
       margin: 0 0 14px;
       font-size: 16px;
+      letter-spacing: 0;
+    }
+    h3 {
+      margin: 0 0 10px;
+      font-size: 14px;
       letter-spacing: 0;
     }
     p { margin: 0; color: var(--muted); }
@@ -467,6 +569,87 @@ export function renderMetaprojectDashboardHtml({
     }
     .section {
       margin-top: 28px;
+    }
+    .admin-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(320px, .85fr);
+      gap: 16px;
+      align-items: start;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      min-width: 0;
+    }
+    .panel + .panel { margin-top: 14px; }
+    .kpis {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .kpi {
+      background: var(--soft);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+    }
+    .kpi strong {
+      display: block;
+      font-size: 20px;
+      line-height: 1;
+      margin-bottom: 5px;
+    }
+    .table-wrap {
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 560px;
+      background: var(--panel);
+    }
+    th, td {
+      text-align: left;
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+      font-size: 13px;
+    }
+    th {
+      color: var(--muted);
+      background: var(--soft);
+      font-weight: 600;
+    }
+    tr:last-child td { border-bottom: 0; }
+    td a {
+      color: var(--ink);
+      text-decoration: none;
+      border-bottom: 1px solid #cbd5e1;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 2px 7px;
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .pill.good { color: var(--good); border-color: #86efac; background: #f0fdf4; }
+    .pill.warn { color: var(--warn); border-color: #facc15; background: #fefce8; }
+    .pill.bad { color: var(--bad); border-color: #fca5a5; background: #fef2f2; }
+    .empty {
+      color: var(--muted);
+      border: 1px dashed var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      background: #fbfcfe;
     }
     .modules {
       display: grid;
@@ -554,6 +737,8 @@ export function renderMetaprojectDashboardHtml({
       .topline { display: block; }
       .meta-actions { justify-content: flex-start; margin-top: 16px; }
       .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .admin-grid { grid-template-columns: 1fr; }
+      .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .workflow { grid-template-columns: 1fr; }
     }
   </style>
@@ -562,21 +747,96 @@ export function renderMetaprojectDashboardHtml({
   <header>
     <div class="topline">
       <div>
-        <h1>Metaproject Dashboard</h1>
-        <p>Human-readable overview of agent context, project modules, generated artifacts, and CLI entrypoints.</p>
+        <h1>Metaproject Admin</h1>
+        <p>Read-only project control surface for agent context, health, graph, testing, wiki, memory, and service files.</p>
       </div>
       <nav class="meta-actions" aria-label="Primary links">
         ${primaryLinks.map(([label, href]) => `<a href="${href}">${label}</a>`).join("")}
       </nav>
     </div>
     <section class="stats" aria-label="Metaproject stats">
+      <div class="stat"><strong>${health?.score ?? "-"}</strong><span>health score</span></div>
+      <div class="stat"><strong>${qualityStatus}</strong><span>quality gate</span></div>
+      <div class="stat"><strong>${graphStatus}</strong><span>graph index</span></div>
       <div class="stat"><strong>${enabledModules.length}</strong><span>enabled modules</span></div>
-      <div class="stat"><strong>${enableGdskills ? "yes" : "no"}</strong><span>local skills catalog</span></div>
-      <div class="stat"><strong>${enableGdgraph ? "yes" : "no"}</strong><span>graph navigation</span></div>
-      <div class="stat"><strong>${enableHealth || enableTesting ? "yes" : "no"}</strong><span>quality signals</span></div>
     </section>
   </header>
   <main>
+    <section class="section admin-grid">
+      <div>
+        <section class="panel" id="health">
+          <h2>Health</h2>
+          ${health ? `
+          <div class="kpis">
+            <div class="kpi"><strong>${health.score}</strong><span>score</span></div>
+            <div class="kpi"><strong><span class="pill ${healthClass}">${escapeHtml(health.status)}</span></strong><span>gate</span></div>
+            <div class="kpi"><strong>${health.findings}</strong><span>findings</span></div>
+            <div class="kpi"><strong>${health.p0}/${health.p1}/${health.p2}</strong><span>P0/P1/P2</span></div>
+          </div>
+          <h3>Top Scopes</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Scope</th><th>Kind</th><th>Score</th><th>Findings</th><th>Risk</th><th>Complexity</th></tr></thead>
+              <tbody>${healthScopes || `<tr><td colspan="6">No scope metrics.</td></tr>`}</tbody>
+            </table>
+          </div>
+          <h3 style="margin-top:14px">Top Files</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>File</th><th>Score</th><th>Findings</th><th>Risk</th><th>Complexity</th></tr></thead>
+              <tbody>${healthFiles || `<tr><td colspan="5">No file-level metrics in latest report.</td></tr>`}</tbody>
+            </table>
+          </div>
+          <h3 style="margin-top:14px">Sources</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Source</th><th>Status</th><th>Findings</th><th>Required</th></tr></thead>
+              <tbody>${healthSources}</tbody>
+            </table>
+          </div>` : `<div class="empty">No health report found. Run <code>gd-metapro health run</code>.</div>`}
+        </section>
+        <section class="panel" id="graph">
+          <h2>Graph</h2>
+          ${graph ? `
+          <div class="kpis">
+            <div class="kpi"><strong>${graph.files}</strong><span>files</span></div>
+            <div class="kpi"><strong>${graph.assets}</strong><span>assets</span></div>
+            <div class="kpi"><strong>${graph.edges}</strong><span>edges</span></div>
+            <div class="kpi"><strong>${graph.unresolved}</strong><span>unresolved</span></div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Module</th><th>Files</th><th>Outgoing edges</th></tr></thead>
+              <tbody>${graphRows || `<tr><td colspan="3">No module graph rows.</td></tr>`}</tbody>
+            </table>
+          </div>` : `<div class="empty">No graph storage found. Run <code>gd-metapro gdgraph build</code>.</div>`}
+        </section>
+      </div>
+      <aside>
+        <section class="panel" id="testing">
+          <h2>Testing</h2>
+          ${testing ? `
+          <div class="kpis">
+            <div class="kpi"><strong>${escapeHtml(testing.status)}</strong><span>status</span></div>
+            <div class="kpi"><strong>${testing.runner ? escapeHtml(testing.runner) : "-"}</strong><span>runner</span></div>
+            <div class="kpi"><strong>${testing.tests ?? "-"}</strong><span>tests</span></div>
+            <div class="kpi"><strong>${testing.failures ?? "-"}</strong><span>failures</span></div>
+          </div>
+          <div class="link-grid">
+            ${testing.contextHref ? `<a href="${testing.contextHref}">Testing context</a>` : ""}
+            ${testing.reportHref ? `<a href="${testing.reportHref}">Latest report</a>` : ""}
+          </div>` : `<div class="empty">No testing context/report found. Run <code>gd-metapro test analyze</code>.</div>`}
+        </section>
+        <section class="panel" id="wiki">
+          <h2>Wiki</h2>
+          ${wikiRows ? `<div class="table-wrap"><table><thead><tr><th>Page</th><th>Group</th><th>Path</th></tr></thead><tbody>${wikiRows}</tbody></table></div>` : `<div class="empty">No wiki pages yet. Run <code>gd-metapro wiki new</code> or <code>gd-metapro wiki index</code>.</div>`}
+        </section>
+        <section class="panel" id="memory">
+          <h2>Memory</h2>
+          ${memoryRows ? `<div class="table-wrap"><table><thead><tr><th>Entry</th><th>Group</th><th>Path</th></tr></thead><tbody>${memoryRows}</tbody></table></div>` : `<div class="empty">No memory entries yet. Run <code>gd-metapro memory new</code> or <code>gd-metapro memory index</code>.</div>`}
+        </section>
+      </aside>
+    </section>
     <section class="section">
       <h2>Enabled Modules</h2>
       <div class="modules">
