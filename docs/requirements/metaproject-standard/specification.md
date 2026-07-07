@@ -2,8 +2,9 @@
 
 Version: 0.1.1
 
-Status: draft v0.1. This document defines the intended standard contract, not a
-fully implemented validator.
+Status: draft v0.1. This document defines the standard contract; the reference
+validator (`gd-metapro standard validate | doctor | capabilities`) implements
+the v0.1 checks.
 
 ## 1. Definition
 

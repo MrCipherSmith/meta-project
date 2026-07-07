@@ -18,8 +18,9 @@ implements.
 ## cli-core
 
 **Purpose.** The CLI core is the entrypoint and lifecycle layer. It owns the argv
-dispatcher (`src/cli.ts`) and the four cross-cutting lifecycle commands — `init`,
-`update`, `dashboard`/`dash`, `status` — plus `MODULE_COMMANDS`, the single source
+dispatcher (`src/cli.ts`) and the cross-cutting lifecycle commands — `init`,
+`update`, `dashboard`/`dash`, `status`, `modules`, and `standard` — plus
+`MODULE_COMMANDS`, the single source
 of truth for each module's canonical subcommand list. Its job is to parse the
 top-level subcommand, scaffold the workspace and its eight optional modules, keep
 managed "service" files in sync without ever touching user "data" artifacts, and
@@ -37,6 +38,7 @@ to a handler:
 | `update` | refresh service files, runtime, tasks backfill, dashboard |
 | `dashboard` / `dash` | build/open the HTML dashboard (bare `dash` = `open`) |
 | `modules` | view and toggle modules (`status` / `enable <name>` / `disable <name>` / interactive) |
+| `standard` | validate the workspace against the Metaproject Standard: `validate` / `doctor` / `capabilities` |
 | `gdgraph`, `ctx`, `wiki`, `skills`, `skill-verify-skill`, `health`, `test`, `memory`, `flow`, `rules` | routed to the feature module handler |
 | unknown | error + help + exit 1 |
 

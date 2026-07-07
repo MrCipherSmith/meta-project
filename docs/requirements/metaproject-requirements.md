@@ -397,6 +397,10 @@ metaproject/
 
 Нужен центральный манифест, который описывает доступные модули и точки входа.
 
+> Пример ниже — концептуальный набросок. Актуальный манифест дополнительно
+> содержит поля Metaproject Standard (`standardVersion`, `profiles`, `updatedAt`);
+> источником истины является [metaproject-standard/schemas/metaproject.schema.json](metaproject-standard/schemas/metaproject.schema.json).
+
 Пример:
 
 ```json

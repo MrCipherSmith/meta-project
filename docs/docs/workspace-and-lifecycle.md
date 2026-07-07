@@ -124,6 +124,12 @@ manifest records:
 
 - `schemaVersion` (currently `1`), `name` (`"<project>-metaproject"`),
   `createdBy: "gd-metapro"`.
+- `standardVersion` — the Metaproject Standard version the manifest targets
+  (currently `"0.1.0"`).
+- `profiles[]` — the standard profiles the workspace declares, a subset of
+  `minimal` / `agent` / `ci` / `full`, derived from the enabled modules
+  (`computeProfiles`).
+- `updatedAt` — ISO timestamp of the last lifecycle write.
 - `paths{}` — resolved workspace paths (`root`, etc.).
 - `agentEntrypoints{ root: string[], metaproject: ".metaproject/index.md" }` —
   the discovered root entrypoint sources plus the workspace index (see below).
