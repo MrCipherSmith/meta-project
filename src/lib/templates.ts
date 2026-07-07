@@ -251,8 +251,8 @@ export function renderMetaprojectDashboardHtml({
       accent: "#2563eb",
       links: [
         ["Manifest", "modules/gdgraph.md"],
-        ["Summary", "data/gdgraph/artifacts/summary.md"],
-        ["Module map", "data/gdgraph/artifacts/module-map.json"],
+        ["Core README", "core/gdgraph/README.md"],
+        ["Runner", "core/gdgraph/cli.ts"],
         ["Skill", "skills/gdgraph/SKILL.md"],
       ],
       commands: ["gd-metapro gdgraph build", "gd-metapro gdgraph affected <file>", "gd-metapro gdgraph query cycles"],
@@ -265,7 +265,7 @@ export function renderMetaprojectDashboardHtml({
       accent: "#0891b2",
       links: [
         ["Manifest", "modules/gdctx.md"],
-        ["Latest artifact", "data/gdctx/artifacts/latest.md"],
+        ["Core README", "core/gdctx/README.md"],
         ["Config", "gdctx.config.json"],
         ["Skill", "skills/gdctx/SKILL.md"],
       ],
@@ -279,7 +279,7 @@ export function renderMetaprojectDashboardHtml({
       accent: "#7c3aed",
       links: [
         ["Manifest", "modules/gdwiki.md"],
-        ["Wiki index", "wiki/index.md"],
+        ["Wiki folder", "wiki/"],
         ["Template", "wiki/templates/page.md"],
         ["Skill", "skills/gdwiki/SKILL.md"],
       ],
@@ -295,7 +295,7 @@ export function renderMetaprojectDashboardHtml({
         ["Manifest", "modules/gdskills.md"],
         ["Catalog", "skills/catalog.md"],
         ["Bundled skills", "skills/gdskills/"],
-        ["Reports", "data/gdskills/reports/"],
+        ["Project skills", "project-skills/"],
       ],
       commands: ["gd-metapro skills status", "gd-metapro skills route <target>", "gd-metapro skills verify --all"],
     },
@@ -307,7 +307,7 @@ export function renderMetaprojectDashboardHtml({
       accent: "#16a34a",
       links: [
         ["Manifest", "modules/health.md"],
-        ["Latest report", "data/health/artifacts/latest.md"],
+        ["Core README", "core/health/README.md"],
         ["Config", "health.config.json"],
         ["Skill", "skills/health/SKILL.md"],
       ],
@@ -321,9 +321,9 @@ export function renderMetaprojectDashboardHtml({
       accent: "#ea580c",
       links: [
         ["Manifest", "modules/testing.md"],
-        ["Context", "data/testing/context.md"],
-        ["Recommendations", "data/testing/recommendations.md"],
-        ["Latest report", "data/testing/artifacts/latest.md"],
+        ["Core README", "core/testing/README.md"],
+        ["Config", "testing.config.json"],
+        ["Skill", "skills/testing/SKILL.md"],
       ],
       commands: ["gd-metapro test analyze", "gd-metapro test run --changed", "gd-metapro test related <file>"],
     },
@@ -335,7 +335,7 @@ export function renderMetaprojectDashboardHtml({
       accent: "#475569",
       links: [
         ["Manifest", "modules/memory.md"],
-        ["Memory index", "memory/index.md"],
+        ["Core README", "core/memory/README.md"],
         ["Config", "memory.config.json"],
         ["Skill", "skills/memory/SKILL.md"],
       ],
@@ -349,9 +349,9 @@ export function renderMetaprojectDashboardHtml({
       accent: "#0f766e",
       links: [
         ["Manifest", "modules/tasks.md"],
-        ["Flows", "flows/"],
         ["Skill", "skills/flow/SKILL.md"],
         ["Flow README", "flows/README.md"],
+        ["Init skill", "skills/flow/init.md"],
       ],
       commands: ["gd-metapro flow list", "gd-metapro flow init --title \"...\"", "gd-metapro flow complete <id>"],
     },
@@ -376,6 +376,12 @@ export function renderMetaprojectDashboardHtml({
     .filter((module) => !module.enabled)
     .map((module) => `<span>${module.name}</span>`)
     .join("");
+  const primaryLinks = [
+    ["Agent index", "index.md"],
+    ["README", "README.md"],
+    ["Manifest", "metaproject.json"],
+    enableGdskills ? ["Skills catalog", "skills/catalog.md"] : ["Project rules", "skills/project-rules/README.md"],
+  ];
 
   return `<!doctype html>
 <html lang="en">
@@ -560,10 +566,7 @@ export function renderMetaprojectDashboardHtml({
         <p>Human-readable overview of agent context, project modules, generated artifacts, and CLI entrypoints.</p>
       </div>
       <nav class="meta-actions" aria-label="Primary links">
-        <a href="index.md">Agent index</a>
-        <a href="README.md">README</a>
-        <a href="metaproject.json">Manifest</a>
-        <a href="skills/catalog.md">Skills catalog</a>
+        ${primaryLinks.map(([label, href]) => `<a href="${href}">${label}</a>`).join("")}
       </nav>
     </div>
     <section class="stats" aria-label="Metaproject stats">
@@ -861,6 +864,16 @@ Purpose:
 - stay non-blocking and avoid running heavy suites on every commit;
 - give agents fresh context before test generation or debugging.
 
+## git post-commit dashboard hook
+
+When any Metaproject post-commit hook is enabled, a lightweight dashboard hook refreshes service files after the other hooks.
+
+Purpose:
+
+- keep \`.metaproject/index.md\` and \`.metaproject/gd-metapro-dashboard.html\` aligned with enabled modules and available service files;
+- recover missing \`.metaproject/metaproject.json\` for older initialized projects;
+- avoid generated data work: the hook runs \`gd-metapro update --skip-runtime --no-tasks\`, not module builders.
+
 ## git pre-push testing hook
 
 When enabled during \`gd-metapro init\`, the Git \`pre-push\` hook runs changed-scope tests and blocks the push on failure.
@@ -924,6 +937,40 @@ export function renderGdgraphPostCommitHook(): string {
 }
 
 gd_metapro_gdgraph_post_commit
+`;
+}
+
+export function renderMetaprojectDashboardPostCommitHook(): string {
+  return `gd_metapro_dashboard_post_commit() {
+  # Refresh agent-facing service files after other gd-metapro post-commit hooks.
+
+  if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    return 0
+  fi
+
+  if command -v gd-metapro >/dev/null 2>&1; then
+    gd-metapro update --skip-runtime --no-tasks >/dev/null 2>&1 || {
+      echo "gd-metapro post-commit: dashboard refresh failed" >&2
+      return 0
+    }
+    echo "gd-metapro post-commit: dashboard refreshed"
+    return 0
+  fi
+
+  if [ -x "$HOME/.local/bin/gd-metapro" ]; then
+    "$HOME/.local/bin/gd-metapro" update --skip-runtime --no-tasks >/dev/null 2>&1 || {
+      echo "gd-metapro post-commit: dashboard refresh failed" >&2
+      return 0
+    }
+    echo "gd-metapro post-commit: dashboard refreshed"
+    return 0
+  fi
+
+  echo "gd-metapro post-commit: gd-metapro command not found, skipped dashboard refresh" >&2
+  return 0
+}
+
+gd_metapro_dashboard_post_commit
 `;
 }
 

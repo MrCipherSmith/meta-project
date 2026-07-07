@@ -52,6 +52,125 @@ test("refreshes service files without touching data artifacts", async () => {
   }
 });
 
+test("recovers manifest and dashboard for existing metaprojects without metaproject.json", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "gd-metapro-update-legacy-"));
+  const previousCwd = process.cwd();
+  const graphStoragePath = path.join(root, ".metaproject", "data", "gdgraph", "storage", "nodes.jsonl");
+  const healthReportPath = path.join(root, ".metaproject", "data", "health", "artifacts", "latest.md");
+  const graphStorage = "{\"id\":\"src/a.ts\"}\n";
+  const healthReport = "# Code Health: PASS\n";
+
+  try {
+    await mkdir(path.dirname(graphStoragePath), { recursive: true });
+    await mkdir(path.dirname(healthReportPath), { recursive: true });
+    await mkdir(path.join(root, ".git", "hooks"), { recursive: true });
+    await mkdir(path.join(root, ".metaproject", "data", "testing"), { recursive: true });
+    await mkdir(path.join(root, ".metaproject", "data", "gdctx"), { recursive: true });
+    await writeFile(graphStoragePath, graphStorage, "utf8");
+    await writeFile(healthReportPath, healthReport, "utf8");
+    await writeFile(path.join(root, "AGENTS.md"), "Use metaproject rules.\n", "utf8");
+    await writeFile(
+      path.join(root, ".git", "hooks", "post-commit"),
+      "#!/usr/bin/env sh\n\n# gd-metapro:gdgraph-post-commit:begin\ntrue\n# gd-metapro:gdgraph-post-commit:end\n",
+      "utf8",
+    );
+
+    process.chdir(root);
+    await updateCommand(["--skip-runtime", "--no-tasks"]);
+
+    const manifest = JSON.parse(await readFile(path.join(root, ".metaproject", "metaproject.json"), "utf8")) as {
+      modules: Record<string, { enabled: boolean }>;
+    };
+    const dashboard = await readFile(path.join(root, ".metaproject", "gd-metapro-dashboard.html"), "utf8");
+    const index = await readFile(path.join(root, ".metaproject", "index.md"), "utf8");
+
+    expect(manifest.modules.gdgraph?.enabled).toBe(true);
+    expect(manifest.modules.gdctx?.enabled).toBe(true);
+    expect(manifest.modules.health?.enabled).toBe(true);
+    expect(manifest.modules.testing?.enabled).toBe(true);
+    expect(manifest.modules.tasks?.enabled).toBe(false);
+    expect(dashboard).toContain("<span class=\"module-name\">gdgraph</span>");
+    expect(dashboard).toContain("<span class=\"module-name\">health</span>");
+    expect(dashboard).not.toContain("No modules enabled.");
+    await expectDashboardLinksToExist(root, dashboard);
+    expect(await readFile(path.join(root, ".git", "hooks", "post-commit"), "utf8")).toContain(
+      "# gd-metapro:metaproject-dashboard-post-commit:begin",
+    );
+    expect(index).toContain("| gdgraph |");
+    expect(index).not.toContain("| _none_ | No modules enabled yet | - |");
+    expect(await readFile(graphStoragePath, "utf8")).toBe(graphStorage);
+    expect(await readFile(healthReportPath, "utf8")).toBe(healthReport);
+  } finally {
+    process.chdir(previousCwd);
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("backfills the Task Manager for projects initialized before it existed", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "gd-metapro-update-backfill-"));
+  const previousCwd = process.cwd();
+  try {
+    await mkdir(path.join(root, ".metaproject"), { recursive: true });
+    await writeFile(path.join(root, "AGENTS.md"), "Use metaproject rules.\n", "utf8");
+    // Pre-tasks manifest: tasks present but disabled, no flow scaffold.
+    await writeFile(
+      path.join(root, ".metaproject", "metaproject.json"),
+      JSON.stringify({
+        modules: { gdgraph: { enabled: true }, tasks: { enabled: false } },
+        agentEntrypoints: { root: ["AGENTS.md"] },
+      }),
+      "utf8",
+    );
+
+    process.chdir(root);
+    await updateCommand(["--skip-runtime"]);
+
+    const manifest = JSON.parse(await readFile(path.join(root, ".metaproject", "metaproject.json"), "utf8")) as {
+      modules: Record<string, { enabled: boolean }>;
+    };
+    expect(manifest.modules.tasks?.enabled).toBe(true);
+    expect(await fileExists(path.join(root, ".metaproject", "skills", "flow", "SKILL.md"))).toBe(true);
+    expect(await fileExists(path.join(root, ".metaproject", "modules", "tasks.md"))).toBe(true);
+    expect(await readFile(path.join(root, ".metaproject", "flows", "README.md"), "utf8")).toContain("Flow");
+    // The flow discovery policy is migrated into the entrypoint.
+    expect(await readFile(path.join(root, "AGENTS.md"), "utf8")).toContain("Metaproject flow skill");
+    // Backfill does not create runtime data dirs.
+    expect(await fileExists(path.join(root, ".metaproject", "data", "tasks"))).toBe(false);
+  } finally {
+    process.chdir(previousCwd);
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("respects --no-tasks and does not backfill", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "gd-metapro-update-notasks-"));
+  const previousCwd = process.cwd();
+  try {
+    await mkdir(path.join(root, ".metaproject"), { recursive: true });
+    await writeFile(path.join(root, "AGENTS.md"), "Use metaproject rules.\n", "utf8");
+    await writeFile(
+      path.join(root, ".metaproject", "metaproject.json"),
+      JSON.stringify({
+        modules: { gdgraph: { enabled: true }, tasks: { enabled: false } },
+        agentEntrypoints: { root: ["AGENTS.md"] },
+      }),
+      "utf8",
+    );
+
+    process.chdir(root);
+    await updateCommand(["--skip-runtime", "--no-tasks"]);
+
+    const manifest = JSON.parse(await readFile(path.join(root, ".metaproject", "metaproject.json"), "utf8")) as {
+      modules: Record<string, { enabled: boolean }>;
+    };
+    expect(manifest.modules.tasks?.enabled).toBe(false);
+    expect(await fileExists(path.join(root, ".metaproject", "skills", "flow", "SKILL.md"))).toBe(false);
+  } finally {
+    process.chdir(previousCwd);
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 async function fileExists(filePath: string): Promise<boolean> {
   try {
     await access(filePath);
@@ -59,4 +178,19 @@ async function fileExists(filePath: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+async function expectDashboardLinksToExist(projectRoot: string, dashboard: string): Promise<void> {
+  const metaprojectRoot = path.join(projectRoot, ".metaproject");
+  const hrefs = [...dashboard.matchAll(/href="([^"]+)"/g)].flatMap((match) => match[1] ? [match[1]] : []);
+  const missing: string[] = [];
+  for (const href of hrefs) {
+    if (href.startsWith("http://") || href.startsWith("https://")) {
+      continue;
+    }
+    if (!(await fileExists(path.join(metaprojectRoot, href)))) {
+      missing.push(href);
+    }
+  }
+  expect(missing).toEqual([]);
 }

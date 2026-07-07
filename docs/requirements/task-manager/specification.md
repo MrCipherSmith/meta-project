@@ -284,6 +284,9 @@ export interface FlowService {
 - [x] init-интеграция (`--no-tasks`, структура, manifest, скилы flow/init/manage/complete);
 - [x] тесты: state machine, freeze/tamper+check, полный happy-path c issue-комментарием,
   fail-path (возврат в in-progress), block/unblock, adapter parsing.
+- [x] `gd-metapro update` backfill: проекты, инициализированные до модуля,
+  получают tasks (manifest + flows/ + skills/flow + миграция always-on политик);
+  `--no-tasks` отключает.
 
 ### Phase 2 - integrations
 
