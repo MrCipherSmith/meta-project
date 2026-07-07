@@ -36,7 +36,9 @@ export type ModuleManifestEntry = {
   wiki?: string;
   memory?: string;
   commands?: string[];
-  capabilities?: string[];
+  // Bare-string (legacy) or enriched object (specification.md §4) capability
+  // entries; `extractCapabilities` normalizes both to ids.
+  capabilities?: Array<string | Record<string, unknown>>;
   [key: string]: unknown;
 };
 

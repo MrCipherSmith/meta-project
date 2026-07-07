@@ -111,6 +111,7 @@ import {
 import { syncAgentRules } from "../rules/agent-entrypoints";
 import { hasDistilledEntrypoints } from "../rules/distill";
 import { STANDARD_VERSION, computeProfiles } from "../standard/profiles";
+import { registerCapabilitiesFromArgs } from "../capability/registry";
 
 type InitOptions = {
   help: boolean;
@@ -531,6 +532,11 @@ export async function initCommand(args: string[]): Promise<void> {
     path.join(metaprojectRoot, "metaproject.json"),
     manifest,
   );
+
+  // Register any opt-in capabilities selected via uniform --<cap>/--no-<cap>
+  // flags (ceilings default OFF). No-op with the empty Block 0 registry, so the
+  // default `init` manifest stays byte-identical (golden rule, AC0-22).
+  await registerCapabilitiesFromArgs(projectRoot, args);
 
   await writeTextIfMissing(
     path.join(metaprojectRoot, "README.md"),

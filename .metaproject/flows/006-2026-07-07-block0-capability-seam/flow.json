@@ -1,0 +1,170 @@
+{
+  "schemaVersion": 1,
+  "id": "006",
+  "slug": "block0-capability-seam",
+  "title": "Implement Block 0: Capability Seam (opt-in adapter seam + Asset Resolver + fixture harness)",
+  "status": "in-progress",
+  "createdAt": "2026-07-07T23:22:52.067Z",
+  "updatedAt": "2026-07-07T23:43:26.442Z",
+  "source": {
+    "type": "description",
+    "ref": null
+  },
+  "acChecksum": "sha256:615dff03342db6084fac57bb8a1eea29d381969aa3fc988858d138aa7ea0559b",
+  "acConfirmed": {},
+  "pr": {
+    "url": null
+  },
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Collect remaining context",
+      "kind": "context",
+      "status": "done"
+    },
+    {
+      "id": "T2",
+      "title": "Implement per plan",
+      "kind": "implement",
+      "status": "done"
+    },
+    {
+      "id": "T3",
+      "title": "Add/adjust tests and make them pass",
+      "kind": "test",
+      "status": "done"
+    },
+    {
+      "id": "T4",
+      "title": "Self-review and prepare draft PR",
+      "kind": "review",
+      "status": "todo"
+    },
+    {
+      "id": "T5",
+      "title": "Dependency policy: optionalDependencies + no-top-level-import guard",
+      "kind": "implement",
+      "status": "done"
+    },
+    {
+      "id": "T6",
+      "title": "Asset Resolver: resolver+lock+pull + assets subcommand",
+      "kind": "implement",
+      "status": "done"
+    },
+    {
+      "id": "T7",
+      "title": "Fixture harness: runCorpus/gateCorpus + seed corpora",
+      "kind": "implement",
+      "status": "done"
+    },
+    {
+      "id": "T8",
+      "title": "init/update capability wiring: flags + capabilities[] + config + reconcile",
+      "kind": "implement",
+      "status": "done"
+    },
+    {
+      "id": "T9",
+      "title": "Reference capability end-to-end + golden-rule/no-network gate",
+      "kind": "implement",
+      "status": "done"
+    },
+    {
+      "id": "T10",
+      "title": "Docs: mark Block 0 landed in roadmap",
+      "kind": "docs",
+      "status": "done"
+    }
+  ],
+  "history": [
+    {
+      "at": "2026-07-07T23:22:52.067Z",
+      "event": "created"
+    },
+    {
+      "at": "2026-07-07T23:24:57.012Z",
+      "event": "task-added",
+      "detail": "T5: Dependency policy: optionalDependencies + no-top-level-import guard"
+    },
+    {
+      "at": "2026-07-07T23:24:57.065Z",
+      "event": "task-added",
+      "detail": "T6: Asset Resolver: resolver+lock+pull + assets subcommand"
+    },
+    {
+      "at": "2026-07-07T23:24:57.119Z",
+      "event": "task-added",
+      "detail": "T7: Fixture harness: runCorpus/gateCorpus + seed corpora"
+    },
+    {
+      "at": "2026-07-07T23:24:57.172Z",
+      "event": "task-added",
+      "detail": "T8: init/update capability wiring: flags + capabilities[] + config + reconcile"
+    },
+    {
+      "at": "2026-07-07T23:24:57.226Z",
+      "event": "task-added",
+      "detail": "T9: Reference capability end-to-end + golden-rule/no-network gate"
+    },
+    {
+      "at": "2026-07-07T23:24:57.278Z",
+      "event": "task-added",
+      "detail": "T10: Docs: mark Block 0 landed in roadmap"
+    },
+    {
+      "at": "2026-07-07T23:24:57.331Z",
+      "event": "frozen",
+      "detail": "10 criteria; checksum recorded"
+    },
+    {
+      "at": "2026-07-07T23:24:57.384Z",
+      "event": "started"
+    },
+    {
+      "at": "2026-07-07T23:24:57.435Z",
+      "event": "task-done",
+      "detail": "T1: Collect remaining context"
+    },
+    {
+      "at": "2026-07-07T23:43:26.058Z",
+      "event": "task-done",
+      "detail": "T2: Implement per plan"
+    },
+    {
+      "at": "2026-07-07T23:43:26.114Z",
+      "event": "task-done",
+      "detail": "T5: Dependency policy: optionalDependencies + no-top-level-import guard"
+    },
+    {
+      "at": "2026-07-07T23:43:26.169Z",
+      "event": "task-done",
+      "detail": "T6: Asset Resolver: resolver+lock+pull + assets subcommand"
+    },
+    {
+      "at": "2026-07-07T23:43:26.223Z",
+      "event": "task-done",
+      "detail": "T7: Fixture harness: runCorpus/gateCorpus + seed corpora"
+    },
+    {
+      "at": "2026-07-07T23:43:26.280Z",
+      "event": "task-done",
+      "detail": "T8: init/update capability wiring: flags + capabilities[] + config + reconcile"
+    },
+    {
+      "at": "2026-07-07T23:43:26.333Z",
+      "event": "task-done",
+      "detail": "T9: Reference capability end-to-end + golden-rule/no-network gate"
+    },
+    {
+      "at": "2026-07-07T23:43:26.388Z",
+      "event": "task-done",
+      "detail": "T3: Add/adjust tests and make them pass"
+    },
+    {
+      "at": "2026-07-07T23:43:26.442Z",
+      "event": "task-done",
+      "detail": "T10: Docs: mark Block 0 landed in roadmap"
+    }
+  ]
+}

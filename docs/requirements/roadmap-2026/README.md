@@ -15,7 +15,7 @@ Source artifacts (job): `problem-statement.md`, `architecture.md`, `tech-bestpra
 
 | Order | Block | Directory | Depends on | Summary |
 |-------|-------|-----------|------------|---------|
-| 1 | **00 — Capability Seam** | [`00-capability-seam/`](00-capability-seam/) | — | The uniform opt-in substrate: `resolveCapability(id) → Adapter \| null`, `optionalDependencies` + lazy import, deterministic fallback as a tested path, the Asset Resolver (`assets.lock.json` + `assets pull/list/verify`), and the fixture-corpora acceptance harness + FN-rate gate. Ships **no** end-user feature — every block below instantiates it. |
+| 1 | **00 — Capability Seam** ✅ landed | [`00-capability-seam/`](00-capability-seam/) | — | The uniform opt-in substrate: `resolveCapability(id) → Adapter \| null`, `optionalDependencies` + lazy import, deterministic fallback as a tested path, the Asset Resolver (`assets.lock.json` + `assets pull/list/verify`), and the fixture-corpora acceptance harness + FN-rate gate. Ships **no** end-user feature — every block below instantiates it. |
 | 2 | **A — Interop / MCP** | [`A-interop-mcp/`](A-interop-mcp/) | Block 0 | `gd-metapro mcp` stdio-first server; Tools = thin adapters over `createXService()`; Resources = read-only artifacts; `llms.txt` + gdskills plugin export; reposition the Standard as a generator. |
 | 3 | **B — Code Understanding (`gdgraph`)** | [`B-code-understanding/`](B-code-understanding/) | Block 0 | Opt-in tree-sitter symbol graph (regex fallback), N-hop transitive `affected`, pure PageRank token-budgeted `repomap.md`. |
 | 4 | **C — Memory / Knowledge** | [`C-memory-knowledge/`](C-memory-knowledge/) | Block 0, A (for C4) | Opt-in local embedding index, bitemporal Markdown fact model, memory typing, gdwiki Q&A over the MCP surface. |
@@ -31,6 +31,13 @@ Source artifacts (job): `problem-statement.md`, `architecture.md`, `tech-bestpra
    (tool output is untrusted from day one).
 3. **B, D, and E's non-model items** are independent of A and may proceed in parallel
    once Block 0 exists.
+
+## Implementation Status
+
+| Block | Status | Landed |
+|-------|--------|--------|
+| **00 — Capability Seam** | ✅ **landed** | `src/capability/` (`resolveCapability` seam + warn-once), `src/assets/` (resolver + `assets.lock.json` + `assets list\|verify\|pull`), `src/harness/` (`runCorpus`/`gateCorpus` + `fixtures/`), `optionalDependencies` policy + no-top-level-import guard, init/update capability wiring, non-shipping reference capability. Golden-rule + no-network gates green (201 tests). Ships **no** end-user feature — Blocks A–E instantiate the seam by appending descriptors to `CAPABILITY_REGISTRY`. |
+| A–E | ▫ planned | Instantiate the Block 0 seam. |
 
 ## Cross-Cutting Golden Rule
 
