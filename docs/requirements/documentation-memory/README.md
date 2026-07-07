@@ -1,7 +1,7 @@
 # Documentation Memory requirements
 
-Version: 0.5.0
-Status: Phase 1 + Phase 2 implemented. `memory reflect` consolidation, ingest reconciliation, and the `skills learn --from-memory` loop shipped; embeddings are Phase 3.
+Version: 0.6.0
+Status: Phase 1 + Phase 2 complete (module implemented). reflect, ingest reconciliation, skills learn --from-memory, and skill-verify-skill memory usage shipped; embeddings/semantic overlay are Phase 3.
 
 `Documentation Memory` - модуль Metaproject для долговременной проектной памяти: lessons learned, decisions, constraints, known mistakes, historical context и повторно используемые patterns.
 
