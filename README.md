@@ -346,6 +346,8 @@ Generated output:
 Frontend defaults:
 
 - skips generated/static output such as `storybook-static/**`, `public/**`, `.docusaurus/**`, `dist/**`, `build/**`, `coverage/**`, `.next/**`, and `out/**`;
+- extracts imports through Bun's parser-backed scanner for static imports, re-exports, literal dynamic imports, and `require(...)`, with regex fallback only when scanner parsing fails;
+- resolves root `tsconfig.json` `baseUrl` and `paths` aliases for local source and asset imports;
 - resolves imported assets such as CSS, SVG, JSON, handlebars/raw templates and image/font files as `asset` graph nodes instead of counting them as unresolved imports;
 - summary reports source files, asset nodes, import resolution percent, skipped directories, top modules, and unresolved imports by type.
 
@@ -371,6 +373,10 @@ gd-metapro init --yes --no-gdgraph-hook
 ```
 
 The hook checks files changed in the last commit and runs `gd-metapro gdgraph build` only when graph-relevant files changed.
+
+Git hooks are installed as `gd-metapro` managed blocks. `gd-metapro update --hooks`
+replaces only those marked blocks and preserves existing user hook content,
+including Husky, Lefthook, lint-staged, or custom shell commands.
 
 ## Update
 
