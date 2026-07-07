@@ -1,0 +1,205 @@
+{
+  "schemaVersion": 1,
+  "id": "005",
+  "slug": "security-hooks",
+  "title": "Security hooks: git pre-push gate + agent (.claude) input/output guard",
+  "status": "done",
+  "createdAt": "2026-07-07T20:43:58.958Z",
+  "updatedAt": "2026-07-07T21:20:46.307Z",
+  "source": {
+    "type": "description",
+    "ref": null
+  },
+  "acChecksum": "sha256:35bdc8d8e7f5ab673bc8f7e0b71f2454190e24d7be95440035fe30d164aa6903",
+  "acConfirmed": {
+    "AC1": {
+      "at": "2026-07-07T21:20:35.137Z",
+      "note": "init installs a managed pre-push block (confirm prompt, --yes default, --no-security-hook opt-out); coexists with testing pre-push + user content (tested); managed # gd-metapro:security-pre-push block."
+    },
+    "AC2": {
+      "at": "2026-07-07T21:20:35.191Z",
+      "note": "pre-push blocks (non-zero) only in enforced/ci; advisory warns+allows; each block propagates exit via || exit $?; probes security support and skips on version skew; no-op when disabled."
+    },
+    "AC3": {
+      "at": "2026-07-07T21:20:35.238Z",
+      "note": "init installs .claude/settings.json (confirm, --no-security-agent-hook): UserPromptSubmit→check-input, PreToolUse(Write|Edit)→check-output; valid Claude Code schema."
+    },
+    "AC4": {
+      "at": "2026-07-07T21:20:35.286Z",
+      "note": "merge-safe + idempotent installer (sentinel security-agent-hooks); preserves user keys/hooks (tested empty+pre-populated); re-install no dupes; disable removes only managed entries (init+update reconcile, tested); valid JSON."
+    },
+    "AC5": {
+      "at": "2026-07-07T21:20:35.331Z",
+      "note": "both hooks in manifest security.hooks; offered only when security enabled; update refreshes (no data/security touch); documented in modules/security.md; standard validate PASS."
+    },
+    "AC6": {
+      "at": "2026-07-07T21:20:35.377Z",
+      "note": "10+ tests: pre-push managed-block+coexistence+no-op+flag+exit-code execution; agent merge-safe empty/pre-populated+idempotent+flag+disable-removal; 142 pre-existing unchanged; bun run check green (159 pass)."
+    },
+    "AC7": {
+      "at": "2026-07-07T21:20:35.423Z",
+      "note": "docs: security spec/README/agent-protocol (hooks), roadmap, docs/docs cli-reference/modules/workspace-and-lifecycle (flags+behavior); advisory default; no drift."
+    }
+  },
+  "pr": {
+    "url": "https://github.com/MrCipherSmith/meta-project/pull/8"
+  },
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Collect remaining context",
+      "kind": "context",
+      "status": "done"
+    },
+    {
+      "id": "T2",
+      "title": "Implement per plan",
+      "kind": "implement",
+      "status": "done"
+    },
+    {
+      "id": "T3",
+      "title": "Add/adjust tests and make them pass",
+      "kind": "test",
+      "status": "done"
+    },
+    {
+      "id": "T4",
+      "title": "Self-review and prepare draft PR",
+      "kind": "review",
+      "status": "done"
+    },
+    {
+      "id": "T5",
+      "title": "Hook 3 — agent .claude/settings.json guard hooks (merge-safe)",
+      "kind": "implement",
+      "status": "done"
+    },
+    {
+      "id": "T6",
+      "title": "Registration polish: prompts/help/module doc/standard validate",
+      "kind": "implement",
+      "status": "done"
+    },
+    {
+      "id": "T7",
+      "title": "Docs: security spec/README/agent-protocol, roadmap, docs/docs hooks+flags",
+      "kind": "docs",
+      "status": "done"
+    }
+  ],
+  "history": [
+    {
+      "at": "2026-07-07T20:43:58.958Z",
+      "event": "created"
+    },
+    {
+      "at": "2026-07-07T20:46:17.685Z",
+      "event": "task-added",
+      "detail": "T5: Hook 3 — agent .claude/settings.json guard hooks (merge-safe)"
+    },
+    {
+      "at": "2026-07-07T20:46:17.729Z",
+      "event": "task-added",
+      "detail": "T6: Registration polish: prompts/help/module doc/standard validate"
+    },
+    {
+      "at": "2026-07-07T20:46:17.773Z",
+      "event": "task-added",
+      "detail": "T7: Docs: security spec/README/agent-protocol, roadmap, docs/docs hooks+flags"
+    },
+    {
+      "at": "2026-07-07T20:46:17.821Z",
+      "event": "frozen",
+      "detail": "7 criteria; checksum recorded"
+    },
+    {
+      "at": "2026-07-07T20:46:17.880Z",
+      "event": "started"
+    },
+    {
+      "at": "2026-07-07T20:46:17.947Z",
+      "event": "task-done",
+      "detail": "T1: Collect remaining context"
+    },
+    {
+      "at": "2026-07-07T20:57:53.243Z",
+      "event": "task-done",
+      "detail": "T2: Implement per plan"
+    },
+    {
+      "at": "2026-07-07T20:57:53.292Z",
+      "event": "task-done",
+      "detail": "T5: Hook 3 — agent .claude/settings.json guard hooks (merge-safe)"
+    },
+    {
+      "at": "2026-07-07T20:57:53.348Z",
+      "event": "task-done",
+      "detail": "T6: Registration polish: prompts/help/module doc/standard validate"
+    },
+    {
+      "at": "2026-07-07T20:57:53.398Z",
+      "event": "task-done",
+      "detail": "T3: Add/adjust tests and make them pass"
+    },
+    {
+      "at": "2026-07-07T21:16:37.350Z",
+      "event": "task-done",
+      "detail": "T7: Docs: security spec/README/agent-protocol, roadmap, docs/docs hooks+flags"
+    },
+    {
+      "at": "2026-07-07T21:20:18.063Z",
+      "event": "task-done",
+      "detail": "T4: Self-review and prepare draft PR"
+    },
+    {
+      "at": "2026-07-07T21:20:20.052Z",
+      "event": "implemented",
+      "detail": "draft PR: https://github.com/MrCipherSmith/meta-project/pull/8"
+    },
+    {
+      "at": "2026-07-07T21:20:35.137Z",
+      "event": "ac-confirmed",
+      "detail": "AC1: init installs a managed pre-push block (confirm prompt, --yes default, --no-security-hook opt-out); coexists with testing pre-push + user content (tested); managed # gd-metapro:security-pre-push block."
+    },
+    {
+      "at": "2026-07-07T21:20:35.191Z",
+      "event": "ac-confirmed",
+      "detail": "AC2: pre-push blocks (non-zero) only in enforced/ci; advisory warns+allows; each block propagates exit via || exit $?; probes security support and skips on version skew; no-op when disabled."
+    },
+    {
+      "at": "2026-07-07T21:20:35.238Z",
+      "event": "ac-confirmed",
+      "detail": "AC3: init installs .claude/settings.json (confirm, --no-security-agent-hook): UserPromptSubmit→check-input, PreToolUse(Write|Edit)→check-output; valid Claude Code schema."
+    },
+    {
+      "at": "2026-07-07T21:20:35.287Z",
+      "event": "ac-confirmed",
+      "detail": "AC4: merge-safe + idempotent installer (sentinel security-agent-hooks); preserves user keys/hooks (tested empty+pre-populated); re-install no dupes; disable removes only managed entries (init+update reconcile, tested); valid JSON."
+    },
+    {
+      "at": "2026-07-07T21:20:35.331Z",
+      "event": "ac-confirmed",
+      "detail": "AC5: both hooks in manifest security.hooks; offered only when security enabled; update refreshes (no data/security touch); documented in modules/security.md; standard validate PASS."
+    },
+    {
+      "at": "2026-07-07T21:20:35.377Z",
+      "event": "ac-confirmed",
+      "detail": "AC6: 10+ tests: pre-push managed-block+coexistence+no-op+flag+exit-code execution; agent merge-safe empty/pre-populated+idempotent+flag+disable-removal; 142 pre-existing unchanged; bun run check green (159 pass)."
+    },
+    {
+      "at": "2026-07-07T21:20:35.423Z",
+      "event": "ac-confirmed",
+      "detail": "AC7: docs: security spec/README/agent-protocol (hooks), roadmap, docs/docs cli-reference/modules/workspace-and-lifecycle (flags+behavior); advisory default; no drift."
+    },
+    {
+      "at": "2026-07-07T21:20:44.370Z",
+      "event": "completing"
+    },
+    {
+      "at": "2026-07-07T21:20:46.307Z",
+      "event": "done",
+      "detail": "all gates passed"
+    }
+  ]
+}
