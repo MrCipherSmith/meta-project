@@ -23,7 +23,7 @@ registry to human-readable status and points at each module's requirements.
 
 | Module | CLI namespace | Manifest key | Status | Requirements |
 |---|---|---|---|---|
-| spec-orchestrator | `init`, `status`, `update`, `rules` (`sync`/`distill`), `dashboard`/`dash` | - | implemented | [spec-orchestrator/](spec-orchestrator/) |
+| spec-orchestrator | `init`, `status`, `update`, `rules` (`sync`/`distill`), `dashboard`/`dash`, `modules` | - | implemented | [spec-orchestrator/](spec-orchestrator/) |
 | gdgraph | `gd-metapro gdgraph` | `gdgraph` | implemented | [gdgraph/](gdgraph/) |
 | gdctx | `gd-metapro ctx` | `gdctx` | implemented | [gdctx/](gdctx/) |
 | gdwiki | `gd-metapro wiki` | `gdwiki` | implemented (enriched collect + enrich skill) | [wiki/](wiki/) |
@@ -32,7 +32,7 @@ registry to human-readable status and points at each module's requirements.
 | Code Health | `gd-metapro health` | `health` | implemented (Phase 1 + 2) | [code-health/](code-health/) |
 | Testing Module | `gd-metapro test` | `testing` | implemented (MVP) | [testing/](testing/) |
 | gdskills / Project Skills | `gd-metapro skills` | `gdskills` | implemented (Phase 1 + bundled orchestrators) | [gdskills/](gdskills/) |
-| Metaproject Standard | future `gd-metapro standard` | - | draft spec package | [metaproject-standard/](metaproject-standard/) |
+| Metaproject Standard | `gd-metapro standard` | - | implemented (v0.1 validator) | [metaproject-standard/](metaproject-standard/) |
 | Metaproject Security | future `gd-metapro security` | `security` | draft spec v0.2.0 (hardened: service contract, gate, redaction/hashing safety) | [security/](security/) |
 
 ## 4. gdwiki (implemented, MVP + collector)
@@ -88,11 +88,11 @@ Remaining:
 Order is indicative, not committed:
 
 1. Task Manager Phase 2 (`gd-metapro flow`) - Notion/Jira adapters, flow board artifact, memory/wiki links.
-2. Metaproject Standard validator (`gd-metapro standard validate|doctor|capabilities`) from the draft schemas.
-3. Metaproject Security MVP (`gd-metapro security status|scan|check-input|check-output|redact|report`) with local rules/entropy backends.
-4. gdwiki release metrics and richer dashboard navigation.
-5. gdskills semantic verification against entity ownership maps.
-6. Code Health Phase 3 (`gd-metapro health`) - advanced trend analytics and larger-project tuning.
+2. Metaproject Security MVP (`gd-metapro security status|scan|check-input|check-output|redact|report`) with local rules/entropy backends.
+3. gdwiki release metrics and richer dashboard navigation.
+4. gdskills semantic verification against entity ownership maps.
+5. Code Health Phase 3 (`gd-metapro health`) - advanced trend analytics and larger-project tuning.
+6. Metaproject Standard beyond v0.1 - module annex schemas and stricter profile enforcement (the v0.1 `standard validate|doctor|capabilities` commands are shipped).
 
 ## 7. Technical Remediation Status
 

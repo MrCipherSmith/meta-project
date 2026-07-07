@@ -43,7 +43,7 @@ Two invariants define the system and recur across every module:
 
 | Module | Directory | CLI verb | Role |
 |---|---|---|---|
-| **cli-core** | `src/cli.ts`, `src/commands/*` | `init` / `update` / `status` / `dashboard` | Argv dispatch and lifecycle: scaffold, refresh, report, and visualize the workspace; owns `MODULE_COMMANDS`. |
+| **cli-core** | `src/cli.ts`, `src/commands/*` | `init` / `update` / `status` / `dashboard` / `modules` / `standard` | Argv dispatch and lifecycle: scaffold, refresh, report, and visualize the workspace; toggle modules (`modules`); validate Metaproject Standard compliance (`standard`); owns `MODULE_COMMANDS`. |
 | **shared-lib** | `src/lib/` | — | Bottom-layer toolkit: args, fs, json, prompt, ui, and the `templates.ts` code-gen that renders the whole `.metaproject/` scaffold. |
 | **rules** | `src/rules/` | `rules` | Sync/distill root `AGENTS.md`/`CLAUDE.md` into high-priority workspace rules and inject the managed Metaproject routing block. |
 | **gdgraph** | `src/gdgraph/` | `gdgraph` | Build a regex-based intra-project import/dependency graph; query cycles, orphans, and affected files. |
@@ -85,7 +85,7 @@ _11 modules: `cli-core` and `shared-lib` are the two cross-cutting groups alongs
 
 **Who writes what.** Each feature module owns its `data/<module>/` subtree and writes only there at runtime. Source-of-truth trees (`wiki/`, `memory/`, `project-skills/`, `rules/`) are seeded by `init`/module `new`/`create` commands but are then "owned" by the human — the tooling guards against clobbering them (gdwiki's draft-marker guard only overwrites unmodified generated drafts; gdskills `learn` never mutates `SKILL.md` without an explicit `apply`; flow's `flow.json` is the CLI's exclusive writer, protected by an AC-checksum tamper check).
 
-**`metaproject.json` manifest.** The single authoritative runtime config. It records `schemaVersion`, project name, `paths{}`, `agentEntrypoints{root[], metaproject}`, and a `modules{}` map where each entry carries `enabled`, per-module settings (e.g. gdskills `profile` + `projectSkillRegistry[]`), `hooks{}`, and a `commands[]` list. The lifecycle commands read it to know which of the 8 optional modules are enabled; `rules`, `health`, `flow`, and gdskills read it too.
+**`metaproject.json` manifest.** The single authoritative runtime config. It records `schemaVersion`, project name, `paths{}`, `agentEntrypoints{root[], metaproject}`, the Metaproject-Standard fields `standardVersion` / `profiles[]` / `updatedAt`, and a `modules{}` map where each entry carries `enabled`, per-module settings (e.g. gdskills `profile` + `projectSkillRegistry[]`), `hooks{}`, and a `commands[]` list. The lifecycle commands read it to know which of the 8 optional modules are enabled; `rules`, `health`, `flow`, and gdskills read it too.
 
 **`MODULE_COMMANDS` single source of truth.** `src/commands/module-commands.ts` holds one canonical subcommand list per module id. `moduleCommands(id)` returns a fresh mutable copy consumed by `init` (`buildManifest`) and `update` (`refreshServiceFiles`, recovery, tasks-backfill) — so the `commands[]` arrays in every generated `metaproject.json` come from exactly one place, enforced by `module-commands.test.ts`. Note the id/verb skew: manifest id `tasks` ↔ CLI verb `flow`; id `gdwiki` ↔ verb `wiki` (legacy `wiki` keys migrated forward).
 

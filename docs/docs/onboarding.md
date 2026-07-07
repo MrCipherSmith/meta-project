@@ -178,6 +178,14 @@ gd-metapro update --hooks          # run executables in hooks/post-update.d/
 
 Workspaces created before the `tasks` module existed are automatically backfilled by `update` (opt out with `--no-tasks`).
 
+After updating, confirm the workspace still conforms to the Metaproject Standard:
+
+```bash
+gd-metapro standard validate    # PASS/FAIL report, non-zero exit on violations
+gd-metapro standard doctor      # actionable fix hints
+gd-metapro standard capabilities # standard version, profiles, enabled modules
+```
+
 ## TTY / CI behavior
 
 `gd-metapro` is safe to run in pipelines and non-interactive shells:
