@@ -57,6 +57,7 @@ import {
   renderMetaprojectReadme,
   renderProjectRulesReadme,
   renderProjectRulesSkillReadme,
+  type MetaprojectDashboardData,
 } from "../lib/templates";
 import {
   renderTestingPostCommitHook,
@@ -153,6 +154,7 @@ async function refreshServiceFiles(projectRoot: string, options: UpdateOptions):
 
   const gdskillsProfile = normalizeGdskillsProfile(manifest.modules?.gdskills?.profile);
   const ruleSources = await syncAgentRules(projectRoot, metaprojectRoot, manifest.agentEntrypoints?.root ?? []);
+  const dashboardData = await collectDashboardData(metaprojectRoot);
 
   await createServiceDirs(metaprojectRoot, {
     enableGdgraph,
@@ -197,6 +199,7 @@ async function refreshServiceFiles(projectRoot: string, options: UpdateOptions):
       enableTesting,
       enableMemory,
       enableTasks,
+      data: dashboardData,
     }),
   );
   await writeTextIfMissing(
@@ -332,6 +335,272 @@ async function shouldInstallDashboardPostCommitHook(projectRoot: string, manifes
     return false;
   }
   return (await readFile(hookPath, "utf8")).includes("# gd-metapro:");
+}
+
+async function collectDashboardData(metaprojectRoot: string): Promise<MetaprojectDashboardData> {
+  const data: MetaprojectDashboardData = {
+    generatedAt: new Date().toISOString(),
+  };
+  const health = await collectHealthDashboardData(metaprojectRoot);
+  if (health) {
+    data.health = health;
+  }
+  const graph = await collectGraphDashboardData(metaprojectRoot);
+  if (graph) {
+    data.graph = graph;
+  }
+  const testing = await collectTestingDashboardData(metaprojectRoot);
+  if (testing) {
+    data.testing = testing;
+  }
+  const wiki = await collectMarkdownPages(path.join(metaprojectRoot, "wiki"), "wiki");
+  if (wiki.length > 0) {
+    data.wiki = { pages: wiki };
+  }
+  const memory = await collectMarkdownPages(path.join(metaprojectRoot, "memory"), "memory");
+  if (memory.length > 0) {
+    data.memory = { entries: memory };
+  }
+  return data;
+}
+
+async function collectHealthDashboardData(
+  metaprojectRoot: string,
+): Promise<MetaprojectDashboardData["health"] | undefined> {
+  const reportPath = path.join(metaprojectRoot, "data", "health", "artifacts", "latest.json");
+  if (!(await pathExists(reportPath))) {
+    return undefined;
+  }
+  const report = JSON.parse(await readFile(reportPath, "utf8")) as {
+    gate?: { status?: unknown };
+    sources?: Array<Record<string, unknown>>;
+    metrics?: Array<Record<string, unknown>>;
+  };
+  const metrics = Array.isArray(report.metrics) ? report.metrics : [];
+  const project = metrics.find((metric) => metric.key === "project") ?? {};
+  const counts = (project.findingCounts ?? {}) as {
+    total?: unknown;
+    byPriority?: Record<string, unknown>;
+  };
+  const byPriority = counts.byPriority ?? {};
+  const sortedMetrics = metrics
+    .filter((metric) => metric.key !== "project")
+    .sort((a, b) => numberValue(b.risk_score) - numberValue(a.risk_score));
+  const scopes = sortedMetrics
+    .filter((metric) => String(metric.kind ?? "") !== "file" && numberValue((metric.findingCounts as { total?: unknown } | undefined)?.total) > 0)
+    .slice(0, 12)
+    .map((metric) => metricToScope(metric));
+  const files = sortedMetrics
+    .filter((metric) => String(metric.kind ?? "") === "file" && numberValue((metric.findingCounts as { total?: unknown } | undefined)?.total) > 0)
+    .slice(0, 15)
+    .map((metric) => ({
+      name: String(metric.name ?? metric.key ?? "unknown"),
+      score: numberOrDash(metric.health_score),
+      findings: numberValue((metric.findingCounts as { total?: unknown } | undefined)?.total),
+      risk: numberValue(metric.risk_score),
+      complexity: numberOrDash((metric.complexity as { max?: unknown } | undefined)?.max),
+    }));
+
+  return {
+    status: String(report.gate?.status ?? "unknown"),
+    score: numberOrDash(project.health_score),
+    ...(typeof project.trend === "string" ? { trend: project.trend } : {}),
+    findings: numberValue(counts.total),
+    p0: numberValue(byPriority.P0),
+    p1: numberValue(byPriority.P1),
+    p2: numberValue(byPriority.P2),
+    sources: (report.sources ?? []).map((source) => ({
+      source: String(source.source ?? "unknown"),
+      status: String(source.status ?? "unknown"),
+      findings: numberValue(source.findings),
+      required: source.required === true,
+    })),
+    scopes,
+    files,
+    reportHref: "data/health/artifacts/latest.md",
+  };
+}
+
+function metricToScope(metric: Record<string, unknown>): {
+  name: string;
+  kind: string;
+  score: number | string;
+  findings: number;
+  risk: number;
+  complexity?: number | string;
+} {
+  return {
+    name: String(metric.name ?? metric.key ?? "unknown"),
+    kind: String(metric.kind ?? "scope"),
+    score: numberOrDash(metric.health_score),
+    findings: numberValue((metric.findingCounts as { total?: unknown } | undefined)?.total),
+    risk: numberValue(metric.risk_score),
+    complexity: numberOrDash((metric.complexity as { max?: unknown } | undefined)?.max),
+  };
+}
+
+async function collectGraphDashboardData(
+  metaprojectRoot: string,
+): Promise<MetaprojectDashboardData["graph"] | undefined> {
+  const nodesPath = path.join(metaprojectRoot, "data", "gdgraph", "storage", "nodes.jsonl");
+  const edgesPath = path.join(metaprojectRoot, "data", "gdgraph", "storage", "edges.jsonl");
+  if (!(await pathExists(nodesPath)) || !(await pathExists(edgesPath))) {
+    return undefined;
+  }
+  const moduleStats = new Map<string, { files: number; edges: number }>();
+  let nodes = 0;
+  let files = 0;
+  let assets = 0;
+  for (const node of parseJsonl(await readFile(nodesPath, "utf8"))) {
+    nodes += 1;
+    if (node.kind === "asset") {
+      assets += 1;
+      continue;
+    }
+    files += 1;
+    const moduleName = moduleNameFromPath(String(node.path ?? node.id ?? "unknown"));
+    const stats = moduleStats.get(moduleName) ?? { files: 0, edges: 0 };
+    stats.files += 1;
+    moduleStats.set(moduleName, stats);
+  }
+  let edges = 0;
+  let imports = 0;
+  let assetEdges = 0;
+  let unresolved = 0;
+  for (const edge of parseJsonl(await readFile(edgesPath, "utf8"))) {
+    edges += 1;
+    if (edge.kind === "imports") {
+      imports += 1;
+    } else if (edge.kind === "asset") {
+      assetEdges += 1;
+    } else if (edge.kind === "unresolved") {
+      unresolved += 1;
+    }
+    const moduleName = moduleNameFromPath(String(edge.from ?? "unknown"));
+    const stats = moduleStats.get(moduleName) ?? { files: 0, edges: 0 };
+    stats.edges += 1;
+    moduleStats.set(moduleName, stats);
+  }
+
+  return {
+    nodes,
+    files,
+    assets,
+    edges,
+    imports,
+    assetsEdges: assetEdges,
+    unresolved,
+    topModules: [...moduleStats.entries()]
+      .map(([name, stats]) => ({ name, files: stats.files, edges: stats.edges }))
+      .sort((a, b) => b.files - a.files || b.edges - a.edges)
+      .slice(0, 12),
+    storageHref: "data/gdgraph/storage/nodes.jsonl",
+  };
+}
+
+async function collectTestingDashboardData(
+  metaprojectRoot: string,
+): Promise<MetaprojectDashboardData["testing"] | undefined> {
+  const reportPath = path.join(metaprojectRoot, "data", "testing", "artifacts", "latest.json");
+  const contextPath = path.join(metaprojectRoot, "data", "testing", "context.md");
+  if (await pathExists(reportPath)) {
+    const report = JSON.parse(await readFile(reportPath, "utf8")) as Record<string, unknown>;
+    const totalTests = numberOrUndefined(report.total);
+    const failedTests = Array.isArray(report.failures)
+      ? report.failures.length
+      : numberOrUndefined(report.failed);
+    return {
+      status: String(report.status ?? "unknown"),
+      ...(typeof report.runner === "string" ? { runner: report.runner } : {}),
+      ...(totalTests !== undefined ? { tests: totalTests } : {}),
+      ...(failedTests !== undefined ? { failures: failedTests } : {}),
+      reportHref: "data/testing/artifacts/latest.md",
+      ...(await pathExists(contextPath) ? { contextHref: "data/testing/context.md" } : {}),
+    };
+  }
+  if (await pathExists(contextPath)) {
+    return {
+      status: "context",
+      contextHref: "data/testing/context.md",
+    };
+  }
+  return undefined;
+}
+
+async function collectMarkdownPages(root: string, hrefPrefix: string): Promise<Array<{ title: string; href: string; group: string }>> {
+  if (!(await pathExists(root))) {
+    return [];
+  }
+  const files = await listMarkdownFiles(root);
+  const pages: Array<{ title: string; href: string; group: string }> = [];
+  for (const filePath of files.slice(0, 40)) {
+    const relativePath = path.relative(root, filePath).split(path.sep).join("/");
+    if (relativePath.startsWith("templates/")) {
+      continue;
+    }
+    const content = await readFile(filePath, "utf8");
+    pages.push({
+      title: firstMarkdownHeading(content) ?? relativePath,
+      href: `${hrefPrefix}/${relativePath}`,
+      group: relativePath.includes("/") ? relativePath.split("/")[0] ?? "root" : "root",
+    });
+  }
+  return pages;
+}
+
+async function listMarkdownFiles(root: string): Promise<string[]> {
+  const entries = await readdir(root, { withFileTypes: true });
+  const files: string[] = [];
+  for (const entry of entries) {
+    const fullPath = path.join(root, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...await listMarkdownFiles(fullPath));
+    } else if (entry.isFile() && entry.name.endsWith(".md")) {
+      files.push(fullPath);
+    }
+  }
+  return files.sort();
+}
+
+function firstMarkdownHeading(content: string): string | undefined {
+  const line = content.split("\n").find((item) => item.startsWith("# "));
+  return line?.replace(/^#\s+/, "").trim();
+}
+
+function parseJsonl(content: string): Array<Record<string, unknown>> {
+  return content
+    .split("\n")
+    .filter((line) => line.trim().length > 0)
+    .flatMap((line) => {
+      try {
+        return [JSON.parse(line) as Record<string, unknown>];
+      } catch {
+        return [];
+      }
+    });
+}
+
+function moduleNameFromPath(filePath: string): string {
+  const parts = filePath.split("/").filter(Boolean);
+  if (parts[0] === "src" && parts[1]) {
+    return `src/${parts[1]}`;
+  }
+  if ((parts[0] === "e2e" || parts[0] === "packages" || parts[0] === "app" || parts[0] === "lib" || parts[0] === "services") && parts[1]) {
+    return `${parts[0]}/${parts[1]}`;
+  }
+  return parts[0] ?? "root";
+}
+
+function numberValue(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+function numberOrDash(value: unknown): number | string {
+  return typeof value === "number" && Number.isFinite(value) ? value : "-";
+}
+
+function numberOrUndefined(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
 async function writeRecoveredManifest(
