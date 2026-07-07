@@ -22,3 +22,14 @@
   - **IMPORTANT**: pre-push under-scanned a first push (didn't read git stdin). Fixed: read stdin ref lines, compute real range incl. new-ref (all commits) + dedupe + execution test.
 - Final: tsc clean; `bun test` 159 pass / 0 fail (142 pre-existing unchanged + hook tests); standard validate PASS.
 - Decision: NOT committing the dogfooded `.claude/settings.json` — the agent hook is opt-in at `init`; forcing it on all contributors (and requiring gd-metapro on PATH) is a poor default. Feature is fully covered by code + tests + docs.
+- 2026-07-07T21:20:18.063Z - task-done: T4: Self-review and prepare draft PR
+- 2026-07-07T21:20:20.052Z - implemented: draft PR: https://github.com/MrCipherSmith/meta-project/pull/8
+- 2026-07-07T21:20:35.137Z - ac-confirmed: AC1: init installs a managed pre-push block (confirm prompt, --yes default, --no-security-hook opt-out); coexists with testing pre-push + user content (tested); managed # gd-metapro:security-pre-push block.
+- 2026-07-07T21:20:35.191Z - ac-confirmed: AC2: pre-push blocks (non-zero) only in enforced/ci; advisory warns+allows; each block propagates exit via || exit $?; probes security support and skips on version skew; no-op when disabled.
+- 2026-07-07T21:20:35.238Z - ac-confirmed: AC3: init installs .claude/settings.json (confirm, --no-security-agent-hook): UserPromptSubmit→check-input, PreToolUse(Write|Edit)→check-output; valid Claude Code schema.
+- 2026-07-07T21:20:35.287Z - ac-confirmed: AC4: merge-safe + idempotent installer (sentinel security-agent-hooks); preserves user keys/hooks (tested empty+pre-populated); re-install no dupes; disable removes only managed entries (init+update reconcile, tested); valid JSON.
+- 2026-07-07T21:20:35.331Z - ac-confirmed: AC5: both hooks in manifest security.hooks; offered only when security enabled; update refreshes (no data/security touch); documented in modules/security.md; standard validate PASS.
+- 2026-07-07T21:20:35.377Z - ac-confirmed: AC6: 10+ tests: pre-push managed-block+coexistence+no-op+flag+exit-code execution; agent merge-safe empty/pre-populated+idempotent+flag+disable-removal; 142 pre-existing unchanged; bun run check green (159 pass).
+- 2026-07-07T21:20:35.423Z - ac-confirmed: AC7: docs: security spec/README/agent-protocol (hooks), roadmap, docs/docs cli-reference/modules/workspace-and-lifecycle (flags+behavior); advisory default; no drift.
+- 2026-07-07T21:20:44.370Z - completing
+- 2026-07-07T21:20:46.307Z - done: all gates passed
