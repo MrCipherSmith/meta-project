@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathExists } from "../lib/fs";
+import { relevantAcceptedMemory } from "../memory/relevant";
 import type { ProjectSkillRegistryEntry } from "./project-skills";
 
 export type ProjectSkillVerificationStatus = "fresh" | "needs-review" | "stale" | "blocked";
@@ -269,6 +270,22 @@ async function collectVerificationSignals({
     ".metaproject/data/memory/artifacts/latest.json",
     ".metaproject/data/memory/artifacts/latest.md",
   ]);
+
+  // Active memory consultation: surface accepted decisions/constraints/known
+  // mistakes that apply to this skill so the verifier checks for contradiction.
+  const acceptedMemory = await relevantAcceptedMemory(projectRoot, {
+    module: metadata.module ?? registryEntry?.module ?? null,
+    target,
+    files: [],
+  });
+  if (acceptedMemory.length > 0) {
+    signals.push({
+      name: "memory:accepted",
+      status: "warn",
+      message: `${acceptedMemory.length} accepted memory ${acceptedMemory.length === 1 ? "entry applies" : "entries apply"} to this skill; verify no contradiction`,
+      path: acceptedMemory[0]?.relativePath,
+    });
+  }
 
   return signals;
 }
