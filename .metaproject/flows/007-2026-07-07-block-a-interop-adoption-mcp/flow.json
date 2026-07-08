@@ -3,17 +3,54 @@
   "id": "007",
   "slug": "block-a-interop-adoption-mcp",
   "title": "Block A — Interop & Adoption (MCP)",
-  "status": "in-progress",
+  "status": "done",
   "createdAt": "2026-07-07T23:46:53.916Z",
-  "updatedAt": "2026-07-08T00:20:24.142Z",
+  "updatedAt": "2026-07-08T00:21:58.819Z",
   "source": {
     "type": "description",
     "ref": null
   },
   "acChecksum": "sha256:ad739eaec0c9f8e7a9029ea9e5e4256542cf2bff9fb913d28f18d1b5b9986a5a",
-  "acConfirmed": {},
+  "acConfirmed": {
+    "AC1": {
+      "at": "2026-07-08T00:21:30.256Z"
+    },
+    "AC2": {
+      "at": "2026-07-08T00:21:30.394Z"
+    },
+    "AC3": {
+      "at": "2026-07-08T00:21:30.545Z"
+    },
+    "AC4": {
+      "at": "2026-07-08T00:21:30.655Z"
+    },
+    "AC5": {
+      "at": "2026-07-08T00:21:30.843Z"
+    },
+    "AC6": {
+      "at": "2026-07-08T00:21:31.001Z"
+    },
+    "AC7": {
+      "at": "2026-07-08T00:21:31.172Z"
+    },
+    "AC8": {
+      "at": "2026-07-08T00:21:31.353Z"
+    },
+    "AC9": {
+      "at": "2026-07-08T00:21:31.486Z"
+    },
+    "AC10": {
+      "at": "2026-07-08T00:21:31.636Z"
+    },
+    "AC11": {
+      "at": "2026-07-08T00:21:31.792Z"
+    },
+    "AC12": {
+      "at": "2026-07-08T00:21:31.967Z"
+    }
+  },
   "pr": {
-    "url": null
+    "url": "https://github.com/MrCipherSmith/meta-project/pull/12"
   },
   "tasks": [
     {
@@ -98,7 +135,7 @@
       "id": "T14",
       "title": "Adversarial review + draft PR",
       "kind": "implement",
-      "status": "todo"
+      "status": "done"
     }
   ],
   "history": [
@@ -229,6 +266,85 @@
       "at": "2026-07-08T00:20:24.142Z",
       "event": "task-done",
       "detail": "T13: Docs: metaproject-standard MCP surface + Standard-as-generator + roadmap status"
+    },
+    {
+      "at": "2026-07-08T00:21:27.828Z",
+      "event": "task-done",
+      "detail": "T14: Adversarial review + draft PR"
+    },
+    {
+      "at": "2026-07-08T00:21:30.115Z",
+      "event": "implemented",
+      "detail": "draft PR: https://github.com/MrCipherSmith/meta-project/pull/12 (warning: PR is not a draft)"
+    },
+    {
+      "at": "2026-07-08T00:21:30.257Z",
+      "event": "ac-confirmed",
+      "detail": "AC1"
+    },
+    {
+      "at": "2026-07-08T00:21:30.394Z",
+      "event": "ac-confirmed",
+      "detail": "AC2"
+    },
+    {
+      "at": "2026-07-08T00:21:30.546Z",
+      "event": "ac-confirmed",
+      "detail": "AC3"
+    },
+    {
+      "at": "2026-07-08T00:21:30.655Z",
+      "event": "ac-confirmed",
+      "detail": "AC4"
+    },
+    {
+      "at": "2026-07-08T00:21:30.844Z",
+      "event": "ac-confirmed",
+      "detail": "AC5"
+    },
+    {
+      "at": "2026-07-08T00:21:31.002Z",
+      "event": "ac-confirmed",
+      "detail": "AC6"
+    },
+    {
+      "at": "2026-07-08T00:21:31.172Z",
+      "event": "ac-confirmed",
+      "detail": "AC7"
+    },
+    {
+      "at": "2026-07-08T00:21:31.353Z",
+      "event": "ac-confirmed",
+      "detail": "AC8"
+    },
+    {
+      "at": "2026-07-08T00:21:31.487Z",
+      "event": "ac-confirmed",
+      "detail": "AC9"
+    },
+    {
+      "at": "2026-07-08T00:21:31.636Z",
+      "event": "ac-confirmed",
+      "detail": "AC10"
+    },
+    {
+      "at": "2026-07-08T00:21:31.792Z",
+      "event": "ac-confirmed",
+      "detail": "AC11"
+    },
+    {
+      "at": "2026-07-08T00:21:31.967Z",
+      "event": "ac-confirmed",
+      "detail": "AC12"
+    },
+    {
+      "at": "2026-07-08T00:21:56.608Z",
+      "event": "completing"
+    },
+    {
+      "at": "2026-07-08T00:21:58.819Z",
+      "event": "done",
+      "detail": "all gates passed"
     }
   ]
 }
