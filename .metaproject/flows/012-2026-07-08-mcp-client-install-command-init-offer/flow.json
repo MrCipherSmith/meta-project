@@ -1,0 +1,122 @@
+{
+  "schemaVersion": 1,
+  "id": "012",
+  "slug": "mcp-client-install-command-init-offer",
+  "title": "MCP client install command + init offer",
+  "status": "in-progress",
+  "createdAt": "2026-07-08T08:19:16.828Z",
+  "updatedAt": "2026-07-08T08:34:53.207Z",
+  "source": {
+    "type": "description",
+    "ref": null
+  },
+  "acChecksum": "sha256:f4ecabe71dca3207494ea8b6fcf970c70f2cf4e52417ecca7c0e9a6c2e6e6e00",
+  "acConfirmed": {},
+  "pr": {
+    "url": null
+  },
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Collect remaining context",
+      "kind": "context",
+      "status": "done"
+    },
+    {
+      "id": "T2",
+      "title": "Implement per plan",
+      "kind": "implement",
+      "status": "done"
+    },
+    {
+      "id": "T3",
+      "title": "Add/adjust tests and make them pass",
+      "kind": "test",
+      "status": "done"
+    },
+    {
+      "id": "T4",
+      "title": "Self-review and prepare draft PR",
+      "kind": "review",
+      "status": "done"
+    },
+    {
+      "id": "T5",
+      "title": "Tests: merge-safety, idempotent, uninstall, dry-run, byte-identical default, no-network",
+      "kind": "implement",
+      "status": "done"
+    },
+    {
+      "id": "T6",
+      "title": "Docs: README + cli-reference + init offer note",
+      "kind": "implement",
+      "status": "done"
+    },
+    {
+      "id": "T7",
+      "title": "Adversarial review + draft PR",
+      "kind": "implement",
+      "status": "todo"
+    }
+  ],
+  "history": [
+    {
+      "at": "2026-07-08T08:19:16.828Z",
+      "event": "created"
+    },
+    {
+      "at": "2026-07-08T08:21:47.569Z",
+      "event": "task-added",
+      "detail": "T5: Tests: merge-safety, idempotent, uninstall, dry-run, byte-identical default, no-network"
+    },
+    {
+      "at": "2026-07-08T08:21:47.623Z",
+      "event": "task-added",
+      "detail": "T6: Docs: README + cli-reference + init offer note"
+    },
+    {
+      "at": "2026-07-08T08:21:47.678Z",
+      "event": "task-added",
+      "detail": "T7: Adversarial review + draft PR"
+    },
+    {
+      "at": "2026-07-08T08:21:47.733Z",
+      "event": "frozen",
+      "detail": "7 criteria; checksum recorded"
+    },
+    {
+      "at": "2026-07-08T08:21:47.789Z",
+      "event": "started"
+    },
+    {
+      "at": "2026-07-08T08:21:47.845Z",
+      "event": "task-done",
+      "detail": "T1: Collect remaining context"
+    },
+    {
+      "at": "2026-07-08T08:34:52.820Z",
+      "event": "task-done",
+      "detail": "T2: Implement per plan"
+    },
+    {
+      "at": "2026-07-08T08:34:52.920Z",
+      "event": "task-done",
+      "detail": "T3: Add/adjust tests and make them pass"
+    },
+    {
+      "at": "2026-07-08T08:34:53.016Z",
+      "event": "task-done",
+      "detail": "T4: Self-review and prepare draft PR"
+    },
+    {
+      "at": "2026-07-08T08:34:53.109Z",
+      "event": "task-done",
+      "detail": "T5: Tests: merge-safety, idempotent, uninstall, dry-run, byte-identical default, no-network"
+    },
+    {
+      "at": "2026-07-08T08:34:53.207Z",
+      "event": "task-done",
+      "detail": "T6: Docs: README + cli-reference + init offer note"
+    }
+  ]
+}
