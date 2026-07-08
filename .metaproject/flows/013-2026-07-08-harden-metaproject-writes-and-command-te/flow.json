@@ -3,9 +3,9 @@
   "id": "013",
   "slug": "harden-metaproject-writes-and-command-te",
   "title": "Harden Metaproject writes and command test isolation",
-  "status": "in-progress",
+  "status": "implemented",
   "createdAt": "2026-07-08T10:29:10.662Z",
-  "updatedAt": "2026-07-08T10:35:48.770Z",
+  "updatedAt": "2026-07-08T10:43:33.789Z",
   "source": {
     "type": "description",
     "ref": null
@@ -34,7 +34,7 @@
     }
   },
   "pr": {
-    "url": null
+    "url": "https://github.com/MrCipherSmith/meta-project/pull/19"
   },
   "tasks": [
     {
@@ -152,6 +152,11 @@
       "at": "2026-07-08T10:35:48.770Z",
       "event": "ac-confirmed",
       "detail": "AC5: typecheck passed; full test suite passed: 380 pass, 0 fail with Bun in PATH"
+    },
+    {
+      "at": "2026-07-08T10:43:33.789Z",
+      "event": "implemented",
+      "detail": "draft PR: https://github.com/MrCipherSmith/meta-project/pull/19 (tracker unavailable: existence not verified)"
     }
   ]
 }
