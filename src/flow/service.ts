@@ -1,6 +1,6 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
 import path from "node:path";
-import { pathExists } from "../lib/fs";
+import { pathExists, writeFileAtomic, withFileLock } from "../lib/fs";
 import { assertTransition } from "./machine";
 import { collectContext } from "./context";
 import {
@@ -107,46 +107,48 @@ export function createFlowService(deps: FlowServiceDeps): FlowService {
       });
       const title = input.title ?? context.issueTitle ?? provisionalTitle;
 
-      const id = await nextFlowId(input.cwd);
-      const date = now().slice(0, 10);
-      const slug = slugify(input.slug ?? title);
-      const dir = `${id}-${date}-${slug}`;
-      const absolute = path.join(flowsRoot(input.cwd), dir);
-      if (await pathExists(absolute)) {
-        throw new Error(`Flow directory already exists: ${dir}`);
-      }
-      await mkdir(absolute, { recursive: true });
+      return withFileLock(path.join(flowsRoot(input.cwd), ".flow-init.lock"), async () => {
+        const id = await nextFlowId(input.cwd);
+        const date = now().slice(0, 10);
+        const slug = slugify(input.slug ?? title);
+        const dir = `${id}-${date}-${slug}`;
+        const absolute = path.join(flowsRoot(input.cwd), dir);
+        if (await pathExists(absolute)) {
+          throw new Error(`Flow directory already exists: ${dir}`);
+        }
+        await mkdir(absolute, { recursive: true });
 
-      const createdAt = now();
-      const flow: FlowState = {
-        schemaVersion: 1,
-        id,
-        slug,
-        title,
-        status: "initializing",
-        createdAt,
-        updatedAt: createdAt,
-        source: {
-          type: input.issue ? "github-issue" : "description",
-          ref: input.issue ?? null,
-        },
-        acChecksum: null,
-        acConfirmed: {},
-        pr: { url: null },
-        tasks: DEFAULT_TASKS.map((task) => ({ ...task, status: "todo" })),
-        history: [{ at: createdAt, event: "created" }],
-      };
+        const createdAt = now();
+        const flow: FlowState = {
+          schemaVersion: 1,
+          id,
+          slug,
+          title,
+          status: "initializing",
+          createdAt,
+          updatedAt: createdAt,
+          source: {
+            type: input.issue ? "github-issue" : "description",
+            ref: input.issue ?? null,
+          },
+          acChecksum: null,
+          acConfirmed: {},
+          pr: { url: null },
+          tasks: DEFAULT_TASKS.map((task) => ({ ...task, status: "todo" })),
+          history: [{ at: createdAt, event: "created" }],
+        };
 
-      const sourceLabel = input.issue ?? "user description";
-      await writeFile(path.join(absolute, "description.md"), renderDescription(title, sourceLabel), "utf8");
-      await writeFile(path.join(absolute, "context.md"), context.markdown, "utf8");
-      await writeFile(path.join(absolute, "plan.md"), renderPlan(), "utf8");
-      await writeFile(path.join(absolute, "tasks.md"), renderTasksDoc(), "utf8");
-      await writeFile(path.join(absolute, "acceptance-criteria.md"), renderAcceptanceCriteria(), "utf8");
-      await writeFile(path.join(absolute, "journal.md"), renderJournal(createdAt), "utf8");
-      await writeFlow(input.cwd, dir, flow);
+        const sourceLabel = input.issue ?? "user description";
+        await writeFileAtomic(path.join(absolute, "description.md"), renderDescription(title, sourceLabel));
+        await writeFileAtomic(path.join(absolute, "context.md"), context.markdown);
+        await writeFileAtomic(path.join(absolute, "plan.md"), renderPlan());
+        await writeFileAtomic(path.join(absolute, "tasks.md"), renderTasksDoc());
+        await writeFileAtomic(path.join(absolute, "acceptance-criteria.md"), renderAcceptanceCriteria());
+        await writeFileAtomic(path.join(absolute, "journal.md"), renderJournal(createdAt));
+        await writeFlow(input.cwd, dir, flow);
 
-      return { flow, dir: path.relative(input.cwd, absolute), contextNotes: context.notes };
+        return { flow, dir: path.relative(input.cwd, absolute), contextNotes: context.notes };
+      });
     },
 
     async list({ cwd }): Promise<FlowSummary[]> {

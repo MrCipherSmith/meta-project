@@ -1,6 +1,6 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
-import { isPathInside, pathExists, toPosix } from "../lib/fs";
+import { isPathInside, pathExists, toPosix, withFileLock, writeFileAtomic } from "../lib/fs";
 import { readJsonFile, readJsonFileOr } from "../lib/json";
 import type { ProjectSkillRegistryEntry } from "./project-skills";
 
@@ -117,8 +117,8 @@ export async function learnProjectSkill(
 
   if (!options.dryRun) {
     await mkdir(proposalRoot, { recursive: true });
-    await writeFile(proposalJsonPath, `${JSON.stringify(proposal, null, 2)}\n`, "utf8");
-    await writeFile(path.join(proposalRoot, `${proposalId}.md`), renderProposalMarkdown(proposal), "utf8");
+    await writeFileAtomic(proposalJsonPath, `${JSON.stringify(proposal, null, 2)}\n`);
+    await writeFileAtomic(path.join(proposalRoot, `${proposalId}.md`), renderProposalMarkdown(proposal));
   }
 
   return proposal;
@@ -137,58 +137,60 @@ export async function applyLearningProposal(
     throw new Error(`Learning proposal not found: ${proposalPath}`);
   }
 
-  const proposal = await readJsonFile<LearningProposal>(absoluteProposalPath);
-  const skillRoot = path.resolve(projectRoot, proposal.skill.path);
-  const projectSkillsRoot = path.resolve(projectRoot, ".metaproject", "project-skills");
-  if (!isPathInside(projectSkillsRoot, skillRoot)) {
-    throw new Error(`Learning proposal skill path must be under .metaproject/project-skills: ${proposal.skill.path}`);
-  }
-  const skillMdPath = path.join(skillRoot, "SKILL.md");
-  const changelogPath = path.join(skillRoot, "skill-changelog.md");
-  if (!(await pathExists(skillMdPath))) {
-    throw new Error(`Project skill SKILL.md not found: ${proposal.skill.path}`);
-  }
-  if (!(await pathExists(changelogPath))) {
-    throw new Error(`Project skill changelog not found: ${proposal.skill.path}/skill-changelog.md`);
-  }
+  return withFileLock(path.join(projectRoot, ".metaproject", "data", "gdskills", "learn.lock"), async () => {
+    const proposal = await readJsonFile<LearningProposal>(absoluteProposalPath);
+    const skillRoot = path.resolve(projectRoot, proposal.skill.path);
+    const projectSkillsRoot = path.resolve(projectRoot, ".metaproject", "project-skills");
+    if (!isPathInside(projectSkillsRoot, skillRoot)) {
+      throw new Error(`Learning proposal skill path must be under .metaproject/project-skills: ${proposal.skill.path}`);
+    }
+    const skillMdPath = path.join(skillRoot, "SKILL.md");
+    const changelogPath = path.join(skillRoot, "skill-changelog.md");
+    if (!(await pathExists(skillMdPath))) {
+      throw new Error(`Project skill SKILL.md not found: ${proposal.skill.path}`);
+    }
+    if (!(await pathExists(changelogPath))) {
+      throw new Error(`Project skill changelog not found: ${proposal.skill.path}/skill-changelog.md`);
+    }
 
-  const skillMd = await readFile(skillMdPath, "utf8");
-  const previousVersion = readVersion(skillMd) ?? "0.1.0";
-  const nextVersion = bumpPatchVersion(previousVersion);
-  const changedSections = sectionsToApply(proposal);
-  const nextSkillMd = applyLessonsToSkill(skillMd, proposal, nextVersion, changedSections);
-  const changelog = await readFile(changelogPath, "utf8");
-  const nextChangelog = appendChangelogEntry(changelog, proposal, nextVersion, changedSections);
-  const appliedReportPath = path.join(
-    projectRoot,
-    ".metaproject",
-    "data",
-    "gdskills",
-    "proposals",
-    `${proposal.proposalId}.applied.json`,
-  );
-  if (await pathExists(appliedReportPath)) {
-    throw new Error(`Learning proposal is already applied: ${proposal.proposalId}`);
-  }
+    const skillMd = await readFile(skillMdPath, "utf8");
+    const previousVersion = readVersion(skillMd) ?? "0.1.0";
+    const nextVersion = bumpPatchVersion(previousVersion);
+    const changedSections = sectionsToApply(proposal);
+    const nextSkillMd = applyLessonsToSkill(skillMd, proposal, nextVersion, changedSections);
+    const changelog = await readFile(changelogPath, "utf8");
+    const nextChangelog = appendChangelogEntry(changelog, proposal, nextVersion, changedSections);
+    const appliedReportPath = path.join(
+      projectRoot,
+      ".metaproject",
+      "data",
+      "gdskills",
+      "proposals",
+      `${proposal.proposalId}.applied.json`,
+    );
+    if (await pathExists(appliedReportPath)) {
+      throw new Error(`Learning proposal is already applied: ${proposal.proposalId}`);
+    }
 
-  const result: ApplyLearningProposalResult = {
-    proposalId: proposal.proposalId,
-    skillPath: proposal.skill.path,
-    previousVersion,
-    nextVersion,
-    changedSections,
-    appliedReportPath: toPosix(path.relative(projectRoot, appliedReportPath)),
-    dryRun: options.dryRun === true,
-  };
+    const result: ApplyLearningProposalResult = {
+      proposalId: proposal.proposalId,
+      skillPath: proposal.skill.path,
+      previousVersion,
+      nextVersion,
+      changedSections,
+      appliedReportPath: toPosix(path.relative(projectRoot, appliedReportPath)),
+      dryRun: options.dryRun === true,
+    };
 
-  if (!options.dryRun) {
-    await writeFile(skillMdPath, nextSkillMd, "utf8");
-    await writeFile(changelogPath, nextChangelog, "utf8");
-    await mkdir(path.dirname(appliedReportPath), { recursive: true });
-    await writeFile(appliedReportPath, `${JSON.stringify(result, null, 2)}\n`, "utf8");
-  }
+    if (!options.dryRun) {
+      await writeFileAtomic(skillMdPath, nextSkillMd);
+      await writeFileAtomic(changelogPath, nextChangelog);
+      await mkdir(path.dirname(appliedReportPath), { recursive: true });
+      await writeFileAtomic(appliedReportPath, `${JSON.stringify(result, null, 2)}\n`);
+    }
 
-  return result;
+    return result;
+  });
 }
 
 async function readManifest(projectRoot: string): Promise<MetaprojectManifest> {

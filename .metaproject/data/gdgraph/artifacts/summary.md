@@ -2,29 +2,36 @@
 
 ## Stats
 
-- Source files indexed: 115
-- Imported asset files indexed: 1
-- Total nodes: 116
-- Edges: 300
-- Import edges: 297
-- Asset edges: 1
-- Unresolved relative imports: 2
+- Source files indexed: 260
+- Imported asset files indexed: 4
+- Total nodes: 264
+- Edges: 723
+- Import edges: 713
+- Asset edges: 5
+- Unresolved relative imports: 5
 - Import resolution: 99.3%
-- Skipped generated/static directories: 3
+- Skipped generated/static directories: 6
 
 ## Top Modules
 
 | Module | Source Files |
 |---|---:|
-| health | 36 |
-| memory | 18 |
-| commands | 17 |
-| gdskills | 11 |
-| flow | 10 |
-| lib | 7 |
-| gdgraph | 4 |
-| testing | 4 |
-| wiki | 4 |
+| health | 38 |
+| security | 35 |
+| memory | 28 |
+| commands | 26 |
+| gdgraph | 21 |
+| mcp | 15 |
+| gdskills | 14 |
+| flow | 12 |
+| fixtures | 11 |
+| testing | 11 |
+| capability | 10 |
+| lib | 9 |
+| standard | 9 |
+| wiki | 7 |
+| assets | 6 |
+| harness | 4 |
 | rules | 2 |
 | cli.test.ts | 1 |
 | cli.ts | 1 |
@@ -33,13 +40,16 @@
 
 | Type | Count |
 |---|---:|
-| relative-code | 2 |
+| relative-code | 5 |
 
 ## Skipped Directories
 
 - `.git`
 - `.metaproject`
-- `.tmp-flow-test/.metaproject`
+- `dist`
+- `fixtures/paraphrase/.metaproject`
+- `fixtures/temporal/.metaproject`
+- `node_modules`
 
 ## Generated Files
 

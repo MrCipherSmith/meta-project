@@ -1,6 +1,6 @@
-import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
-import { pathExists, toPosix } from "../lib/fs";
+import { pathExists, toPosix, withFileLock, writeFileAtomic } from "../lib/fs";
 import { readJsonFileOr } from "../lib/json";
 
 export type ProjectSkillFormat = "auto" | "single" | "package";
@@ -71,25 +71,27 @@ export async function createProjectSkill(
   const files = filesForPackage(packageRoot, format);
 
   if (!options.dryRun) {
-    await writeProjectSkillPackage({
-      packageRoot,
-      moduleName,
-      skillName,
-      target: options.target,
-      evidence,
-      format,
-    });
+    await withFileLock(path.join(metaprojectRoot, "data", "gdskills", "project-skills.lock"), async () => {
+      await writeProjectSkillPackage({
+        packageRoot,
+        moduleName,
+        skillName,
+        target: options.target,
+        evidence,
+        format,
+      });
 
-    await updateManifest(projectRoot, {
-      module: moduleName,
-      name: skillName,
-      target: options.target,
-      path: relativeSkillPath,
-      version: VERSION,
-      status: "active",
-      updatedAt: new Date().toISOString(),
+      await updateManifest(projectRoot, {
+        module: moduleName,
+        name: skillName,
+        target: options.target,
+        path: relativeSkillPath,
+        version: VERSION,
+        status: "active",
+        updatedAt: new Date().toISOString(),
+      });
+      await updateSkillsCatalog(projectRoot);
     });
-    await updateSkillsCatalog(projectRoot);
   }
 
   return {
@@ -130,7 +132,7 @@ async function writeProjectSkillPackage({
   await mkdir(packageRoot, { recursive: true });
 
   const skillPath = path.join(packageRoot, "SKILL.md");
-  await writeFile(
+  await writeFileAtomic(
     skillPath,
     renderProjectSkill({
       moduleName,
@@ -139,35 +141,30 @@ async function writeProjectSkillPackage({
       evidence,
       packageFormat,
     }),
-    "utf8",
   );
 
   const changelogPath = path.join(packageRoot, "skill-changelog.md");
   if (!(await pathExists(changelogPath))) {
-    await writeFile(
+    await writeFileAtomic(
       changelogPath,
       renderSkillChangelog({ moduleName, skillName, target }),
-      "utf8",
     );
   }
 
   if (packageFormat === "package") {
     await mkdir(path.join(packageRoot, "references"), { recursive: true });
     await mkdir(path.join(packageRoot, "templates"), { recursive: true });
-    await writeFile(
+    await writeFileAtomic(
       path.join(packageRoot, "references", "context.md"),
       renderReferenceContext({ moduleName, skillName, target, evidence }),
-      "utf8",
     );
-    await writeFile(
+    await writeFileAtomic(
       path.join(packageRoot, "templates", "README.md"),
       renderTemplatesReadme({ moduleName, skillName }),
-      "utf8",
     );
-    await writeFile(
+    await writeFileAtomic(
       path.join(packageRoot, "verification.md"),
       renderVerification({ moduleName, skillName, evidence }),
-      "utf8",
     );
   }
 }
@@ -526,7 +523,7 @@ async function updateManifest(
   ].sort((a, b) => `${a.module}/${a.name}`.localeCompare(`${b.module}/${b.name}`));
 
   manifest.modules.gdskills.projectSkillRegistry = nextRegistry;
-  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+  await writeFileAtomic(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 }
 
 async function updateSkillsCatalog(projectRoot: string): Promise<void> {
@@ -559,7 +556,7 @@ ${rows}
     ? `${current.slice(0, startIndex).trimEnd()}\n\n${section}\n${current.slice(endIndex + end.length).trimStart()}`
     : `${current.trimEnd()}\n\n${section}\n`;
 
-  await writeFile(catalogPath, next, "utf8");
+  await writeFileAtomic(catalogPath, next);
 }
 
 function inferModule(target: string): string {

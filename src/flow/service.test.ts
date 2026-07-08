@@ -88,6 +88,19 @@ test("init scaffolds the package; ids increment; freeze rejects placeholder AC",
   await expect(service.freeze({ cwd: ROOT, id: "001" })).rejects.toThrow(/at least one real/);
 });
 
+test("concurrent init calls allocate unique flow ids", async () => {
+  await fresh();
+  const service = createFlowService(makeDeps({ tracker: null }));
+
+  const results = await Promise.all([
+    service.init({ cwd: ROOT, title: "Concurrent alpha" }),
+    service.init({ cwd: ROOT, title: "Concurrent beta" }),
+  ]);
+
+  expect(results.map((result) => result.flow.id).sort()).toEqual(["001", "002"]);
+  expect(new Set(results.map((result) => result.dir)).size).toBe(2);
+});
+
 test("freeze locks AC; tampering blocks transitions and is caught by check", async () => {
   await fresh();
   const service = createFlowService(makeDeps({ tracker: null }));

@@ -1,0 +1,157 @@
+{
+  "schemaVersion": 1,
+  "id": "013",
+  "slug": "harden-metaproject-writes-and-command-te",
+  "title": "Harden Metaproject writes and command test isolation",
+  "status": "in-progress",
+  "createdAt": "2026-07-08T10:29:10.662Z",
+  "updatedAt": "2026-07-08T10:35:48.770Z",
+  "source": {
+    "type": "description",
+    "ref": null
+  },
+  "acChecksum": "sha256:f3de2b83a9bc45da3b141ff99577b75a32e7ffc33b5e229e965eb599e27c8a7b",
+  "acConfirmed": {
+    "AC1": {
+      "at": "2026-07-08T10:35:32.556Z",
+      "note": "Verified by src/flow/service.test.ts concurrent init regression test"
+    },
+    "AC2": {
+      "at": "2026-07-08T10:35:36.847Z",
+      "note": "writeFileAtomic uses unique same-directory temp file plus rename; writeFlow delegates to it"
+    },
+    "AC3": {
+      "at": "2026-07-08T10:35:40.630Z",
+      "note": "createProjectSkill wraps package, manifest, and catalog writes with project-skills.lock"
+    },
+    "AC4": {
+      "at": "2026-07-08T10:35:44.019Z",
+      "note": "Verified by src/gdskills/learn.test.ts concurrent apply regression test"
+    },
+    "AC5": {
+      "at": "2026-07-08T10:35:48.769Z",
+      "note": "typecheck passed; full test suite passed: 380 pass, 0 fail with Bun in PATH"
+    }
+  },
+  "pr": {
+    "url": null
+  },
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Collect remaining context",
+      "kind": "context",
+      "status": "done"
+    },
+    {
+      "id": "T2",
+      "title": "Implement per plan",
+      "kind": "implement",
+      "status": "done"
+    },
+    {
+      "id": "T3",
+      "title": "Add/adjust tests and make them pass",
+      "kind": "test",
+      "status": "done"
+    },
+    {
+      "id": "T4",
+      "title": "Self-review and prepare draft PR",
+      "kind": "review",
+      "status": "done"
+    },
+    {
+      "id": "T5",
+      "title": "Run targeted verification and self-review",
+      "kind": "review",
+      "status": "done"
+    },
+    {
+      "id": "T6",
+      "title": "Record implementation results and unresolved follow-ups",
+      "kind": "docs",
+      "status": "done"
+    }
+  ],
+  "history": [
+    {
+      "at": "2026-07-08T10:29:10.662Z",
+      "event": "created"
+    },
+    {
+      "at": "2026-07-08T10:30:11.908Z",
+      "event": "task-added",
+      "detail": "T5: Run targeted verification and self-review"
+    },
+    {
+      "at": "2026-07-08T10:30:18.666Z",
+      "event": "task-added",
+      "detail": "T6: Record implementation results and unresolved follow-ups"
+    },
+    {
+      "at": "2026-07-08T10:30:22.635Z",
+      "event": "frozen",
+      "detail": "5 criteria; checksum recorded"
+    },
+    {
+      "at": "2026-07-08T10:30:25.655Z",
+      "event": "started"
+    },
+    {
+      "at": "2026-07-08T10:34:33.531Z",
+      "event": "task-done",
+      "detail": "T1: Collect remaining context"
+    },
+    {
+      "at": "2026-07-08T10:34:37.391Z",
+      "event": "task-done",
+      "detail": "T2: Implement per plan"
+    },
+    {
+      "at": "2026-07-08T10:34:41.355Z",
+      "event": "task-done",
+      "detail": "T3: Add/adjust tests and make them pass"
+    },
+    {
+      "at": "2026-07-08T10:34:47.204Z",
+      "event": "task-done",
+      "detail": "T4: Self-review and prepare draft PR"
+    },
+    {
+      "at": "2026-07-08T10:35:19.530Z",
+      "event": "task-done",
+      "detail": "T5: Run targeted verification and self-review"
+    },
+    {
+      "at": "2026-07-08T10:35:26.754Z",
+      "event": "task-done",
+      "detail": "T6: Record implementation results and unresolved follow-ups"
+    },
+    {
+      "at": "2026-07-08T10:35:32.556Z",
+      "event": "ac-confirmed",
+      "detail": "AC1: Verified by src/flow/service.test.ts concurrent init regression test"
+    },
+    {
+      "at": "2026-07-08T10:35:36.847Z",
+      "event": "ac-confirmed",
+      "detail": "AC2: writeFileAtomic uses unique same-directory temp file plus rename; writeFlow delegates to it"
+    },
+    {
+      "at": "2026-07-08T10:35:40.630Z",
+      "event": "ac-confirmed",
+      "detail": "AC3: createProjectSkill wraps package, manifest, and catalog writes with project-skills.lock"
+    },
+    {
+      "at": "2026-07-08T10:35:44.019Z",
+      "event": "ac-confirmed",
+      "detail": "AC4: Verified by src/gdskills/learn.test.ts concurrent apply regression test"
+    },
+    {
+      "at": "2026-07-08T10:35:48.770Z",
+      "event": "ac-confirmed",
+      "detail": "AC5: typecheck passed; full test suite passed: 380 pass, 0 fail with Bun in PATH"
+    }
+  ]
+}
