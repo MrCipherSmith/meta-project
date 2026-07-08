@@ -18,3 +18,18 @@
 - 2026-07-08T07:51:24.526Z - task-done: T7: E4-NER PII adapter on backends seam
 - 2026-07-08T07:51:24.578Z - task-done: T8: Fixtures + tests (exfil/pii/injection/secret, FN-gate, byte-identical, no-network)
 - 2026-07-08T07:51:24.635Z - task-done: T9: Docs: E3 cross-ref + roadmap-2026 complete
+- 2026-07-08T07:52:14.644Z - task-done: T10: Adversarial review + draft PR
+- 2026-07-08T07:52:16.704Z - implemented: draft PR: https://github.com/MrCipherSmith/meta-project/pull/16 (warning: PR is not a draft)
+- 2026-07-08T07:52:16.759Z - ac-confirmed: AC1
+- 2026-07-08T07:52:16.813Z - ac-confirmed: AC2
+- 2026-07-08T07:52:16.865Z - ac-confirmed: AC3
+- 2026-07-08T07:52:16.921Z - ac-confirmed: AC4
+- 2026-07-08T07:52:16.973Z - ac-confirmed: AC5
+- 2026-07-08T07:52:17.025Z - ac-confirmed: AC6
+- 2026-07-08T07:52:17.079Z - ac-confirmed: AC7
+- 2026-07-08T07:52:17.134Z - ac-confirmed: AC8
+- 2026-07-08T07:52:17.186Z - ac-confirmed: AC9
+- 2026-07-08T07:52:17.240Z - ac-confirmed: AC10
+- 2026-07-08T07:52:17.291Z - ac-confirmed: AC11
+- 2026-07-08T07:52:41.671Z - completing
+- 2026-07-08T07:52:43.654Z - done: all gates passed
