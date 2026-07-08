@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { appendFile, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, readFile, readdir, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathExists } from "../lib/fs";
 import type { FlowState } from "./types";
@@ -57,7 +57,12 @@ export async function writeFlow(
 ): Promise<void> {
   const file = path.join(flowsRoot(cwd), dir, "flow.json");
   await mkdir(path.dirname(file), { recursive: true });
-  await writeFile(file, `${JSON.stringify(flow, null, 2)}\n`, "utf8");
+  // Atomic write: a crash mid-write must never corrupt flow.json, the flow's
+  // single source of truth. Write to a temp file, then rename (atomic on the
+  // same filesystem).
+  const tmp = `${file}.tmp`;
+  await writeFile(tmp, `${JSON.stringify(flow, null, 2)}\n`, "utf8");
+  await rename(tmp, file);
 }
 
 export async function appendJournal(

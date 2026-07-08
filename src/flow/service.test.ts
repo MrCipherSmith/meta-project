@@ -1,10 +1,12 @@
-import { test, expect } from "bun:test";
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { afterAll, test, expect } from "bun:test";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { createFlowService } from "./service";
 import type { FlowServiceDeps, TrackerAdapter } from "./types";
 
-const ROOT = path.join(import.meta.dir, "..", "..", ".tmp-flow-test");
+// Each test gets its own OS temp dir (no shared path -> no cross-test/CI flakes).
+let ROOT = "";
 
 function fakeTracker(over: Partial<{
   checksGreen: boolean;
@@ -44,9 +46,18 @@ function makeDeps(over: Partial<FlowServiceDeps> = {}): FlowServiceDeps {
 }
 
 async function fresh(): Promise<void> {
-  await rm(ROOT, { recursive: true, force: true });
+  if (ROOT) {
+    await rm(ROOT, { recursive: true, force: true });
+  }
+  ROOT = await mkdtemp(path.join(tmpdir(), "gd-flow-"));
   await mkdir(path.join(ROOT, ".metaproject"), { recursive: true });
 }
+
+afterAll(async () => {
+  if (ROOT) {
+    await rm(ROOT, { recursive: true, force: true });
+  }
+});
 
 async function writeAc(dir: string, criteria: string[]): Promise<void> {
   const file = path.join(ROOT, ".metaproject", "flows", dir, "acceptance-criteria.md");
