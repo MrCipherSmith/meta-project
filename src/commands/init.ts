@@ -112,6 +112,7 @@ import { syncAgentRules } from "../rules/agent-entrypoints";
 import { hasDistilledEntrypoints } from "../rules/distill";
 import { STANDARD_VERSION, computeProfiles } from "../standard/profiles";
 import { registerCapabilitiesFromArgs } from "../capability/registry";
+import { MCP_CONFIG_DEFAULTS } from "../mcp/config";
 
 type InitOptions = {
   help: boolean;
@@ -133,6 +134,8 @@ type InitOptions = {
   noTestingPrePushHook: boolean;
   noSecurityHook: boolean;
   noSecurityAgentHook: boolean;
+  mcp: boolean;
+  noMcp: boolean;
 };
 
 type ModuleConfig =
@@ -411,6 +414,10 @@ export async function initCommand(args: string[]): Promise<void> {
     }
   }
 
+  // MCP is an opt-in cross-cutting module (spec §4). Default OFF for the
+  // ceiling, so the default `init` manifest stays byte-identical (golden rule).
+  const enableMcp = options.mcp && !options.noMcp;
+
   await createBaseStructure(metaprojectRoot);
   await syncGitignore(projectRoot);
   const syncedAgentRules = await syncAgentRules(projectRoot, metaprojectRoot, {
@@ -484,6 +491,10 @@ export async function initCommand(args: string[]): Promise<void> {
     }
   }
 
+  if (enableMcp) {
+    await createMcpStructure(metaprojectRoot);
+  }
+
   // Reconcile disabled security hooks with on-disk reality. When a hook is now
   // off (module disabled via --no-security, or --no-security-agent-hook /
   // --no-security-hook) but was previously installed, remove the managed
@@ -527,6 +538,13 @@ export async function initCommand(args: string[]): Promise<void> {
     agentRuleSources,
     existingManifest,
   });
+
+  // Add the opt-in mcp module entry (spec §4). Only when --mcp is passed, so the
+  // default manifest is unchanged. `http`/`expose` are extra (schema-tolerant)
+  // fields; `capabilities` stays a string[] to satisfy the module schema.
+  if (enableMcp) {
+    (manifest.modules as Record<string, unknown>).mcp = buildMcpModuleEntry();
+  }
 
   await writeJsonIfChanged(
     path.join(metaprojectRoot, "metaproject.json"),
@@ -774,6 +792,21 @@ export async function initCommand(args: string[]): Promise<void> {
     );
   }
 
+  if (enableMcp) {
+    await writeTextIfMissing(
+      path.join(metaprojectRoot, "core", "mcp", "mcp.config.json"),
+      renderMcpConfig(),
+    );
+    await writeTextIfMissing(
+      path.join(metaprojectRoot, "modules", "mcp.md"),
+      renderMcpManifest(),
+    );
+    await writeTextIfMissing(
+      path.join(metaprojectRoot, "core", "mcp", "README.md"),
+      renderMcpCoreReadme(),
+    );
+  }
+
   const enabledModuleCount = [
     enableGdgraph,
     enableGdctx,
@@ -801,6 +834,9 @@ export async function initCommand(args: string[]): Promise<void> {
   statusLine("memory", enableMemory, "lessons, decisions, constraints");
   statusLine("tasks", enableTasks, "agent-first flow lifecycle");
   statusLine("security", enableSecurity, "scanning, redaction, guardrails, audit");
+  if (enableMcp) {
+    statusLine("mcp", true, "Model Context Protocol server (opt-in)");
+  }
 
   const hookLines: Array<[string, boolean]> = [];
   if (enableGdgraph) {
@@ -862,6 +898,8 @@ function parseInitArgs(args: string[]): InitOptions {
     noTestingPrePushHook: args.includes("--no-testing-pre-push-hook"),
     noSecurityHook: args.includes("--no-security-hook"),
     noSecurityAgentHook: args.includes("--no-security-agent-hook"),
+    mcp: args.includes("--mcp"),
+    noMcp: args.includes("--no-mcp"),
   };
 }
 
@@ -887,6 +925,8 @@ function printInitHelp(): void {
     { flag: "--no-testing-pre-push-hook", desc: "Do not install the testing pre-push gate hook." },
     { flag: "--no-security-hook", desc: "Do not install the security pre-push gate hook." },
     { flag: "--no-security-agent-hook", desc: "Do not install the .claude/settings.json security agent hooks." },
+    { flag: "--mcp", desc: "Enable the opt-in MCP server module (default off)." },
+    { flag: "--no-mcp", desc: "Do not enable the MCP server module (default)." },
   ]);
 }
 
@@ -996,6 +1036,78 @@ async function createSecurityStructure(root: string): Promise<void> {
   ];
 
   await Promise.all(dirs.map((dir) => mkdir(dir, { recursive: true })));
+}
+
+async function createMcpStructure(root: string): Promise<void> {
+  const dirs = [
+    path.join(root, "core", "mcp"),
+    path.join(root, "data", "mcp", "artifacts"),
+  ];
+  await Promise.all(dirs.map((dir) => mkdir(dir, { recursive: true })));
+}
+
+// The opt-in mcp manifest entry (spec §4). `capabilities` stays a string[] to
+// satisfy the standard module schema; the HTTP opt-in lives under `http` and the
+// discovery filter under `expose` (both schema-tolerant extra fields).
+function buildMcpModuleEntry(): Record<string, unknown> {
+  return {
+    enabled: true,
+    core: ".metaproject/core/mcp",
+    data: ".metaproject/data/mcp",
+    manifest: ".metaproject/modules/mcp.md",
+    config: ".metaproject/core/mcp/mcp.config.json",
+    commands: ["serve"],
+    capabilities: [],
+    http: { enabled: false },
+    expose: {
+      tools: true,
+      resources: true,
+      modules: ["gdgraph", "security", "flow", "memory", "health", "wiki", "standard"],
+    },
+  };
+}
+
+function renderMcpConfig(): string {
+  return `${JSON.stringify(MCP_CONFIG_DEFAULTS, null, 2)}\n`;
+}
+
+function renderMcpManifest(): string {
+  return `# MCP Module
+
+Version: 0.1.0
+Type: module
+Status: active
+
+## Summary
+
+Exposes read-only Metaproject services (code graph, security, flow status,
+memory, health, wiki, standard) over the Model Context Protocol (MCP). A thin
+protocol adapter — it defines no new module logic.
+
+## Commands
+
+- \`gd-metapro mcp serve\` — stdio JSON-RPC MCP server (default transport).
+- \`gd-metapro mcp serve --http\` — isolated HTTP/SSE opt-in (localhost only;
+  requires \`http.enabled=true\` in this module's manifest entry).
+
+## Notes
+
+- Requires the optional \`@modelcontextprotocol/sdk\`. Disabled by default.
+- Every tool result is routed through the security \`redactRaw\` seam before
+  transport.
+- Tool/resource exposure is filtered by the manifest (\`expose.modules\`); a
+  disabled module is hidden from \`tools/list\` and \`resources/list\`.
+`;
+}
+
+function renderMcpCoreReadme(): string {
+  return `# MCP Core
+
+Configuration for the \`mcp\` module lives in \`mcp.config.json\` (deep-merged over
+built-in defaults). Transports are stdio (default) and an opt-in HTTP/SSE bridge.
+
+See \`.metaproject/modules/mcp.md\` for the command surface.
+`;
 }
 
 async function createTestingStructure(root: string, enableGdwiki: boolean): Promise<void> {

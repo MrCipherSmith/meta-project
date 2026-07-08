@@ -24,7 +24,27 @@ creates, updates, validates and reads the `.metaproject/` workspace.
 - [ci-protocol.md](ci-protocol.md) - CI/CD integration protocol.
 - [artifact-lifecycle.md](artifact-lifecycle.md) - versioning, generated data
   and transient artifact rules.
+- [mcp-surface.md](mcp-surface.md) - the cross-module MCP server surface
+  (Block A): Tool↔service registry, `metaproject://` resources, transports.
 - [schemas/](schemas/) - initial JSON Schema contracts.
+
+## 1a. Standard as Generator
+
+`gd-metapro` is not a rival agent standard. It is a **generator of the three
+Linux-Foundation agent-standard artifacts** plus a value-add data layer:
+
+1. **`AGENTS.md`** — the agent entrypoint (root rules, index) synced by
+   `gd-metapro rules sync`.
+2. **Agent Skills** — portable `SKILL.md` packages produced by
+   `gd-metapro skills export --runtime codex|claude|plugin` (A2).
+3. **An MCP server** — `gd-metapro mcp serve`, exposing the read-only service
+   surface documented in [mcp-surface.md](mcp-surface.md) (A1).
+
+Additionally, `gd-metapro standard emit llms` generates a deterministic
+`llms.txt` from the manifest + artifact index (A2). The `.metaproject/` data
+layer (code graph, memory, health, wiki) is the value-add these generators draw
+from — gd-metapro **feeds** the ecosystem standards rather than competing with
+them.
 
 ## 3. Draft Scope
 

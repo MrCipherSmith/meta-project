@@ -1,0 +1,44 @@
+# Flow Journal
+
+- 2026-07-07T23:46:53.916Z - flow created
+- 2026-07-07T23:49:42.331Z - task-added: T5: Resource registry: metaproject:// scheme, read-only, path-confined
+- 2026-07-07T23:49:42.382Z - task-added: T6: stdio JSON-RPC server: handshake, tools/list+call, resources/list+read; no socket; hard-fail on missing SDK
+- 2026-07-07T23:49:42.436Z - task-added: T7: E3 redact-seam: route every tool result through redactRaw
+- 2026-07-07T23:49:42.492Z - task-added: T8: E3 scan-mcp detector + security scan-mcp command
+- 2026-07-07T23:49:42.545Z - task-added: T9: E3 fixtures/mcp-threat corpus + detector tests
+- 2026-07-07T23:49:42.597Z - task-added: T10: Generators: standard emit llms + gdskills --runtime plugin export
+- 2026-07-07T23:49:42.654Z - task-added: T11: HTTP/SSE second opt-in behind mcp serve --http
+- 2026-07-07T23:49:42.706Z - task-added: T12: Server tests + import-boundary + no-network + golden-rule gate
+- 2026-07-07T23:49:42.758Z - task-added: T13: Docs: metaproject-standard MCP surface + Standard-as-generator + roadmap status
+- 2026-07-07T23:49:42.812Z - task-added: T14: Adversarial review + draft PR
+- 2026-07-07T23:49:47.616Z - frozen: 12 criteria; checksum recorded
+- 2026-07-07T23:49:47.669Z - started
+- 2026-07-07T23:49:47.723Z - task-done: T1: Collect remaining context
+- 2026-07-08T00:20:22.500Z - task-done: T2: Implement per plan
+- 2026-07-08T00:20:22.661Z - task-done: T3: Add/adjust tests and make them pass
+- 2026-07-08T00:20:22.810Z - task-done: T4: Self-review and prepare draft PR
+- 2026-07-08T00:20:22.954Z - task-done: T5: Resource registry: metaproject:// scheme, read-only, path-confined
+- 2026-07-08T00:20:23.107Z - task-done: T6: stdio JSON-RPC server: handshake, tools/list+call, resources/list+read; no socket; hard-fail on missing SDK
+- 2026-07-08T00:20:23.251Z - task-done: T7: E3 redact-seam: route every tool result through redactRaw
+- 2026-07-08T00:20:23.390Z - task-done: T8: E3 scan-mcp detector + security scan-mcp command
+- 2026-07-08T00:20:23.555Z - task-done: T9: E3 fixtures/mcp-threat corpus + detector tests
+- 2026-07-08T00:20:23.721Z - task-done: T10: Generators: standard emit llms + gdskills --runtime plugin export
+- 2026-07-08T00:20:23.861Z - task-done: T11: HTTP/SSE second opt-in behind mcp serve --http
+- 2026-07-08T00:20:24.001Z - task-done: T12: Server tests + import-boundary + no-network + golden-rule gate
+- 2026-07-08T00:20:24.142Z - task-done: T13: Docs: metaproject-standard MCP surface + Standard-as-generator + roadmap status
+- 2026-07-08T00:21:27.828Z - task-done: T14: Adversarial review + draft PR
+- 2026-07-08T00:21:30.115Z - implemented: draft PR: https://github.com/MrCipherSmith/meta-project/pull/12 (warning: PR is not a draft)
+- 2026-07-08T00:21:30.257Z - ac-confirmed: AC1
+- 2026-07-08T00:21:30.394Z - ac-confirmed: AC2
+- 2026-07-08T00:21:30.546Z - ac-confirmed: AC3
+- 2026-07-08T00:21:30.655Z - ac-confirmed: AC4
+- 2026-07-08T00:21:30.844Z - ac-confirmed: AC5
+- 2026-07-08T00:21:31.002Z - ac-confirmed: AC6
+- 2026-07-08T00:21:31.172Z - ac-confirmed: AC7
+- 2026-07-08T00:21:31.353Z - ac-confirmed: AC8
+- 2026-07-08T00:21:31.487Z - ac-confirmed: AC9
+- 2026-07-08T00:21:31.636Z - ac-confirmed: AC10
+- 2026-07-08T00:21:31.792Z - ac-confirmed: AC11
+- 2026-07-08T00:21:31.967Z - ac-confirmed: AC12
+- 2026-07-08T00:21:56.608Z - completing
+- 2026-07-08T00:21:58.819Z - done: all gates passed

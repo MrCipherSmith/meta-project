@@ -1,4 +1,5 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import path from "node:path";
 import {
   heading,
   helpOptions,
@@ -9,6 +10,13 @@ import {
   symbols,
 } from "../lib/ui";
 import { optionValue } from "../lib/args";
+import { pathExists as fsPathExists } from "../lib/fs";
+import { readJsonFileOr } from "../lib/json";
+import {
+  buildMcpBaseline,
+  scanMcpManifest,
+} from "../security/detect/mcp";
+import type { DetectorMatch } from "../security/types";
 import {
   analyze,
   createSecurityService,
@@ -65,6 +73,9 @@ export async function securityCommand(
       return;
     case "scan":
       await handleScan(cwd, rest);
+      return;
+    case "scan-mcp":
+      await handleScanMcp(cwd, rest);
       return;
     case "check-input":
       await handleCheck(cwd, rest, "input");
@@ -178,6 +189,158 @@ async function handleScan(cwd: string, args: string[]): Promise<void> {
   }
 
   process.exitCode = exitCodeFor(result.decision, cwd, await modeOf(cwd));
+}
+
+type McpBaselineFile = { schemaVersion: number; tools: Record<string, string> };
+
+function mcpBaselinePath(cwd: string): string {
+  return path.join(cwd, ".metaproject", "data", "security", "mcp-baseline.json");
+}
+
+// Collect the manifest JSON files to scan: a single file, or every *.json under
+// a directory (recursively — the mcp-threat corpus nests subcorpora).
+async function collectManifestFiles(target: string): Promise<string[]> {
+  if (!(await fsPathExists(target))) {
+    return [];
+  }
+  let entries: import("node:fs").Dirent[];
+  try {
+    entries = await readdir(target, { withFileTypes: true });
+  } catch {
+    // Not a directory — treat as a single file.
+    return [target];
+  }
+  const files: string[] = [];
+  for (const entry of entries) {
+    const full = path.join(target, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...(await collectManifestFiles(full)));
+    } else if (entry.isFile() && entry.name.endsWith(".json") && entry.name !== "cases.json") {
+      files.push(full);
+    }
+  }
+  return files.sort();
+}
+
+// A corpus/manifest file is either a bare MCP manifest (`{ tools: [...] }`) or a
+// wrapper `{ manifest, baseline }` used to drive rug-pull cases self-contained.
+function extractManifestAndBaseline(
+  parsed: unknown,
+  globalBaseline: Record<string, string>,
+): { manifest: unknown; baseline: Record<string, string> } {
+  if (parsed && typeof parsed === "object" && "manifest" in (parsed as object)) {
+    const wrapper = parsed as { manifest?: unknown; baseline?: unknown };
+    const baseline =
+      wrapper.baseline && typeof wrapper.baseline === "object"
+        ? (wrapper.baseline as Record<string, string>)
+        : globalBaseline;
+    return { manifest: wrapper.manifest, baseline };
+  }
+  return { manifest: parsed, baseline: globalBaseline };
+}
+
+// `security scan-mcp <manifest.json|dir>` — the E3 detector command (spec §8).
+// Pure & network-free. Findings are leak-safe (category + policy id only). With
+// `--pin <manifest>` it records a rug-pull baseline instead of scanning.
+async function handleScanMcp(cwd: string, args: string[]): Promise<void> {
+  const target =
+    optionValue(args, "--file") ??
+    optionValue(args, "--pin") ??
+    args.find((a) => !a.startsWith("--"));
+  const asJson = args.includes("--json");
+
+  if (!target) {
+    console.error("Usage: gd-metapro security scan-mcp <manifest.json | dir> [--json] [--pin <manifest.json>]");
+    process.exitCode = 1;
+    return;
+  }
+
+  if (args.includes("--pin")) {
+    const parsed = await readJsonFileOr<unknown>(target, null);
+    const { manifest } = extractManifestAndBaseline(parsed, {});
+    const baseline: McpBaselineFile = { schemaVersion: 1, tools: buildMcpBaseline(manifest) };
+    const outPath = mcpBaselinePath(cwd);
+    await mkdir(path.dirname(outPath), { recursive: true });
+    await writeFile(outPath, `${JSON.stringify(baseline, null, 2)}\n`, "utf8");
+    if (asJson) {
+      console.log(JSON.stringify({ pinned: Object.keys(baseline.tools).length, path: outPath }, null, 2));
+    } else {
+      heading("gd-metapro security scan-mcp --pin");
+      console.log(`  ${style.green(symbols.ok)} pinned ${Object.keys(baseline.tools).length} tool definition(s) → ${outPath}`);
+    }
+    return;
+  }
+
+  const globalBaselineFile = await readJsonFileOr<Partial<McpBaselineFile>>(
+    mcpBaselinePath(cwd),
+    {},
+  );
+  const globalBaseline =
+    globalBaselineFile.tools && typeof globalBaselineFile.tools === "object"
+      ? globalBaselineFile.tools
+      : {};
+
+  const files = await collectManifestFiles(target);
+  if (files.length === 0) {
+    console.error(`No manifest JSON files found at: ${target}`);
+    process.exitCode = 1;
+    return;
+  }
+
+  const perFile: Array<{ file: string; matches: DetectorMatch[] }> = [];
+  for (const file of files) {
+    const parsed = await readJsonFileOr<unknown>(file, null);
+    const { manifest, baseline } = extractManifestAndBaseline(parsed, globalBaseline);
+    const matches = scanMcpManifest(manifest, { baseline, source: file });
+    perFile.push({ file, matches });
+  }
+
+  const flagged = perFile.filter((entry) => entry.matches.length > 0);
+  const totalFindings = perFile.reduce((sum, entry) => sum + entry.matches.length, 0);
+
+  if (asJson) {
+    // Leak-safe JSON: policy ids + categories only, never raw manifest content.
+    console.log(
+      JSON.stringify(
+        {
+          scanned: files.length,
+          flaggedFiles: flagged.length,
+          totalFindings,
+          files: perFile.map((entry) => ({
+            file: path.relative(cwd, entry.file),
+            findings: entry.matches.map((m) => ({
+              category: m.category,
+              policyId: m.policyId,
+              severity: m.severity,
+              confidence: m.confidence,
+            })),
+          })),
+        },
+        null,
+        2,
+      ),
+    );
+  } else {
+    heading("gd-metapro security scan-mcp");
+    note(`scanned ${files.length} manifest(s); ${flagged.length} flagged; ${totalFindings} finding(s)`);
+    for (const entry of flagged) {
+      console.log("");
+      console.log(`  ${style.bold(path.relative(cwd, entry.file))}`);
+      for (const m of entry.matches) {
+        console.log(
+          `    ${severityMarker(m.severity)} ${m.category}/${m.policyId} ${style.dim(`(conf ${m.confidence})`)}`,
+        );
+      }
+    }
+    if (flagged.length === 0) {
+      console.log(`  ${style.green(symbols.ok)} no MCP threats detected`);
+    }
+  }
+
+  // Gate-usable: non-zero exit when threats found and --strict is requested.
+  if (args.includes("--strict") && totalFindings > 0) {
+    process.exitCode = 1;
+  }
 }
 
 async function handleCheck(
@@ -358,6 +521,7 @@ export function printSecurityHelp(): void {
   helpUsage([
     "gd-metapro security status",
     "gd-metapro security scan <path> [--json] [--source <kind>]",
+    "gd-metapro security scan-mcp <manifest.json | dir> [--json] [--pin <manifest>] [--strict]",
     "gd-metapro security check-input [--source <kind>] [--file <path>]",
     "gd-metapro security check-output [--target <kind>] [--file <path>]",
     "gd-metapro security redact <path> [--out <path>]",
