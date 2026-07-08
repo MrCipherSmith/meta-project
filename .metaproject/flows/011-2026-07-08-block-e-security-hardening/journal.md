@@ -1,0 +1,35 @@
+# Flow Journal
+
+- 2026-07-08T07:18:10.936Z - flow created
+- 2026-07-08T07:20:43.024Z - task-added: T5: E6 eval harness + security eval CLI + thresholds
+- 2026-07-08T07:20:43.075Z - task-added: T6: E1 injection model adapter on backends seam
+- 2026-07-08T07:20:43.129Z - task-added: T7: E4-NER PII adapter on backends seam
+- 2026-07-08T07:20:43.183Z - task-added: T8: Fixtures + tests (exfil/pii/injection/secret, FN-gate, byte-identical, no-network)
+- 2026-07-08T07:20:43.235Z - task-added: T9: Docs: E3 cross-ref + roadmap-2026 complete
+- 2026-07-08T07:20:43.287Z - task-added: T10: Adversarial review + draft PR
+- 2026-07-08T07:20:43.338Z - frozen: 11 criteria; checksum recorded
+- 2026-07-08T07:20:43.392Z - started
+- 2026-07-08T07:20:43.444Z - task-done: T1: Collect remaining context
+- 2026-07-08T07:51:24.259Z - task-done: T2: Implement per plan
+- 2026-07-08T07:51:24.313Z - task-done: T3: Add/adjust tests and make them pass
+- 2026-07-08T07:51:24.364Z - task-done: T4: Self-review and prepare draft PR
+- 2026-07-08T07:51:24.417Z - task-done: T5: E6 eval harness + security eval CLI + thresholds
+- 2026-07-08T07:51:24.468Z - task-done: T6: E1 injection model adapter on backends seam
+- 2026-07-08T07:51:24.526Z - task-done: T7: E4-NER PII adapter on backends seam
+- 2026-07-08T07:51:24.578Z - task-done: T8: Fixtures + tests (exfil/pii/injection/secret, FN-gate, byte-identical, no-network)
+- 2026-07-08T07:51:24.635Z - task-done: T9: Docs: E3 cross-ref + roadmap-2026 complete
+- 2026-07-08T07:52:14.644Z - task-done: T10: Adversarial review + draft PR
+- 2026-07-08T07:52:16.704Z - implemented: draft PR: https://github.com/MrCipherSmith/meta-project/pull/16 (warning: PR is not a draft)
+- 2026-07-08T07:52:16.759Z - ac-confirmed: AC1
+- 2026-07-08T07:52:16.813Z - ac-confirmed: AC2
+- 2026-07-08T07:52:16.865Z - ac-confirmed: AC3
+- 2026-07-08T07:52:16.921Z - ac-confirmed: AC4
+- 2026-07-08T07:52:16.973Z - ac-confirmed: AC5
+- 2026-07-08T07:52:17.025Z - ac-confirmed: AC6
+- 2026-07-08T07:52:17.079Z - ac-confirmed: AC7
+- 2026-07-08T07:52:17.134Z - ac-confirmed: AC8
+- 2026-07-08T07:52:17.186Z - ac-confirmed: AC9
+- 2026-07-08T07:52:17.240Z - ac-confirmed: AC10
+- 2026-07-08T07:52:17.291Z - ac-confirmed: AC11
+- 2026-07-08T07:52:41.671Z - completing
+- 2026-07-08T07:52:43.654Z - done: all gates passed
