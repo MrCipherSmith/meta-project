@@ -4,8 +4,9 @@ import { pathExists, toPosix } from "../lib/fs";
 import { readJsonFileOr } from "../lib/json";
 import type { ProjectSkillRegistryEntry } from "./project-skills";
 import { resolveProjectSkill } from "./resolve";
+import { exportPluginSkill } from "./export-plugin";
 
-export type SkillRuntime = "codex" | "claude";
+export type SkillRuntime = "codex" | "claude" | "plugin";
 
 export type ExportProjectSkillOptions = {
   input: string;
@@ -32,7 +33,7 @@ type MetaprojectManifest = {
 };
 
 export function normalizeSkillRuntime(value: string | undefined): SkillRuntime | undefined {
-  if (value === "codex" || value === "claude") {
+  if (value === "codex" || value === "claude" || value === "plugin") {
     return value;
   }
 
@@ -58,6 +59,28 @@ export async function exportProjectSkill(
   const skillName = resolved.entry?.name ?? path.basename(resolved.packageRoot);
   const runtimeName = `${moduleName}-${skillName}`;
   const outputRoot = path.join(metaprojectRoot, "runtime", "skills", options.runtime, runtimeName);
+
+  // Plugin/marketplace export uses a distinct package layout (spec §10.2).
+  if (options.runtime === "plugin") {
+    const plugin = await exportPluginSkill({
+      packageRoot: resolved.packageRoot,
+      module: moduleName,
+      name: skillName,
+      projectRoot,
+      outputRoot,
+      dryRun: options.dryRun === true,
+    });
+    return {
+      runtime: options.runtime,
+      module: moduleName,
+      name: skillName,
+      sourcePath: toPosix(path.relative(projectRoot, resolved.packageRoot)),
+      outputPath: toPosix(path.relative(projectRoot, outputRoot)),
+      files: plugin.files,
+      dryRun: options.dryRun === true,
+    };
+  }
+
   const files = await plannedExportFiles(projectRoot, resolved.packageRoot, outputRoot);
 
   if (!options.dryRun) {

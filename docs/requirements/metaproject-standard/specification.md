@@ -251,6 +251,25 @@ non-compliant, `doctor` prints the same findings as actionable fixes, and
 `capabilities` reports the standard version, active profiles, and enabled
 modules from `metaproject.json`.
 
+## 11a. Standard as Generator
+
+`gd-metapro` positions itself as a **generator of the three ecosystem
+agent-standard artifacts**, not a competing standard:
+
+1. **`AGENTS.md`** — the agent entrypoint, synced by `gd-metapro rules sync`.
+2. **Agent Skills** — `SKILL.md` packages emitted by `gd-metapro skills export
+   --runtime codex|claude|plugin`.
+3. **An MCP server** — `gd-metapro mcp serve` (see
+   [mcp-surface.md](mcp-surface.md)).
+
+`gd-metapro standard emit llms` additionally emits a deterministic `llms.txt`.
+The `.metaproject/` data layer is the value-add these generators draw from. This
+framing is intentional (roadmap Block A, NG-A2): gd-metapro **feeds** the LF
+agent standards rather than rivaling them. See A1 (MCP) and A2 (`llms.txt`,
+skills export) in [`../roadmap-2026/A-interop-mcp/`](../roadmap-2026/A-interop-mcp/).
+
+<a id="standard-as-generator"></a>
+
 ## 12. Relationship To Existing Specs
 
 This document defines the standard core. Module details stay in:

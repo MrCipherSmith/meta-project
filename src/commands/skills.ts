@@ -1081,10 +1081,12 @@ function printExportHelp(): void {
 Usage:
   gd-metapro skills export <project-skill> --runtime codex [--dry-run] [--json]
   gd-metapro skills export <project-skill> --runtime claude [--dry-run] [--json]
+  gd-metapro skills export <project-skill> --runtime plugin [--dry-run] [--json]
 
 Examples:
   gd-metapro skills export pipelines/pipeline-step-store --runtime codex
   gd-metapro skills export .metaproject/project-skills/pipelines/pipeline-step-store --runtime claude --dry-run
+  gd-metapro skills export pipelines/pipeline-step-store --runtime plugin
 `);
 }
 

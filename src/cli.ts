@@ -12,6 +12,7 @@ import { flowCommand } from "./commands/flow";
 import { rulesCommand } from "./commands/rules";
 import { standardCommand } from "./commands/standard";
 import { securityCommand } from "./commands/security";
+import { mcpCommand } from "./commands/mcp";
 import { statusCommand } from "./commands/status";
 import { modulesCommand } from "./commands/modules";
 import { updateCommand } from "./commands/update";
@@ -124,6 +125,11 @@ export async function main(): Promise<void> {
     return;
   }
 
+  if (command === "mcp") {
+    await mcpCommand(args.slice(1));
+    return;
+  }
+
   console.error(`Unknown command: ${command}`);
   printHelp();
   process.exitCode = 1;
@@ -160,7 +166,7 @@ Usage:
   gd-metapro skills verify <skill-or-target>
   gd-metapro skills learn --from-review <path> --skill <module>/<skill>
   gd-metapro skills learn apply <proposal.json>
-  gd-metapro skills export <project-skill> --runtime codex|claude
+  gd-metapro skills export <project-skill> --runtime codex|claude|plugin
   gd-metapro skills sync --runtime codex|claude --target <dir>
   gd-metapro skill-verify-skill <skill-or-target>
   gd-metapro skills contracts validate <file> --schema subagent-result
@@ -178,14 +184,17 @@ Usage:
   gd-metapro standard validate
   gd-metapro standard doctor
   gd-metapro standard capabilities
+  gd-metapro standard emit llms [--stdout]
   gd-metapro security status
   gd-metapro security scan <path> [--json]
+  gd-metapro security scan-mcp <manifest|dir> [--json]
   gd-metapro security check-input [--source <kind>] [--file <path>]
   gd-metapro security check-output [--target <kind>] [--file <path>]
   gd-metapro security redact <path> [--out <path>]
   gd-metapro security report [--since <ref>]
   gd-metapro security policy validate
   gd-metapro security incidents [--limit <n>]
+  gd-metapro mcp serve [--http]
   gd-metapro --version
 
 Commands:
@@ -206,6 +215,7 @@ Commands:
   flow      Agent-first flow lifecycle (Task Manager)
   standard  Validate the workspace against the Metaproject Standard
   security  Policy-based scanning, redaction, guardrails and audit reports
+  mcp       Expose Metaproject services over the Model Context Protocol (opt-in)
 `);
 }
 

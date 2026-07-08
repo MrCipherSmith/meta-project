@@ -16,7 +16,7 @@ Source artifacts (job): `problem-statement.md`, `architecture.md`, `tech-bestpra
 | Order | Block | Directory | Depends on | Summary |
 |-------|-------|-----------|------------|---------|
 | 1 | **00 — Capability Seam** ✅ landed | [`00-capability-seam/`](00-capability-seam/) | — | The uniform opt-in substrate: `resolveCapability(id) → Adapter \| null`, `optionalDependencies` + lazy import, deterministic fallback as a tested path, the Asset Resolver (`assets.lock.json` + `assets pull/list/verify`), and the fixture-corpora acceptance harness + FN-rate gate. Ships **no** end-user feature — every block below instantiates it. |
-| 2 | **A — Interop / MCP** | [`A-interop-mcp/`](A-interop-mcp/) | Block 0 | `gd-metapro mcp` stdio-first server; Tools = thin adapters over `createXService()`; Resources = read-only artifacts; `llms.txt` + gdskills plugin export; reposition the Standard as a generator. |
+| 2 | **A — Interop / MCP** ✅ landed | [`A-interop-mcp/`](A-interop-mcp/) | Block 0 | `gd-metapro mcp` stdio-first server; Tools = thin adapters over `createXService()`; Resources = read-only artifacts; `llms.txt` + gdskills plugin export; reposition the Standard as a generator. |
 | 3 | **B — Code Understanding (`gdgraph`)** | [`B-code-understanding/`](B-code-understanding/) | Block 0 | Opt-in tree-sitter symbol graph (regex fallback), N-hop transitive `affected`, pure PageRank token-budgeted `repomap.md`. |
 | 4 | **C — Memory / Knowledge** | [`C-memory-knowledge/`](C-memory-knowledge/) | Block 0, A (for C4) | Opt-in local embedding index, bitemporal Markdown fact model, memory typing, gdwiki Q&A over the MCP surface. |
 | 5 | **D — Quality Signals** | [`D-quality-signals/`](D-quality-signals/) | Block 0 | Git-churn × complexity hotspot signal, dynamic coverage-map TIA (static fallback), always-on smoke tier. Dep-free. |
@@ -37,7 +37,8 @@ Source artifacts (job): `problem-statement.md`, `architecture.md`, `tech-bestpra
 | Block | Status | Landed |
 |-------|--------|--------|
 | **00 — Capability Seam** | ✅ **landed** | `src/capability/` (`resolveCapability` seam + warn-once), `src/assets/` (resolver + `assets.lock.json` + `assets list\|verify\|pull`), `src/harness/` (`runCorpus`/`gateCorpus` + `fixtures/`), `optionalDependencies` policy + no-top-level-import guard, init/update capability wiring, non-shipping reference capability. Golden-rule + no-network gates green (201 tests). Ships **no** end-user feature — Blocks A–E instantiate the seam by appending descriptors to `CAPABILITY_REGISTRY`. |
-| A–E | ▫ planned | Instantiate the Block 0 seam. |
+| **A — Interop & Adoption (MCP)** | ✅ **landed** | `src/mcp/` (stdio-first MCP server: `server.ts` lazy-loads the SDK, `tools.ts` = 12-tool registry mapping each Tool → one `createXService()` method, `resources.ts` = read-only `metaproject://` scheme, `config.ts`/`discovery.ts`/`redact-seam.ts`, isolated `transport/{stdio,http-sse}.ts`), `gd-metapro mcp serve [--http]`, `init --mcp` manifest wiring. E3: `src/security/detect/mcp.ts` (`scanMcpManifest` — tool-poisoning / line-jumping / rug-pull) + `security scan-mcp` + `fixtures/mcp-threat/` corpus (100% flagged, no FP). Generators: `standard emit llms` (deterministic `llms.txt`) + `skills export --runtime plugin`. Golden rule holds: `dependencies` stays `{}`, SDK only in `optionalDependencies`, no top-level SDK import, disabled = byte-identical (235 tests green). |
+| B–E | ▫ planned | Instantiate the Block 0 seam. |
 
 ## Cross-Cutting Golden Rule
 

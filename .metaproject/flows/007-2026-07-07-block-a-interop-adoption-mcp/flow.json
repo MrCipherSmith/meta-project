@@ -1,0 +1,234 @@
+{
+  "schemaVersion": 1,
+  "id": "007",
+  "slug": "block-a-interop-adoption-mcp",
+  "title": "Block A — Interop & Adoption (MCP)",
+  "status": "in-progress",
+  "createdAt": "2026-07-07T23:46:53.916Z",
+  "updatedAt": "2026-07-08T00:20:24.142Z",
+  "source": {
+    "type": "description",
+    "ref": null
+  },
+  "acChecksum": "sha256:ad739eaec0c9f8e7a9029ea9e5e4256542cf2bff9fb913d28f18d1b5b9986a5a",
+  "acConfirmed": {},
+  "pr": {
+    "url": null
+  },
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Collect remaining context",
+      "kind": "context",
+      "status": "done"
+    },
+    {
+      "id": "T2",
+      "title": "Implement per plan",
+      "kind": "implement",
+      "status": "done"
+    },
+    {
+      "id": "T3",
+      "title": "Add/adjust tests and make them pass",
+      "kind": "test",
+      "status": "done"
+    },
+    {
+      "id": "T4",
+      "title": "Self-review and prepare draft PR",
+      "kind": "review",
+      "status": "done"
+    },
+    {
+      "id": "T5",
+      "title": "Resource registry: metaproject:// scheme, read-only, path-confined",
+      "kind": "implement",
+      "status": "done"
+    },
+    {
+      "id": "T6",
+      "title": "stdio JSON-RPC server: handshake, tools/list+call, resources/list+read; no socket; hard-fail on missing SDK",
+      "kind": "implement",
+      "status": "done"
+    },
+    {
+      "id": "T7",
+      "title": "E3 redact-seam: route every tool result through redactRaw",
+      "kind": "implement",
+      "status": "done"
+    },
+    {
+      "id": "T8",
+      "title": "E3 scan-mcp detector + security scan-mcp command",
+      "kind": "implement",
+      "status": "done"
+    },
+    {
+      "id": "T9",
+      "title": "E3 fixtures/mcp-threat corpus + detector tests",
+      "kind": "implement",
+      "status": "done"
+    },
+    {
+      "id": "T10",
+      "title": "Generators: standard emit llms + gdskills --runtime plugin export",
+      "kind": "implement",
+      "status": "done"
+    },
+    {
+      "id": "T11",
+      "title": "HTTP/SSE second opt-in behind mcp serve --http",
+      "kind": "implement",
+      "status": "done"
+    },
+    {
+      "id": "T12",
+      "title": "Server tests + import-boundary + no-network + golden-rule gate",
+      "kind": "implement",
+      "status": "done"
+    },
+    {
+      "id": "T13",
+      "title": "Docs: metaproject-standard MCP surface + Standard-as-generator + roadmap status",
+      "kind": "implement",
+      "status": "done"
+    },
+    {
+      "id": "T14",
+      "title": "Adversarial review + draft PR",
+      "kind": "implement",
+      "status": "todo"
+    }
+  ],
+  "history": [
+    {
+      "at": "2026-07-07T23:46:53.916Z",
+      "event": "created"
+    },
+    {
+      "at": "2026-07-07T23:49:42.331Z",
+      "event": "task-added",
+      "detail": "T5: Resource registry: metaproject:// scheme, read-only, path-confined"
+    },
+    {
+      "at": "2026-07-07T23:49:42.382Z",
+      "event": "task-added",
+      "detail": "T6: stdio JSON-RPC server: handshake, tools/list+call, resources/list+read; no socket; hard-fail on missing SDK"
+    },
+    {
+      "at": "2026-07-07T23:49:42.436Z",
+      "event": "task-added",
+      "detail": "T7: E3 redact-seam: route every tool result through redactRaw"
+    },
+    {
+      "at": "2026-07-07T23:49:42.492Z",
+      "event": "task-added",
+      "detail": "T8: E3 scan-mcp detector + security scan-mcp command"
+    },
+    {
+      "at": "2026-07-07T23:49:42.545Z",
+      "event": "task-added",
+      "detail": "T9: E3 fixtures/mcp-threat corpus + detector tests"
+    },
+    {
+      "at": "2026-07-07T23:49:42.597Z",
+      "event": "task-added",
+      "detail": "T10: Generators: standard emit llms + gdskills --runtime plugin export"
+    },
+    {
+      "at": "2026-07-07T23:49:42.654Z",
+      "event": "task-added",
+      "detail": "T11: HTTP/SSE second opt-in behind mcp serve --http"
+    },
+    {
+      "at": "2026-07-07T23:49:42.706Z",
+      "event": "task-added",
+      "detail": "T12: Server tests + import-boundary + no-network + golden-rule gate"
+    },
+    {
+      "at": "2026-07-07T23:49:42.758Z",
+      "event": "task-added",
+      "detail": "T13: Docs: metaproject-standard MCP surface + Standard-as-generator + roadmap status"
+    },
+    {
+      "at": "2026-07-07T23:49:42.812Z",
+      "event": "task-added",
+      "detail": "T14: Adversarial review + draft PR"
+    },
+    {
+      "at": "2026-07-07T23:49:47.616Z",
+      "event": "frozen",
+      "detail": "12 criteria; checksum recorded"
+    },
+    {
+      "at": "2026-07-07T23:49:47.669Z",
+      "event": "started"
+    },
+    {
+      "at": "2026-07-07T23:49:47.723Z",
+      "event": "task-done",
+      "detail": "T1: Collect remaining context"
+    },
+    {
+      "at": "2026-07-08T00:20:22.500Z",
+      "event": "task-done",
+      "detail": "T2: Implement per plan"
+    },
+    {
+      "at": "2026-07-08T00:20:22.661Z",
+      "event": "task-done",
+      "detail": "T3: Add/adjust tests and make them pass"
+    },
+    {
+      "at": "2026-07-08T00:20:22.810Z",
+      "event": "task-done",
+      "detail": "T4: Self-review and prepare draft PR"
+    },
+    {
+      "at": "2026-07-08T00:20:22.954Z",
+      "event": "task-done",
+      "detail": "T5: Resource registry: metaproject:// scheme, read-only, path-confined"
+    },
+    {
+      "at": "2026-07-08T00:20:23.107Z",
+      "event": "task-done",
+      "detail": "T6: stdio JSON-RPC server: handshake, tools/list+call, resources/list+read; no socket; hard-fail on missing SDK"
+    },
+    {
+      "at": "2026-07-08T00:20:23.251Z",
+      "event": "task-done",
+      "detail": "T7: E3 redact-seam: route every tool result through redactRaw"
+    },
+    {
+      "at": "2026-07-08T00:20:23.390Z",
+      "event": "task-done",
+      "detail": "T8: E3 scan-mcp detector + security scan-mcp command"
+    },
+    {
+      "at": "2026-07-08T00:20:23.555Z",
+      "event": "task-done",
+      "detail": "T9: E3 fixtures/mcp-threat corpus + detector tests"
+    },
+    {
+      "at": "2026-07-08T00:20:23.721Z",
+      "event": "task-done",
+      "detail": "T10: Generators: standard emit llms + gdskills --runtime plugin export"
+    },
+    {
+      "at": "2026-07-08T00:20:23.861Z",
+      "event": "task-done",
+      "detail": "T11: HTTP/SSE second opt-in behind mcp serve --http"
+    },
+    {
+      "at": "2026-07-08T00:20:24.001Z",
+      "event": "task-done",
+      "detail": "T12: Server tests + import-boundary + no-network + golden-rule gate"
+    },
+    {
+      "at": "2026-07-08T00:20:24.142Z",
+      "event": "task-done",
+      "detail": "T13: Docs: metaproject-standard MCP surface + Standard-as-generator + roadmap status"
+    }
+  ]
+}

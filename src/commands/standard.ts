@@ -6,12 +6,15 @@ import {
   style,
   symbols,
 } from "../lib/ui";
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
 import {
   runCapabilities,
   runDoctor,
   runValidate,
 } from "../standard/service";
 import { STANDARD_VERSION } from "../standard/profiles";
+import { emitLlms, validateLlms } from "../standard/emit-llms";
 import type { Issue, ValidationResult } from "../standard/types";
 
 // Thin handler for `gd-metapro standard <validate|doctor|capabilities>`.
@@ -36,6 +39,9 @@ export async function standardCommand(
       return;
     case "capabilities":
       await handleCapabilities(projectRoot);
+      return;
+    case "emit":
+      await handleEmit(projectRoot, args.slice(1));
       return;
     default:
       console.error(`Unknown standard command: ${subcommand}`);
@@ -116,6 +122,38 @@ async function handleCapabilities(projectRoot: string): Promise<void> {
   }
 }
 
+// `standard emit llms` — generate the deterministic llms.txt (spec §10.1).
+async function handleEmit(projectRoot: string, args: string[]): Promise<void> {
+  const kind = args[0];
+  if (kind !== "llms") {
+    console.error("Usage: gd-metapro standard emit llms [--stdout]");
+    process.exitCode = 1;
+    return;
+  }
+
+  const result = await emitLlms(projectRoot);
+  const problems = validateLlms(result.content);
+
+  if (args.includes("--stdout")) {
+    process.stdout.write(result.content);
+  } else {
+    await mkdir(path.dirname(result.path), { recursive: true });
+    await writeFile(result.path, result.content, "utf8");
+    heading("gd-metapro standard emit llms");
+    if (problems.length === 0) {
+      console.log(`  ${style.green(symbols.ok)} wrote ${path.relative(projectRoot, result.path)} (valid llms.txt)`);
+    } else {
+      for (const problem of problems) {
+        console.log(`  ${style.red(symbols.cross)} ${problem}`);
+      }
+    }
+  }
+
+  if (problems.length > 0) {
+    process.exitCode = 1;
+  }
+}
+
 function renderIssues(
   label: string,
   issues: Issue[],
@@ -148,12 +186,14 @@ export function printStandardHelp(): void {
     "gd-metapro standard validate",
     "gd-metapro standard doctor",
     "gd-metapro standard capabilities",
+    "gd-metapro standard emit llms [--stdout]",
   ]);
   heading("Commands");
   for (const [name, desc] of [
     ["validate", "Check the workspace against the standard; exits non-zero on failure."],
     ["doctor", "Print actionable diagnostics with fix hints; exits non-zero on unresolved issues."],
     ["capabilities", "Print the standard version, active profiles, and enabled modules."],
+    ["emit llms", "Generate a deterministic llms.txt from the manifest + artifact index."],
   ] as const) {
     console.log(`  ${style.cyan(name.padEnd(13))} ${style.dim(desc)}`);
   }
