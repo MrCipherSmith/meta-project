@@ -10,6 +10,7 @@ import { healthCommand } from "./commands/health";
 import { testCommand } from "./commands/test";
 import { memoryCommand } from "./commands/memory";
 import { flowCommand } from "./commands/flow";
+import { reviewCommand } from "./commands/review";
 import { rulesCommand } from "./commands/rules";
 import { standardCommand } from "./commands/standard";
 import { securityCommand } from "./commands/security";
@@ -117,6 +118,11 @@ export async function main(): Promise<void> {
     return;
   }
 
+  if (command === "review") {
+    await reviewCommand(args.slice(1));
+    return;
+  }
+
   if (command === "rules") {
     await rulesCommand(args.slice(1));
     return;
@@ -195,6 +201,7 @@ Usage:
   keryx flow list
   keryx flow status <id>
   keryx flow complete <id> [--comment]
+  keryx review attach|start|ingest|status|complete
   keryx standard validate
   keryx standard doctor
   keryx standard capabilities
@@ -231,6 +238,7 @@ Commands:
   test      Analyze testing context and normalize test reports
   memory    Store and search long-term project memory
   flow      Agent-first flow lifecycle (Task Manager)
+  review    Managed review packages and lightweight report-only review mode
   standard  Validate the workspace against the Metaproject Standard
   security  Policy-based scanning, redaction, guardrails and audit reports
   mcp       Expose Metaproject services over the Model Context Protocol (opt-in)

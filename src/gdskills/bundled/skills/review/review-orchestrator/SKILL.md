@@ -80,8 +80,49 @@ Review Orchestrator Progress:
 | `context_mode` | string | no | `none`, `light`, or `full`. Default: `light` for PR review, `none` for small path reviews. `full` may call `context-collector` before dispatch. |
 | `token_budget` | object | no | Optional budget controls: `{total, per_reviewer, diff_max_chars, file_max_chars}`. |
 | `model_strategy` | string | no | `current`, `ask`, or `adaptive`. Default: `current`; do not switch models unless user or automation allows it. |
+| `managed_review` | object | no | Optional managed review mode: `{mode, target, target_ref, flow_id, reviewers}` where mode is `lightweight`, `attach-review`, `review-flow`, or `ingest`. |
 
 ---
+
+## Managed Review Feedback Loop
+
+Default behavior remains lightweight: emit the consolidated report only and do
+not create Task Manager artifacts. Use managed mode only when requested by the
+caller or when an unambiguous related flow is detected and the caller accepts
+attachment.
+
+Runtime CLI surface:
+
+```text
+keryx review attach --flow <id> --target <kind> --ref <ref>
+keryx review start --target <kind> --ref <ref>
+keryx review ingest --report <path> [--flow <id>] --ref <ref>
+keryx review status <review-id-or-path>
+keryx review complete <review-id-or-path>
+```
+
+Managed modes:
+
+- `lightweight`: report-only; no flow or managed review artifacts are created.
+- `attach-review`: write under
+  `.metaproject/flows/<flow-dir>/reviews/<review-id>/`.
+- `review-flow`: write under `.metaproject/reviews/<review-id>/`.
+- `ingest`: convert an existing review report into managed findings, decisions,
+  and learning handoff, attached to a flow when one is explicit or matched.
+
+Required artifacts for managed modes:
+
+- `manifest.json`
+- `scope.md`
+- `coverage.md`
+- `report.md`
+- `findings.json`
+- `learning.md`
+- `decisions.md`
+
+When attaching to a flow, resolve the flow by explicit `flow_id`, PR URL, issue
+URL, or branch metadata. Never mutate `.metaproject/flows/*/flow.json` from
+review code; Task Manager state changes remain owned by `keryx flow`.
 
 ## Review Context Pack
 
