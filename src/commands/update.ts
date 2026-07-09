@@ -52,6 +52,7 @@ import {
   renderWikiPageTemplate,
 } from "../wiki/templates";
 import { pathExists } from "../lib/fs";
+import { seedAssetsLock } from "../assets/seed";
 import {
   banner,
   heading,
@@ -323,6 +324,7 @@ async function refreshServiceFiles(projectRoot: string, options: UpdateOptions):
     await writeTextIfChanged(path.join(metaprojectRoot, "modules", "gdgraph.md"), renderGdgraphManifest());
     await writeTextIfChanged(path.join(metaprojectRoot, "core", "gdgraph", "README.md"), renderGdgraphCoreReadme());
     await writeTextIfChanged(path.join(metaprojectRoot, "skills", "gdgraph", "SKILL.md"), renderGdgraphSkillReadme());
+    await seedAssetsLock(metaprojectRoot);
     if (manifest.modules?.gdgraph?.hooks?.gitPostCommit) {
       await installManagedHook(projectRoot, "post-commit", "gdgraph-post-commit", renderGdgraphPostCommitHook());
     }

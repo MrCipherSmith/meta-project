@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 import { optionValue } from "../lib/args";
 import { moduleCommands } from "./module-commands";
 import { pathExists } from "../lib/fs";
+import { seedAssetsLock } from "../assets/seed";
 import { choice, confirm } from "../lib/prompt";
 import {
   banner,
@@ -476,6 +477,7 @@ export async function initCommand(args: string[]): Promise<void> {
   if (enableGdgraph) {
     await createGdgraphStructure(metaprojectRoot);
     await installGdgraphCoreScripts(metaprojectRoot);
+    await seedAssetsLock(metaprojectRoot);
     if (enableGdgraphHook) {
       await installGdgraphPostCommitHook(projectRoot);
     }
