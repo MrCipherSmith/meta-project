@@ -75,6 +75,12 @@ export async function gdgraphCommand(args: string[]): Promise<void> {
     return;
   }
 
+  if (command === "context") {
+    const { graphContext } = await import("../ctx/orient");
+    console.log(await graphContext(process.cwd()));
+    return;
+  }
+
   if (command === "assets") {
     const result = await runAssetsSubcommand(process.cwd(), "gdgraph", args.slice(1));
     for (const line of result.lines) {
@@ -279,6 +285,7 @@ Usage:
   keryx gdgraph query orphans
   keryx gdgraph affected <file> [--depth N] [--ranked] [--json]
   keryx gdgraph repomap [--budget N] [--seed <path>...] [--changed]
+  keryx gdgraph context
   keryx gdgraph assets list | verify [<id>] | pull <id>
 `);
 }

@@ -99,6 +99,17 @@ the cheap model**; the flagship's job is only to review a sample at the end.
 `--force` regenerates only unmodified drafts, so collect and enrich compose:
 re-run collect after code changes, then enrich the newly created drafts.
 
+## Always-on orientation (optional)
+
+To make wiki knowledge always available (not just when the agent remembers to
+read the index), install the orientation injector — it adds the wiki index +
+code-graph map to the agent's context each turn:
+
+```bash
+keryx orient install-hook [--runtime <id|all>]   # claude, codex, cursor
+keryx wiki context                               # the wiki half of that orientation
+```
+
 ## Skip When
 
 - The request is a pure code lookup with no architectural/domain/business context. Skipping the wiki is fine here — but it does not license raw `rg`: the code lookup itself still goes through gdgraph and `keryx ctx rg` (see the gdgraph and gdctx skills).

@@ -4,6 +4,7 @@ import { initCommand } from "./commands/init";
 import { ctxCommand } from "./commands/ctx";
 import { gdgraphCommand } from "./commands/gdgraph";
 import { wikiCommand } from "./commands/wiki";
+import { orientCommand } from "./commands/orient";
 import { skillVerifySkillCommand, skillsCommand } from "./commands/skills";
 import { healthCommand } from "./commands/health";
 import { testCommand } from "./commands/test";
@@ -78,6 +79,11 @@ export async function main(): Promise<void> {
 
   if (command === "wiki") {
     await wikiCommand(args.slice(1));
+    return;
+  }
+
+  if (command === "orient") {
+    await orientCommand(args.slice(1));
     return;
   }
 

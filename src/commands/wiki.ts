@@ -52,6 +52,12 @@ export async function wikiCommand(args: string[]): Promise<void> {
     return;
   }
 
+  if (command === "context") {
+    const { wikiContext } = await import("../ctx/orient");
+    console.log(await wikiContext(process.cwd()));
+    return;
+  }
+
   console.error(`Unknown wiki command: ${command}`);
   printHelp();
   process.exitCode = 1;
@@ -210,6 +216,7 @@ Usage:
   keryx wiki check-links
   keryx wiki validate
   keryx wiki ask "<question>" [--k <n>] [--rerank]
+  keryx wiki context
 
 Page types:
   architecture, domain-model, business-rule, user-scenario,

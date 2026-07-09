@@ -72,6 +72,22 @@ Graph refresh should happen through one of these paths:
 - Git `post-commit` hook refreshes graph after relevant file changes;
 - graph storage is missing and the task needs graph context.
 
+## Always-on orientation (optional)
+
+Graph usage is advisory by default. Unlike a raw `rg` (which the gdctx guard can
+deterministically re-route), a broad search or deep read is not reliably a
+violation — so the enforcement analogue here is AVAILABILITY, not blocking:
+
+```bash
+keryx orient install-hook [--runtime <id|all>]   # inject graph map + wiki index at turn start
+keryx gdgraph context                            # the graph half of that orientation
+```
+
+The injector adds a compact, freshness-aware code-graph map + wiki index to the
+agent's context each turn, so the graph is always in front of you before you
+reach for broad search. Supported where the harness has a context-injection hook
+(claude, codex, cursor); Windsurf/Zed have none — use their rules/memories.
+
 ## Reporting
 
 When answering a non-trivial navigation, debugging, review, or investigation task, include a routing audit. It is not optional; an omitted layer must be justified, not silently skipped:
