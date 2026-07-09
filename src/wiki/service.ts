@@ -421,7 +421,7 @@ async function collectGraphWikiCandidates(
     const dependents = topCounts(moduleDependents.get(moduleName), 6);
     const readme = await readModuleReadme(cwd, moduleName);
     const exportsFrom = entryFiles.length > 0 ? entryFiles : keyFiles.slice(0, 2).map((entry) => entry.file);
-    const exportNames = await extractModuleExports(cwd, exportsFrom);
+    const exportApi = await extractModuleApi(cwd, exportsFrom);
 
     const reference: string[] = [];
     const pushRef = (heading: string, lines: string[]): void => {
@@ -430,7 +430,7 @@ async function collectGraphWikiCandidates(
       }
       reference.push("### " + heading, "", ...lines, "");
     };
-    pushRef("Public API", exportNames.map((name) => "- `" + name + "`"));
+    pushRef("Public API", exportApi.map((entry) => "- " + entry));
     pushRef(
       "Key files",
       keyFiles.map((entry) => "- `" + entry.file + "` - imported by " + entry.incoming + ", imports " + entry.outgoing),
@@ -447,8 +447,8 @@ async function collectGraphWikiCandidates(
     if (deps.length > 0) {
       summaryParts.push("Depends on " + deps.slice(0, 3).map(([target]) => "`" + target + "`").join(", ") + ".");
     }
-    if (exportNames.length > 0) {
-      summaryParts.push("Exposes " + exportNames.length + " public symbol(s).");
+    if (exportApi.length > 0) {
+      summaryParts.push("Exposes " + exportApi.length + " public symbol(s).");
     }
 
     moduleCandidates.push({
@@ -548,6 +548,40 @@ async function extractModuleExports(cwd: string, files: string[]): Promise<strin
     }
   }
   return [...names].slice(0, 20);
+}
+
+// Public API entries for a module's Reference section. Starts from the exported
+// names (regex, cheap) and — when the gdgraph symbol layer is present — annotates
+// each with its real kind (function/class/interface/method) from `symbols.jsonl`,
+// so the scaffold carries `\`build\` (function)` instead of a bare name. Degrades
+// to plain names when the symbol layer is absent (golden-rule floor).
+export async function extractModuleApi(cwd: string, files: string[]): Promise<string[]> {
+  const names = await extractModuleExports(cwd, files);
+  const symbolsPath = path.join(cwd, ".metaproject", "data", "gdgraph", "storage", "symbols.jsonl");
+  if (names.length === 0 || !(await pathExists(symbolsPath))) {
+    return names.map((name) => "`" + name + "`");
+  }
+
+  const fileSet = new Set(files);
+  const kindByName = new Map<string, string>();
+  try {
+    for (const raw of parseJsonl(await readFile(symbolsPath, "utf8"))) {
+      const symbol = raw as { name?: string; kind?: string; container?: string | null; path?: string };
+      // Top-level declarations only (container === null) in this module's files.
+      if (!symbol.name || !symbol.path || symbol.container != null) continue;
+      if (!fileSet.has(symbol.path)) continue;
+      if (!kindByName.has(symbol.name) && symbol.kind) {
+        kindByName.set(symbol.name, symbol.kind);
+      }
+    }
+  } catch {
+    return names.map((name) => "`" + name + "`");
+  }
+
+  return names.map((name) => {
+    const kind = kindByName.get(name);
+    return "`" + name + "`" + (kind ? " (" + kind + ")" : "");
+  });
 }
 
 async function collectHealthWikiCandidates(
