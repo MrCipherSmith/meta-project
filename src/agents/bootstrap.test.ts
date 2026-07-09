@@ -26,6 +26,10 @@ test("install writes an optional bootstrap block near the top and preserves user
     expect(content.indexOf(AGENT_BOOTSTRAP_START)).toBeLessThan(content.indexOf("Use local user rules."));
     expect(content).toContain("If Keryx is NOT installed");
     expect(content).toContain("cwd or ancestors");
+    expect(content).toContain("Hard gate");
+    expect(content).toContain("before the first plan, search, grep, file read");
+    expect(content).toContain("If you create or switch to a git worktree");
+    expect(content).toContain("Every subagent prompt must include the project/worktree root");
     expect(content).toContain("Use local user rules.");
     expect(content).toContain(AGENT_BOOTSTRAP_END);
   } finally {

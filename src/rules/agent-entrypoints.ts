@@ -1,5 +1,6 @@
 import { mkdir, readFile, readdir, realpath, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { renderProjectMetaprojectReferenceBlock } from "../lib/agent-entrypoint-blocks";
 import { pathExists } from "../lib/fs";
 import {
   renderAgentEntrypoint,
@@ -69,75 +70,9 @@ export async function ensureMetaprojectReference(
   const content = await readFile(filePath, "utf8");
   const marker = "<!-- keryx:index -->";
   const endMarker = "<!-- /keryx:index -->";
-  const oldGraphPolicy =
-    "For code-related tasks, use the Metaproject gdgraph skill by default before broad raw file search.";
-  const graphPolicy =
-    "For project navigation, file discovery, and code-related tasks, use the Metaproject gdgraph skill by default before broad raw file search.";
-  const disclaimerPolicy =
-    "This Metaproject block is optional project-local routing. If `.metaproject/index.md` or referenced Metaproject files are absent, ignore this block and continue with the main contents of this AGENTS.md/CLAUDE.md file.";
-  const intentPolicy =
-    "The user does not need to know keryx command names. Treat natural-language requests as intents, route through `.metaproject/index.md`, then choose the right skill, rule, MCP tool/resource, or `keryx` CLI command yourself.";
-  const mcpPolicy =
-    "If MCP tools/resources are available for this project, prefer them for Metaproject capabilities because they provide structured tool calls. If MCP is unavailable or lacks a needed capability, fall back to the corresponding project-local skill and CLI command.";
-  const wikiPolicy =
-    "For architecture, domain models, business rules, user scenarios, auth and other flows, integrations, and known decisions, consult the Metaproject gdwiki skill and read the wiki index before deep code reads; use gdgraph to move from a wiki concept to code.";
-  const oldCtxPolicy =
-    "When gdctx is enabled, use the Metaproject gdctx skill for commands, search, diff, test logs, and large file reads that can produce long output.";
-  const ctxPolicy =
-    "For commands, search, diff, test logs, lint/build output, and large file reads that can produce long output, use the Metaproject gdctx skill by default before loading raw command output into context.";
-  const gdskillsPolicy =
-    "For implementation, review, refactoring, planning, documentation, or quality tasks, use project-local Metaproject skills first: .metaproject/skills/catalog.md, .metaproject/project-skills/, then .metaproject/skills/gdskills/. External/global skills are fallback only when explicitly needed.";
-  const testingPolicy =
-    "For creating, changing, debugging, reviewing, or running tests, use the Metaproject testing skill and read .metaproject/data/testing/context.md before broad test search or raw logs.";
-  const memoryPolicy =
-    "For lessons learned, decisions, constraints, repeated mistakes, and historical project context, use the Metaproject memory skill before broad documentation search.";
-  const oldFlowPolicy =
-    "For starting, tracking, or finishing a managed piece of work (a flow) - e.g. when the user asks to create a flow from a problem description or an issue link, asks for flow status, or asks to finish a story - use the Metaproject flow skill; all flow state changes go through the keryx flow CLI.";
-  const flowPolicy =
-    "For starting, tracking, or finishing a managed piece of work (a flow), use the Metaproject flow skill for state/status commands. For non-trivial implementation through Task Manager, use the local gdskills flow-orchestrator first: .metaproject/skills/gdskills/orchestration/flow-orchestrator/SKILL.md. All flow state changes go through the keryx flow CLI.";
-
+  const block = renderProjectMetaprojectReferenceBlock({ enableTasks: options.enableTasks !== false });
   if (content.includes(marker)) {
-    let next = content;
-    if (content.includes(oldGraphPolicy)) {
-      next = next.replaceAll(oldGraphPolicy, graphPolicy);
-    }
-    if (next.includes(oldCtxPolicy)) {
-      next = next.replaceAll(oldCtxPolicy, ctxPolicy);
-    }
-    if (next.includes(oldFlowPolicy)) {
-      next = next.replaceAll(oldFlowPolicy, flowPolicy);
-    }
-    next = collapseDuplicatePolicy(next, graphPolicy);
-    next = collapseDuplicatePolicy(next, disclaimerPolicy);
-    next = collapseDuplicatePolicy(next, intentPolicy);
-    next = collapseDuplicatePolicy(next, mcpPolicy);
-    next = collapseDuplicatePolicy(next, wikiPolicy);
-    next = collapseDuplicatePolicy(next, ctxPolicy);
-    next = collapseDuplicatePolicy(next, gdskillsPolicy);
-    next = collapseDuplicatePolicy(next, testingPolicy);
-    next = collapseDuplicatePolicy(next, memoryPolicy);
-    next = collapseDuplicatePolicy(next, flowPolicy);
-    if (options.enableTasks === false) {
-      next = removePolicy(next, flowPolicy);
-    }
-
-    const missingPolicies = [
-      ...(next.includes(graphPolicy) ? [] : [graphPolicy]),
-      ...(next.includes(disclaimerPolicy) ? [] : [disclaimerPolicy]),
-      ...(next.includes(intentPolicy) ? [] : [intentPolicy]),
-      ...(next.includes(mcpPolicy) ? [] : [mcpPolicy]),
-      ...(next.includes(wikiPolicy) ? [] : [wikiPolicy]),
-      ...(next.includes(ctxPolicy) ? [] : [ctxPolicy]),
-      ...(next.includes(gdskillsPolicy) ? [] : [gdskillsPolicy]),
-      ...(next.includes(testingPolicy) ? [] : [testingPolicy]),
-      ...(next.includes(memoryPolicy) ? [] : [memoryPolicy]),
-      ...(options.enableTasks === false || next.includes(flowPolicy) ? [] : [flowPolicy]),
-    ];
-    if (missingPolicies.length > 0) {
-      const suffix = next.endsWith("\n") ? "" : "\n";
-      next = `${next}${suffix}\n${missingPolicies.join("\n\n")}\n`;
-    }
-
+    const next = replaceManagedBlock(content, marker, endMarker, block);
     if (next !== content) {
       await writeFile(filePath, next, "utf8");
     }
@@ -145,19 +80,6 @@ export async function ensureMetaprojectReference(
     return;
   }
 
-  const initialPolicies = [
-    disclaimerPolicy,
-    graphPolicy,
-    intentPolicy,
-    mcpPolicy,
-    wikiPolicy,
-    ctxPolicy,
-    gdskillsPolicy,
-    testingPolicy,
-    memoryPolicy,
-    ...(options.enableTasks === false ? [] : [flowPolicy]),
-  ];
-  const block = `${marker}\n## Metaproject\n\nRead [.metaproject/index.md](.metaproject/index.md) before planning, implementing, or reviewing this repository.\n\n${initialPolicies.join("\n\n")}\n\n${endMarker}\n`;
   await writeFile(filePath, insertMetaprojectBlockNearTop(content, block), "utf8");
 }
 
@@ -202,27 +124,16 @@ async function ensureDefaultAgentEntrypoints(projectRoot: string, entrypoints: s
   return sources;
 }
 
-function removePolicy(content: string, policy: string): string {
-  const escaped = escapeRegExp(policy);
-  return content
-    .replace(new RegExp(`\\n{0,2}${escaped}\\n?`, "g"), "\n")
-    .replace(/\n{3,}/g, "\n\n");
-}
-
-function collapseDuplicatePolicy(content: string, policy: string): string {
-  const escaped = escapeRegExp(policy);
-  let seen = false;
-  return content.replace(new RegExp(`${escaped}\\n*`, "g"), (match) => {
-    if (seen) {
-      return "";
-    }
-    seen = true;
-    return match.endsWith("\n") ? match : `${match}\n`;
-  });
-}
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function replaceManagedBlock(content: string, marker: string, endMarker: string, block: string): string {
+  const start = content.indexOf(marker);
+  if (start < 0) {
+    return content;
+  }
+  const end = content.indexOf(endMarker, start + marker.length);
+  if (end < 0) {
+    return `${content.slice(0, start)}${block}`;
+  }
+  return `${content.slice(0, start)}${block}${content.slice(end + endMarker.length)}`.replace(/\n{3,}/g, "\n\n");
 }
 
 function insertMetaprojectBlockNearTop(content: string, block: string): string {

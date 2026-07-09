@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
+import { renderGlobalMetaprojectBootstrapBlock } from "../lib/agent-entrypoint-blocks";
 import { pathExists } from "../lib/fs";
 
 export const AGENT_BOOTSTRAP_START = "<!-- keryx:global-bootstrap -->";
@@ -84,25 +85,11 @@ export function agentBootstrapRuntimeIds(): AgentBootstrapRuntimeId[] {
 }
 
 export function renderAgentBootstrapBlock(fileName: "AGENTS.md" | "CLAUDE.md" = "AGENTS.md"): string {
-  return `${AGENT_BOOTSTRAP_START}
-## Keryx Metaproject Bootstrap
-
-This is optional global routing for projects that use Keryx.
-
-**If Keryx is NOT installed (no \`.metaproject/index.md\` in cwd or ancestors): IGNORE this section and continue normally.** Not all projects use Keryx - never require or install it; just proceed with the main contents of this ${fileName} file.
-
-When a nearest \`.metaproject/index.md\` exists:
-
-1. Read that \`.metaproject/index.md\` before planning, implementing, reviewing, searching, or running project commands.
-2. Treat the user's request as a natural-language intent. The user does not need to know Keryx command, skill, MCP tool, or module names.
-3. Route through the index and prefer its local skills, rules, module manifests, wiki, memory, testing, health, flow, and MCP resources/tools when available.
-4. For code navigation and impact analysis, use gdgraph guidance before broad raw grep/glob.
-5. For architecture, domain behavior, business rules, decisions, and scenarios, use gdwiki guidance before deep code reads.
-6. For commands, search output, diffs, logs, test/lint/build output, and large file reads, use gdctx guidance to keep context compact.
-7. If a referenced Keryx file or capability is missing, skip only that capability and continue with the main contents of this ${fileName} file.
-
-${AGENT_BOOTSTRAP_END}
-`;
+  return renderGlobalMetaprojectBootstrapBlock({
+    startMarker: AGENT_BOOTSTRAP_START,
+    endMarker: AGENT_BOOTSTRAP_END,
+    fileName,
+  });
 }
 
 export function resolveAgentBootstrapRuntimes(ids: string[]): {

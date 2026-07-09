@@ -48,7 +48,10 @@ test("rules sync imports AGENTS and CLAUDE as high-priority rules", async () => 
     expect(index).toContain("| AGENTS.md | high |");
     expect(index).toContain("| CLAUDE.md | high |");
     const rootAgents = await readFile(path.join(root, "AGENTS.md"), "utf8");
-    expect(rootAgents).toContain("Read [.metaproject/index.md](.metaproject/index.md)");
+    expect(rootAgents).toContain("**HARD GATE:**");
+    expect(rootAgents).toContain("explicitly read `.metaproject/index.md`");
+    expect(rootAgents).toContain("If you create or switch to a git worktree");
+    expect(rootAgents).toContain("Every subagent prompt must include the exact project/worktree root");
     expect(rootAgents).toContain("This Metaproject block is optional project-local routing.");
     expect(rootAgents.indexOf("<!-- keryx:index -->")).toBeLessThan(rootAgents.indexOf("Use local conventions."));
     expect(manifest.agentEntrypoints.root).toEqual(["AGENTS.md", "CLAUDE.md"]);
@@ -87,6 +90,57 @@ test("rules sync creates default AGENTS and CLAUDE entrypoints when none exist",
     expect(await readFile(path.join(root, ".metaproject", "rules", "claude-md.md"), "utf8")).toContain("priority: high");
     expect(await readFile(path.join(root, ".metaproject", "index.md"), "utf8")).toContain("| AGENTS.md | high |");
     expect(await readFile(path.join(root, ".metaproject", "index.md"), "utf8")).toContain("| CLAUDE.md | high |");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("rules sync upgrades an existing keryx entrypoint block to the hard gate", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "keryx-rules-upgrade-"));
+
+  try {
+    await mkdir(path.join(root, ".metaproject"), { recursive: true });
+    await writeFile(
+      path.join(root, "AGENTS.md"),
+      `# Agent Rules
+
+<!-- keryx:index -->
+## Metaproject
+
+Read [.metaproject/index.md](.metaproject/index.md) before planning, implementing, or reviewing this repository.
+
+<!-- /keryx:index -->
+
+Use local conventions.
+`,
+      "utf8",
+    );
+    await writeFile(
+      path.join(root, ".metaproject", "metaproject.json"),
+      JSON.stringify({
+        modules: {
+          gdgraph: { enabled: true },
+          gdctx: { enabled: true },
+          gdwiki: { enabled: true },
+          gdskills: { enabled: true },
+          health: { enabled: false },
+          testing: { enabled: false },
+          memory: { enabled: false },
+          tasks: { enabled: false },
+        },
+        agentEntrypoints: { root: ["AGENTS.md"] },
+      }),
+      "utf8",
+    );
+
+    await rulesCommand(["sync"], root);
+
+    const rootAgents = await readFile(path.join(root, "AGENTS.md"), "utf8");
+    expect(rootAgents).toContain("**HARD GATE:**");
+    expect(rootAgents).toContain("explicitly read `.metaproject/index.md`");
+    expect(rootAgents).toContain("Do not dispatch subagents until the Metaproject hard gate is complete.");
+    expect(rootAgents).not.toContain("Read [.metaproject/index.md](.metaproject/index.md)");
+    expect(rootAgents).toContain("Use local conventions.");
   } finally {
     await rm(root, { recursive: true, force: true });
   }
