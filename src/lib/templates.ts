@@ -2286,7 +2286,7 @@ frontend/static outputs are skipped by default.
 
 - \`keryx gdgraph build\`
 - \`keryx gdgraph find "<terms>"\` — find files/symbols by concept (seed search)
-- \`keryx gdgraph symbol "<name>"\` — definition + callers + callees (symbol layer)
+- \`keryx gdgraph symbol "<name>" [--impact [--depth N]]\` — definition + callers + callees; \`--impact\` = transitive-caller blast radius (symbol layer)
 - \`keryx gdgraph path "<A>" "<B>"\` — shortest connection between two files/symbols
 - \`keryx gdgraph affected <file-or-symbol>\` — blast radius
 - \`keryx gdgraph query cycles | orphans\`
@@ -2392,10 +2392,12 @@ keryx gdgraph find "<terms>"
 keryx gdgraph affected <file-or-symbol>
 \`\`\`
 
-- Where is a symbol defined / who calls it (needs the symbol layer):
+- Where is a symbol defined / who calls it (needs the symbol layer). Add
+  \`--impact [--depth N]\` for the transitive-caller blast radius of a symbol:
 
 \`\`\`bash
 keryx gdgraph symbol "<name>"
+keryx gdgraph symbol "<name>" --impact
 \`\`\`
 
 - How are two files/symbols connected:

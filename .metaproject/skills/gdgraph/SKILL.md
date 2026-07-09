@@ -54,10 +54,12 @@ keryx gdgraph find "<terms>"
 keryx gdgraph affected <file-or-symbol>
 ```
 
-- Where is a symbol defined / who calls it (needs the symbol layer):
+- Where is a symbol defined / who calls it (needs the symbol layer). Add
+  `--impact [--depth N]` for the transitive-caller blast radius of a symbol:
 
 ```bash
 keryx gdgraph symbol "<name>"
+keryx gdgraph symbol "<name>" --impact
 ```
 
 - How are two files/symbols connected:
