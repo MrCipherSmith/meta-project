@@ -58,14 +58,15 @@ test("collect creates draft wiki pages from graph, health, and testing artifacts
 
     const result = await wikiCollect({ cwd: root, limit: 2 });
 
-    expect(result.created).toBe(5);
+    // `src/core` has a single file ⇒ below MIN_MODULE_FILES, no page. `src/pipelines`
+    // (2 files) qualifies. Directory-granularity: the module is the file's dir.
+    expect(result.created).toBe(4);
     expect(result.updated).toBe(0);
     expect(result.skipped).toBe(0);
     expect(result.pages.map((page) => page.path).sort()).toEqual([
       ".metaproject/wiki/architecture/project-map.md",
       ".metaproject/wiki/architecture/quality-map.md",
       ".metaproject/wiki/architecture/testing-map.md",
-      ".metaproject/wiki/components/src-core.md",
       ".metaproject/wiki/components/src-pipelines.md",
     ]);
     expect(await readFile(path.join(root, ".metaproject", "wiki", "architecture", "project-map.md"), "utf8"))
@@ -80,7 +81,7 @@ test("collect creates draft wiki pages from graph, health, and testing artifacts
     );
     const second = await wikiCollect({ cwd: root, limit: 2 });
     expect(second.created).toBe(0);
-    expect(second.skipped).toBe(5);
+    expect(second.skipped).toBe(4);
     expect(await readFile(path.join(root, ".metaproject", "wiki", "architecture", "project-map.md"), "utf8"))
       .toContain("Manual Project Map");
   } finally {

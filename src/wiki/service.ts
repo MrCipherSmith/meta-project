@@ -32,7 +32,12 @@ import {
 } from "./types";
 
 const EXTERNAL_LINK = /^(https?:|mailto:|tel:)/i;
-const DEFAULT_COLLECT_LIMIT = 12;
+// The wiki scaffold is graph-driven: by default it covers EVERY module the graph
+// knows (a page per `src/<dir>` with at least MIN_MODULE_FILES files), not an
+// arbitrary top-N. A high default cap is a safety ceiling; `--limit` narrows it.
+// Threshold skips 1-file stray top-level files that aren't real modules.
+const DEFAULT_COLLECT_LIMIT = 500;
+const MIN_MODULE_FILES = 2;
 
 function wikiRootPath(cwd: string): string {
   return path.join(cwd, ".metaproject", "wiki");
@@ -365,6 +370,7 @@ async function collectGraphWikiCandidates(
 
   const topModules = [...moduleFiles.entries()]
     .map(([name, list]) => ({ name, files: list.length, edges: sumCounts(moduleDeps.get(name)) }))
+    .filter((module) => module.files >= MIN_MODULE_FILES)
     .sort((a, b) => b.files - a.files || b.edges - a.edges)
     .slice(0, limit)
     .filter((module) => onlyModules === null || onlyModules.has(module.name));
@@ -1154,15 +1160,17 @@ function gitDiffNames(cwd: string, base: string): Promise<string[] | null> {
   });
 }
 
+// A "module" is the directory that directly owns a file — at its natural depth,
+// not flattened to a top-level bucket. So the wiki walks the WHOLE graph tree
+// (`src/pipelines`, `src/pipelines/store`, `src/pipelines/features/pipeline-variables`
+// all become distinct modules) rather than only the top ~12. A file directly in
+// a root dir keeps that root as its module.
 function moduleNameFromProjectPath(filePath: string): string {
   const parts = filePath.split("/").filter(Boolean);
-  if (parts[0] === "src" && parts[1]) {
-    return `src/${parts[1]}`;
+  if (parts.length <= 1) {
+    return "root";
   }
-  if ((parts[0] === "e2e" || parts[0] === "packages" || parts[0] === "app" || parts[0] === "lib" || parts[0] === "services") && parts[1]) {
-    return `${parts[0]}/${parts[1]}`;
-  }
-  return parts[0] ?? "root";
+  return parts.slice(0, -1).join("/");
 }
 
 function slugifyPath(value: string): string {
