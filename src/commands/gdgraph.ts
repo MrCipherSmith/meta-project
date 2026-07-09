@@ -7,8 +7,9 @@ import { buildGraph } from "../gdgraph/build";
 import { getCycles, getOrphans, loadGraph } from "../gdgraph/query";
 import { computeAffected, type AffectedResult } from "../gdgraph/affected";
 import { findNodes, findSymbols } from "../gdgraph/find";
-import { querySymbol, resolveSymbols } from "../gdgraph/symbol";
+import { querySymbol, resolveSymbols, transitiveCallers } from "../gdgraph/symbol";
 import { findPath, labelNode } from "../gdgraph/path";
+import { graphMaybeStale, STALE_NOTE } from "../gdgraph/staleness";
 import { isCapabilityEnabled } from "../capability/seam";
 import { loadGdgraphConfig } from "../gdgraph/config";
 import { writeRepomap } from "../gdgraph/repomap";
@@ -162,6 +163,7 @@ async function runPath(rest: string[]): Promise<void> {
   result.nodes.forEach((node, i) => {
     console.log(`${i === 0 ? "- " : "  ↓ "}${labelNode(node, symbolsById)}`);
   });
+  await printStaleNote();
 }
 
 async function runSymbolsCapability(rest: string[]): Promise<void> {
@@ -250,6 +252,33 @@ async function runSymbol(rest: string[]): Promise<void> {
   console.log("");
   console.log(`## Callees (${result.callees.length})`);
   printRefs(result.callees);
+
+  if (rest.includes("--impact")) {
+    const depthArg = optionValue(rest, "--depth");
+    const depth = depthArg !== undefined && Number.isFinite(Number.parseInt(depthArg, 10))
+      ? Number.parseInt(depthArg, 10)
+      : 3;
+    const impact = transitiveCallers(graph, result.definitions.map((d) => d.id), depth);
+    console.log("");
+    console.log(`## Impact — transitive callers, depth ${depth} (${impact.length})`);
+    if (impact.length === 0) {
+      console.log("- none");
+    }
+    for (const node of impact.slice(0, 60)) {
+      console.log(`- [hop ${node.hop}] ${node.label}`);
+    }
+    if (impact.length > 60) {
+      console.log(`- … +${impact.length - 60} more`);
+    }
+  }
+  await printStaleNote();
+}
+
+async function printStaleNote(): Promise<void> {
+  if (await graphMaybeStale(process.cwd())) {
+    console.log("");
+    console.log(STALE_NOTE);
+  }
 }
 
 function printRefs(refs: Array<{ label: string; resolved: boolean }>): void {
@@ -305,6 +334,7 @@ async function runFind(rest: string[]): Promise<void> {
   }
   console.log("");
   console.log('Next: keryx gdgraph symbol "<name>" · keryx gdgraph affected <file>');
+  await printStaleNote();
 }
 
 async function runAffected(rest: string[]): Promise<void> {

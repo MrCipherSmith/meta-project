@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { querySymbol, resolveSymbols } from "./symbol";
+import { querySymbol, resolveSymbols, transitiveCallers } from "./symbol";
 import type { GraphData, SymbolNode, CallEdge } from "./types";
 
 function sym(id: string, name: string, path: string, startLine: number): SymbolNode {
@@ -54,4 +54,36 @@ test("querySymbol tolerates a graph with no symbol layer", () => {
   const r = querySymbol({ nodes: [], edges: [] }, "foo");
   expect(r.definitions).toEqual([]);
   expect(r.callers).toEqual([]);
+});
+
+test("transitiveCallers walks the reverse call graph with hop distances", () => {
+  // chain: baz -> bar -> foo (bar calls foo, baz calls bar)
+  const graph: GraphData = {
+    nodes: [],
+    edges: [],
+    symbols: [A, B, sym("src/d.ts#baz", "baz", "src/d.ts", 40)],
+    calls: [
+      call("src/b.ts#bar", "src/a.ts#foo", true),
+      call("src/d.ts#baz", "src/b.ts#bar", true),
+    ],
+  };
+  const impact = transitiveCallers(graph, ["src/a.ts#foo"], 5);
+  const byName = Object.fromEntries(impact.map((n) => [n.label.split(" ")[0], n.hop]));
+  expect(byName["bar"]).toBe(1);
+  expect(byName["baz"]).toBe(2);
+  expect(impact.some((n) => n.label.startsWith("foo"))).toBe(false); // seed excluded
+});
+
+test("transitiveCallers respects maxDepth", () => {
+  const graph: GraphData = {
+    nodes: [],
+    edges: [],
+    symbols: [A, B, sym("src/d.ts#baz", "baz", "src/d.ts", 40)],
+    calls: [
+      call("src/b.ts#bar", "src/a.ts#foo", true),
+      call("src/d.ts#baz", "src/b.ts#bar", true),
+    ],
+  };
+  const impact = transitiveCallers(graph, ["src/a.ts#foo"], 1);
+  expect(impact.map((n) => n.label.split(" ")[0])).toEqual(["bar"]); // baz is hop 2, excluded
 });

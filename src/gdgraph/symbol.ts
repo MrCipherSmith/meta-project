@@ -52,6 +52,58 @@ function dedupeRefs(refs: SymbolRef[]): SymbolRef[] {
   return out;
 }
 
+export interface ImpactNode {
+  label: string;
+  hop: number;
+}
+
+// Transitive caller blast radius over the call graph: "if I change these
+// symbols, which symbols (transitively) call them" — the symbol-level impact
+// that file-level `affected` cannot express. Reverse BFS over resolved call
+// edges up to `maxDepth`, nearest hop wins, seeds excluded.
+export function transitiveCallers(
+  graph: GraphData,
+  seedIds: string[],
+  maxDepth: number,
+): ImpactNode[] {
+  const calls = (graph.calls ?? []).filter((c) => c.kind === "calls");
+  const byId = new Map((graph.symbols ?? []).map((s) => [s.id, s]));
+  // callee id -> set of caller ids
+  const callersOf = new Map<string, Set<string>>();
+  for (const call of calls) {
+    if (!callersOf.has(call.to)) callersOf.set(call.to, new Set());
+    callersOf.get(call.to)!.add(call.from);
+  }
+
+  const hop = new Map<string, number>();
+  let frontier = new Set(seedIds);
+  for (const seed of seedIds) hop.set(seed, 0);
+
+  for (let depth = 1; depth <= maxDepth; depth += 1) {
+    const next = new Set<string>();
+    for (const id of frontier) {
+      for (const caller of callersOf.get(id) ?? []) {
+        if (!hop.has(caller)) {
+          hop.set(caller, depth);
+          next.add(caller);
+        }
+      }
+    }
+    if (next.size === 0) break;
+    frontier = next;
+  }
+
+  const out: ImpactNode[] = [];
+  for (const [id, h] of hop) {
+    if (h === 0) continue; // exclude the seeds themselves
+    const symbol = byId.get(id);
+    if (symbol) {
+      out.push({ label: `${symbol.name} (${symbol.path}:${symbol.startLine})`, hop: h });
+    }
+  }
+  return out.sort((a, b) => a.hop - b.hop || a.label.localeCompare(b.label));
+}
+
 export function querySymbol(graph: GraphData, name: string): SymbolQueryResult {
   const symbols = graph.symbols ?? [];
   const calls = graph.calls ?? [];
