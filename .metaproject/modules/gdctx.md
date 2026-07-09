@@ -12,6 +12,7 @@ Runs common project context commands with token-aware filtering and stores raw o
 - `keryx ctx read <file>`
 - `keryx ctx run -- <command...>`
 - `keryx ctx show latest`
+- `keryx ctx install-hook` / `keryx ctx uninstall-hook` (opt-in routing guard)
 
 ## Data
 

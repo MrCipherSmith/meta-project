@@ -4,6 +4,14 @@ import { optionValue } from "../lib/args";
 import { pathExists } from "../lib/fs";
 import { readJsonFileOr } from "../lib/json";
 import { redactRaw } from "../security/guard";
+import { runCtxHook } from "../ctx/hook";
+import {
+  ctxHookSettingsPath,
+  installCtxHook,
+  uninstallCtxHook,
+  validateCtxHook,
+} from "../ctx/hook-install";
+import { readFile as fsReadFile } from "node:fs/promises";
 
 type CtxArtifact = {
   id: string;
@@ -85,6 +93,21 @@ export async function ctxCommand(args: string[]): Promise<void> {
 
   if (command === "show") {
     await showArtifact(args.slice(1));
+    return;
+  }
+
+  if (command === "hook") {
+    await runCtxHook(args[1]);
+    return;
+  }
+
+  if (command === "install-hook") {
+    await handleInstallHook();
+    return;
+  }
+
+  if (command === "uninstall-hook") {
+    await handleUninstallHook();
     return;
   }
 
@@ -232,6 +255,41 @@ async function showArtifact(args: string[]): Promise<void> {
   }
 
   console.log(await readFile(filePath, "utf8"));
+}
+
+// Opt-in install of the routing guard into this project's .claude/settings.json.
+// Validates the rendered config so a silent no-op is impossible.
+async function handleInstallHook(): Promise<void> {
+  const cwd = process.cwd();
+  const file = await installCtxHook(cwd);
+  const errors = validateCtxHook(
+    JSON.parse(await fsReadFile(file, "utf8")) as Record<string, unknown>,
+  );
+  if (errors.length > 0) {
+    for (const error of errors) {
+      console.error(error);
+    }
+    process.exitCode = 1;
+    return;
+  }
+  console.log("# gdctx routing guard installed");
+  console.log("");
+  console.log(`settings: ${path.relative(cwd, file)}`);
+  console.log("hook: PreToolUse(Bash) -> keryx ctx hook claude");
+  console.log("mode: deny + feedback (raw rg/grep/cat/head/tail/git diff|log|show -> keryx ctx ...)");
+  console.log("escape: append `# keryx:raw <reason>` to run a raw command anyway");
+}
+
+async function handleUninstallHook(): Promise<void> {
+  const cwd = process.cwd();
+  const removed = await uninstallCtxHook(cwd);
+  console.log("# gdctx routing guard uninstall");
+  console.log("");
+  console.log(
+    removed
+      ? `removed managed guard from ${path.relative(cwd, ctxHookSettingsPath(cwd))}`
+      : "nothing to remove (no settings file)",
+  );
 }
 
 async function runCommand(command: string[]): Promise<CommandResult> {
@@ -659,5 +717,8 @@ Usage:
   keryx ctx read <file> [--mode outline|compact|full]
   keryx ctx run -- <command...>
   keryx ctx show latest [--raw]
+  keryx ctx install-hook            # opt-in PreToolUse(Bash) routing guard
+  keryx ctx uninstall-hook
+  keryx ctx hook <runtime>          # internal: invoked by the installed hook
 `);
 }

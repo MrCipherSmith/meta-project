@@ -2434,6 +2434,7 @@ Runs common project context commands with token-aware filtering and stores raw o
 - \`keryx ctx read <file>\`
 - \`keryx ctx run -- <command...>\`
 - \`keryx ctx show latest\`
+- \`keryx ctx install-hook\` / \`keryx ctx uninstall-hook\` (opt-in routing guard)
 
 ## Data
 
@@ -2514,6 +2515,21 @@ keryx ctx read <file> --mode compact
 keryx ctx run -- <command...>
 keryx ctx show latest
 \`\`\`
+
+## Enforcement (optional)
+
+The search rule above is advisory by default. To make it a hard gate, install the
+routing guard — a Claude Code \`PreToolUse(Bash)\` hook:
+
+\`\`\`bash
+keryx ctx install-hook     # opt-in, per-project; keryx ctx uninstall-hook to remove
+\`\`\`
+
+It blocks raw \`rg\`/\`grep\`/\`cat\`/\`head\`/\`tail\`/\`git diff|log|show\` (deny + feedback)
+and points the agent to the \`keryx ctx\` equivalent. It is routing-only: any other
+command passes through, so a generic output-compressing proxy can coexist. When a
+raw command is genuinely required, append an escape marker with a reason:
+\`rg "<pcre>" # keryx:raw <why>\`. The guard fails open on unparseable input.
 
 ## Skip When
 
