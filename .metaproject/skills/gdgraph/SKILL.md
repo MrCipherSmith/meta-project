@@ -42,23 +42,41 @@ keryx gdgraph build
 
 5. Choose the graph command:
 
-- Known file path or changed file:
+- Find files/symbols by concept (unknown location — use this instead of a raw `rg` for a seed):
 
 ```bash
-keryx gdgraph affected <file>
+keryx gdgraph find "<terms>"
 ```
 
-- Dependency cycle question:
+- Known file path or changed file (blast radius). Accepts a symbol name too:
+
+```bash
+keryx gdgraph affected <file-or-symbol>
+```
+
+- Where is a symbol defined / who calls it (needs the symbol layer):
+
+```bash
+keryx gdgraph symbol "<name>"
+```
+
+- How are two files/symbols connected:
+
+```bash
+keryx gdgraph path "<A>" "<B>"
+```
+
+- Dependency cycle / orphan questions:
 
 ```bash
 keryx gdgraph query cycles
-```
-
-- Orphan/unreferenced module question:
-
-```bash
 keryx gdgraph query orphans
 ```
+
+Note: `gdgraph query` does NOT do natural-language search — use `find`. The
+symbol layer (`symbol`/`path` def+call data) is opt-in: `keryx gdgraph symbols
+enable` then `keryx gdgraph build` (needs the `web-tree-sitter` dep + grammars;
+degrades to file-level otherwise).
 
 6. Use graph output to select the smallest relevant file set.
 7. Read those files directly and verify any conclusion against source code.
