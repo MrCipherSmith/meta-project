@@ -45,8 +45,7 @@
   "dependencies": {},
   "optionalDependencies": {
     "web-tree-sitter": "^0.22.0",
-    "@modelcontextprotocol/sdk": "^1.0.0",
-    "@xenova/transformers": "^2.17.0"
+    "@modelcontextprotocol/sdk": "^1.0.0"
   },
   "devDependencies": {
     "@types/bun": "latest",

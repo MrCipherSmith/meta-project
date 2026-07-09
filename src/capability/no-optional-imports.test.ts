@@ -72,10 +72,14 @@ test("no top-level import of any optionalDependencies package exists in src/", a
 test("@xenova/transformers is never statically imported (embedding runtime guard)", async () => {
   const dep = "@xenova/transformers";
   const pkg = JSON.parse(await readFile(path.join(PKG_ROOT, "package.json"), "utf8")) as {
+    dependencies?: Record<string, string>;
     optionalDependencies?: Record<string, string>;
   };
-  // It must remain an OPTIONAL dependency, never a hard one.
-  expect(Object.keys(pkg.optionalDependencies ?? {})).toContain(dep);
+  // `@xenova/transformers` (the ~230MB ONNX embedding runtime) was removed in
+  // favour of the deterministic fallbacks — it must NOT be declared as any
+  // dependency. Any remaining reference in src must be a lazy `await import()`.
+  expect(Object.keys(pkg.dependencies ?? {})).not.toContain(dep);
+  expect(Object.keys(pkg.optionalDependencies ?? {})).not.toContain(dep);
 
   const files = await tsFiles(SRC_ROOT);
   const violations: string[] = [];

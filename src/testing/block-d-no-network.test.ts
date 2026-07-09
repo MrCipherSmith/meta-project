@@ -72,11 +72,11 @@ test("AC15: Block D adds no new runtime dependency", async () => {
 
   // The deterministic core has zero runtime dependencies.
   expect(pkg.dependencies ?? {}).toEqual({});
-  // optionalDependencies stays exactly the pre-D set (3 entries) — Block D
-  // introduces neither a dependency nor an optionalDependency.
+  // optionalDependencies are the lean set: the MCP SDK and web-tree-sitter (the
+  // 288KB symbol-layer parser). `@xenova/transformers` (the ~230MB ONNX runtime)
+  // was removed — model-backed features run on deterministic fallbacks.
   expect(Object.keys(pkg.optionalDependencies ?? {}).sort()).toEqual([
     "@modelcontextprotocol/sdk",
-    "@xenova/transformers",
     "web-tree-sitter",
   ]);
 });
