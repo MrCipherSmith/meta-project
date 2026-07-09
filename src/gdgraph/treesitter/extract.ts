@@ -150,6 +150,43 @@ export function extractSymbolLayer(root: TsNode, filePath: string, language: Lan
   return { symbols: sortedSymbols, calls: dedupedCalls };
 }
 
+// Cross-file call resolution (global pass). `extractSymbolLayer` runs per file,
+// so it can only resolve calls whose target is defined in the SAME file; every
+// cross-file call is left as `unresolved-call` — which made callers/impact
+// under-report badly (e.g. `TasksApi.runPipeline()` from another file). This
+// pass runs AFTER all files are aggregated: it upgrades an `unresolved-call` to
+// a resolved `calls` edge when the callee's last segment maps to EXACTLY ONE
+// symbol across the whole graph. Ambiguous names (collisions) are left
+// unresolved — never guess a wrong edge. Self-edges are dropped.
+export function resolveCrossFileCalls(symbols: SymbolNode[], calls: CallEdge[]): CallEdge[] {
+  const nameCount = new Map<string, number>();
+  const nameToId = new Map<string, string>();
+  for (const symbol of symbols) {
+    nameCount.set(symbol.name, (nameCount.get(symbol.name) ?? 0) + 1);
+    if (!nameToId.has(symbol.name)) {
+      nameToId.set(symbol.name, symbol.id);
+    }
+  }
+
+  const seen = new Set<string>();
+  const out: CallEdge[] = [];
+  for (const call of calls) {
+    let edge = call;
+    if (call.kind === "unresolved-call") {
+      const name = lastSegment(call.to);
+      const target = nameCount.get(name) === 1 ? nameToId.get(name) : undefined;
+      if (target && target !== call.from) {
+        edge = { id: `calls:${call.from}=>${target}`, from: call.from, to: target, kind: "calls", resolved: true };
+      }
+    }
+    const key = `${edge.kind}|${edge.from}|${edge.to}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(edge);
+  }
+  return out;
+}
+
 function symbolFromNode(
   node: TsNode,
   filePath: string,

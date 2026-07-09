@@ -12,7 +12,7 @@
 
 import type { CapabilityAdapter, CapabilitySpec } from "../../capability/seam";
 import type { CallEdge, SymbolLayer, SymbolNode } from "../types";
-import { extractSymbolLayer, type TsNode } from "./extract";
+import { extractSymbolLayer, resolveCrossFileCalls, type TsNode } from "./extract";
 import {
   grammarForFile,
   resolveGrammars,
@@ -136,7 +136,9 @@ class TreesitterAdapter implements CapabilityAdapter<BuildInput, SymbolLayer> {
 
     return {
       symbols: symbols.sort(compareSymbols),
-      calls: calls.sort(compareCalls),
+      // Global pass: resolve cross-file calls (per-file extraction can't) before
+      // sorting, so callers/impact don't under-report across module boundaries.
+      calls: resolveCrossFileCalls(symbols, calls).sort(compareCalls),
     };
   }
 }
