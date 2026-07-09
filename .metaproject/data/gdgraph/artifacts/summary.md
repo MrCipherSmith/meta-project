@@ -2,14 +2,14 @@
 
 ## Stats
 
-- Source files indexed: 260
+- Source files indexed: 270
 - Imported asset files indexed: 4
-- Total nodes: 264
-- Edges: 723
-- Import edges: 713
+- Total nodes: 274
+- Edges: 630
+- Import edges: 625
 - Asset edges: 5
-- Unresolved relative imports: 5
-- Import resolution: 99.3%
+- Unresolved relative imports: 0
+- Import resolution: 100%
 - Skipped generated/static directories: 6
 
 ## Top Modules
@@ -18,29 +18,30 @@
 |---|---:|
 | health | 38 |
 | security | 35 |
+| commands | 29 |
 | memory | 28 |
-| commands | 26 |
 | gdgraph | 21 |
 | mcp | 15 |
 | gdskills | 14 |
 | flow | 12 |
 | fixtures | 11 |
+| lib | 11 |
 | testing | 11 |
 | capability | 10 |
-| lib | 9 |
 | standard | 9 |
 | wiki | 7 |
 | assets | 6 |
 | harness | 4 |
+| review | 3 |
+| agents | 2 |
 | rules | 2 |
 | cli.test.ts | 1 |
-| cli.ts | 1 |
 
 ## Unresolved By Type
 
 | Type | Count |
 |---|---:|
-| relative-code | 5 |
+| _none_ | 0 |
 
 ## Skipped Directories
 

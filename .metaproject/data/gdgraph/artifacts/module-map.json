@@ -12,6 +12,10 @@
     "fixtures/churn-complexity/src/hot.ts",
     "fixtures/symbol-graph/source.ts"
   ],
+  "agents": [
+    "src/agents/bootstrap.test.ts",
+    "src/agents/bootstrap.ts"
+  ],
   "assets": [
     "src/assets/command.test.ts",
     "src/assets/command.ts",
@@ -39,6 +43,7 @@
     "src/cli.ts"
   ],
   "commands": [
+    "src/commands/agents.ts",
     "src/commands/ctx.ts",
     "src/commands/dashboard.test.ts",
     "src/commands/dashboard.ts",
@@ -54,10 +59,12 @@
     "src/commands/module-commands.test.ts",
     "src/commands/module-commands.ts",
     "src/commands/modules.ts",
+    "src/commands/review.ts",
     "src/commands/rules.test.ts",
     "src/commands/rules.ts",
     "src/commands/security-hooks-init.test.ts",
     "src/commands/security.ts",
+    "src/commands/skills-route.test.ts",
     "src/commands/skills.ts",
     "src/commands/standard.ts",
     "src/commands/status.ts",
@@ -166,6 +173,7 @@
     "src/health/util.ts"
   ],
   "lib": [
+    "src/lib/agent-entrypoint-blocks.ts",
     "src/lib/args.test.ts",
     "src/lib/args.ts",
     "src/lib/fs.ts",
@@ -173,6 +181,7 @@
     "src/lib/prompt.ts",
     "src/lib/security-pre-push.test.ts",
     "src/lib/templates.ts",
+    "src/lib/test-cwd.ts",
     "src/lib/ui.test.ts",
     "src/lib/ui.ts"
   ],
@@ -222,6 +231,11 @@
     "src/memory/text.ts",
     "src/memory/types.ts",
     "src/memory/typing.test.ts"
+  ],
+  "review": [
+    "src/review/managed.test.ts",
+    "src/review/managed.ts",
+    "src/review/types.ts"
   ],
   "rules": [
     "src/rules/agent-entrypoints.ts",
