@@ -7,6 +7,8 @@ import { buildGraph } from "../gdgraph/build";
 import { getCycles, getOrphans, loadGraph } from "../gdgraph/query";
 import { computeAffected, type AffectedResult } from "../gdgraph/affected";
 import { findNodes } from "../gdgraph/find";
+import { querySymbol } from "../gdgraph/symbol";
+import { isCapabilityEnabled } from "../capability/seam";
 import { loadGdgraphConfig } from "../gdgraph/config";
 import { writeRepomap } from "../gdgraph/repomap";
 
@@ -74,6 +76,16 @@ export async function gdgraphCommand(args: string[]): Promise<void> {
     return;
   }
 
+  if (command === "symbol") {
+    await runSymbol(args.slice(1));
+    return;
+  }
+
+  if (command === "symbols") {
+    await runSymbolsCapability(args.slice(1));
+    return;
+  }
+
   if (command === "affected") {
     await runAffected(args.slice(1));
     return;
@@ -106,6 +118,107 @@ export async function gdgraphCommand(args: string[]): Promise<void> {
   console.error(`Unknown gdgraph command: ${command}`);
   printHelp();
   process.exitCode = 1;
+}
+
+async function runSymbolsCapability(rest: string[]): Promise<void> {
+  const action = rest[0] ?? "status";
+  const cwd = process.cwd();
+  const manifestPath = path.join(cwd, ".metaproject", "metaproject.json");
+  const { readFile, writeFile } = await import("node:fs/promises");
+  const { setTreesitterEnabled, isTreesitterEnabled } = await import("../gdgraph/symbols-capability");
+
+  if (!existsSync(manifestPath)) {
+    console.error("No .metaproject/metaproject.json found (run `keryx init` first).");
+    process.exitCode = 1;
+    return;
+  }
+  const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as Record<string, unknown>;
+
+  if (action === "enable" || action === "disable") {
+    const next = setTreesitterEnabled(manifest, action === "enable");
+    await writeFile(manifestPath, `${JSON.stringify(next, null, 2)}\n`, "utf8");
+    console.log(`# gdgraph symbols ${action}d`);
+    console.log("");
+    if (action === "enable") {
+      console.log("Next:");
+      console.log("  1. keryx gdgraph assets pull tree-sitter-typescript tree-sitter-tsx tree-sitter-javascript");
+      console.log("  2. keryx gdgraph build        # writes symbols.jsonl / calls.jsonl");
+      console.log("  3. keryx gdgraph symbol \"<name>\"");
+      console.log("");
+      console.log("Requires the `web-tree-sitter` dependency; degrades to file-level if absent.");
+    }
+    return;
+  }
+
+  // status
+  const enabled = isTreesitterEnabled(manifest);
+  const graph = await loadGraph(cwd);
+  console.log("# gdgraph symbols");
+  console.log("");
+  console.log(`capability: ${enabled ? "enabled" : "disabled"}`);
+  console.log(`symbols: ${graph.symbols?.length ?? 0}`);
+  console.log(`calls: ${graph.calls?.length ?? 0}`);
+  if (enabled && (graph.symbols?.length ?? 0) === 0) {
+    console.log("");
+    console.log("Enabled but no symbols — run `keryx gdgraph build` (and pull grammars if missing).");
+  }
+}
+
+async function runSymbol(rest: string[]): Promise<void> {
+  const name = rest.filter((a) => !a.startsWith("--")).join(" ").trim();
+  if (!name) {
+    console.error('Usage: keryx gdgraph symbol "<name>"');
+    process.exitCode = 1;
+    return;
+  }
+
+  const graph = await loadGraph(process.cwd());
+  if (!graph.symbols || graph.symbols.length === 0) {
+    console.log("# gdgraph symbol");
+    console.log("");
+    console.log("Symbol layer not active (no symbols.jsonl).");
+    console.log("Enable it:  keryx gdgraph symbols enable   then   keryx gdgraph build");
+    console.log(`Meanwhile:  keryx gdgraph find "${name}"  ·  keryx ctx rg "${name}"`);
+    return;
+  }
+
+  const result = querySymbol(graph, name);
+  if (result.definitions.length === 0) {
+    console.log(`# gdgraph symbol: ${name}`);
+    console.log("");
+    console.log("No matching symbol. Try `keryx gdgraph find` or `keryx ctx rg`.");
+    return;
+  }
+
+  console.log(`# gdgraph symbol: ${name}`);
+  console.log("");
+  console.log(`## Definitions (${result.definitions.length})`);
+  for (const def of result.definitions) {
+    const container = def.container ? ` in ${def.container}` : "";
+    console.log(`- ${def.name} (${def.kind})${container} — ${def.path}:${def.startLine}`);
+    if (def.signature) {
+      console.log(`  ${def.signature}`);
+    }
+  }
+  console.log("");
+  console.log(`## Callers (${result.callers.length})`);
+  printRefs(result.callers);
+  console.log("");
+  console.log(`## Callees (${result.callees.length})`);
+  printRefs(result.callees);
+}
+
+function printRefs(refs: Array<{ label: string; resolved: boolean }>): void {
+  if (refs.length === 0) {
+    console.log("- none");
+    return;
+  }
+  for (const ref of refs.slice(0, 40)) {
+    console.log(`- ${ref.label}${ref.resolved ? "" : "  (unresolved)"}`);
+  }
+  if (refs.length > 40) {
+    console.log(`- … +${refs.length - 40} more`);
+  }
 }
 
 async function runFind(rest: string[]): Promise<void> {
@@ -286,10 +399,15 @@ async function delegateToLocalRunner(args: string[]): Promise<boolean> {
   // New surfaces (repomap/assets) + affected flags are only implemented in this
   // package runner, not the copied core cli.ts. Delegate legacy commands only.
   const command = args[0];
+  // The copied local runner lacks the capability seam, so it can only produce the
+  // file-level graph. When `gdgraph.treesitter` is enabled, keep `build` in the
+  // package process so `enrichBuildWithSymbols` runs and writes the symbol layer.
+  const treesitterOn =
+    command === "build" && (await isCapabilityEnabled(process.cwd(), "gdgraph.treesitter"));
   // Only delegate query for the two verbs the local runner actually implements;
   // an unsupported query must reach the package handler so it can redirect to
-  // `find` / `ctx rg` / `affected`. `find` is package-only (never delegates).
-  const delegatable = command === "build"
+  // `find` / `ctx rg` / `affected`. `find`/`symbol` are package-only.
+  const delegatable = (command === "build" && !treesitterOn)
     || (command === "query" && (args[1] === "cycles" || args[1] === "orphans"))
     || (command === "affected" && !args.some((arg) => arg.startsWith("--")));
   if (!delegatable) {
@@ -324,6 +442,8 @@ Usage:
   keryx gdgraph query cycles
   keryx gdgraph query orphans
   keryx gdgraph find "<terms>"
+  keryx gdgraph symbol "<name>"
+  keryx gdgraph symbols <enable|disable|status>
   keryx gdgraph affected <file> [--depth N] [--ranked] [--json]
   keryx gdgraph repomap [--budget N] [--seed <path>...] [--changed]
   keryx gdgraph context

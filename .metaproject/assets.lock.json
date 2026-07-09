@@ -8,22 +8,22 @@
       "size": 1048576
     },
     "tree-sitter-typescript": {
-      "version": "0.22.0",
-      "url": "https://assets.keryx.dev/treesitter/tree-sitter-typescript-0.22.0.wasm",
-      "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
-      "size": 524288
+      "version": "0.1.13",
+      "url": "https://cdn.jsdelivr.net/npm/tree-sitter-wasms@0.1.13/out/tree-sitter-typescript.wasm",
+      "sha256": "8515404dceed38e1ed86aa34b09fcf3379fff1b4ff9dd3967bcd6d1eb5ac3d8f",
+      "size": 2342690
     },
     "tree-sitter-tsx": {
-      "version": "0.22.0",
-      "url": "https://assets.keryx.dev/treesitter/tree-sitter-tsx-0.22.0.wasm",
-      "sha256": "2222222222222222222222222222222222222222222222222222222222222222",
-      "size": 524288
+      "version": "0.1.13",
+      "url": "https://cdn.jsdelivr.net/npm/tree-sitter-wasms@0.1.13/out/tree-sitter-tsx.wasm",
+      "sha256": "6aa3b2c70e76f5d48eafef1093e9c4de383e13f2fdde2f4e9b98a378f6a8f1b6",
+      "size": 2411272
     },
     "tree-sitter-javascript": {
-      "version": "0.22.0",
-      "url": "https://assets.keryx.dev/treesitter/tree-sitter-javascript-0.22.0.wasm",
-      "sha256": "3333333333333333333333333333333333333333333333333333333333333333",
-      "size": 393216
+      "version": "0.1.13",
+      "url": "https://cdn.jsdelivr.net/npm/tree-sitter-wasms@0.1.13/out/tree-sitter-javascript.wasm",
+      "sha256": "63812b9e275d26851264734868d27a1656bd44a2ef6eb3e85e6b03728c595ab5",
+      "size": 647334
     },
     "memory-embed-default": {
       "version": "1.0.0",
