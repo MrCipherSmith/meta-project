@@ -58,6 +58,11 @@ export async function wikiCommand(args: string[]): Promise<void> {
     return;
   }
 
+  if (command === "backlinks") {
+    await runBacklinks(args.slice(1));
+    return;
+  }
+
   console.error(`Unknown wiki command: ${command}`);
   printHelp();
   process.exitCode = 1;
@@ -205,6 +210,55 @@ async function runAsk(args: string[]): Promise<void> {
   console.log(result.answerMarkdown);
 }
 
+async function runBacklinks(args: string[]): Promise<void> {
+  const target = args.find((a) => !a.startsWith("--"));
+  if (!target) {
+    console.error('Usage: keryx wiki backlinks <wiki-page-or-code-file>');
+    process.exitCode = 1;
+    return;
+  }
+
+  const cwd = process.cwd();
+  const { collectPages } = await import("../wiki/service");
+  const { buildBacklinkIndex, backlinksFor } = await import("../wiki/backlinks");
+  const pathMod = (await import("node:path")).default;
+  const { readFile } = await import("node:fs/promises");
+
+  const pages = await collectPages(cwd);
+  const refs = await Promise.all(
+    pages.map(async (p) => ({
+      repoPath: pathMod.relative(cwd, p.absolutePath).split(pathMod.sep).join("/"),
+      content: await readFile(p.absolutePath, "utf8"),
+    })),
+  );
+  const index = buildBacklinkIndex(refs);
+
+  // Normalize the query to a repo-relative posix path (accept a wiki path or a
+  // code file path relative to the repo root).
+  const targetRel = pathMod.relative(cwd, pathMod.resolve(cwd, target)).split(pathMod.sep).join("/");
+  const wikiBacklinks = backlinksFor(index, targetRel);
+
+  console.log(`# backlinks: ${targetRel}`);
+  console.log("");
+  console.log(`## Wiki pages linking here (${wikiBacklinks.length})`);
+  if (wikiBacklinks.length === 0) console.log("- none");
+  for (const from of wikiBacklinks) console.log(`- ${from}`);
+
+  // Graph tie-in: if the target is a code file in the graph, also show the code
+  // that depends on it — unifying the wiki knowledge graph with gdgraph.
+  const { loadGraph } = await import("../gdgraph/query");
+  const graph = await loadGraph(cwd);
+  const node = graph.nodes.find((n) => n.kind === "file" && n.path === targetRel);
+  if (node) {
+    const dependents = graph.edges.filter((e) => e.to === node.id).map((e) => e.from).sort();
+    console.log("");
+    console.log(`## Code that imports this file (${dependents.length}, via gdgraph)`);
+    if (dependents.length === 0) console.log("- none");
+    for (const dep of dependents.slice(0, 40)) console.log(`- ${dep}`);
+    if (dependents.length > 40) console.log(`- … +${dependents.length - 40} more`);
+  }
+}
+
 function printHelp(): void {
   console.log(`keryx wiki
 
@@ -217,6 +271,7 @@ Usage:
   keryx wiki validate
   keryx wiki ask "<question>" [--k <n>] [--rerank]
   keryx wiki context
+  keryx wiki backlinks <wiki-page-or-code-file>
 
 Page types:
   architecture, domain-model, business-rule, user-scenario,
