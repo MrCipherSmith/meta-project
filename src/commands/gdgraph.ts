@@ -228,13 +228,30 @@ async function runSymbol(rest: string[]): Promise<void> {
     return;
   }
 
-  const result = querySymbol(graph, name);
-  if (result.definitions.length === 0) {
+  const matches = resolveSymbols(graph.symbols, name);
+  if (matches.length === 0) {
     console.log(`# gdgraph symbol: ${name}`);
     console.log("");
     console.log("No matching symbol. Try `keryx gdgraph find` or `keryx ctx rg`.");
     return;
   }
+
+  // Ambiguity guard: a loose query (e.g. "clone") matches several DIFFERENT
+  // names, and unioning their callers/callees/impact is noise. List the matches
+  // and ask for an exact name. Same-name overloads (one name, N defs) proceed.
+  const distinctNames = [...new Set(matches.map((m) => m.name))];
+  if (distinctNames.length > 1) {
+    console.log(`# gdgraph symbol: ${name}`);
+    console.log("");
+    console.log(`"${name}" matches ${matches.length} symbols across ${distinctNames.length} names — pick an exact one:`);
+    for (const m of matches.slice(0, 25)) {
+      console.log(`- ${m.name} (${m.kind}) — ${m.path}:${m.startLine}`);
+    }
+    if (matches.length > 25) console.log(`- … +${matches.length - 25} more`);
+    return;
+  }
+
+  const result = querySymbol(graph, name);
 
   console.log(`# gdgraph symbol: ${name}`);
   console.log("");
