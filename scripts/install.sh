@@ -113,6 +113,11 @@ if [ "$MODE" = "global" ]; then
   BIN_DIR="${KERYX_BIN_DIR:-$HOME/.local/bin}"
 
   clone_or_update "$INSTALL_DIR"
+  # Install pinned deps (bun.lock) so runtime optional features — notably the
+  # gdgraph tree-sitter symbol layer's `web-tree-sitter` dep — resolve to a known
+  # version instead of a floating global cache. Never fatal (offline is fine).
+  ( cd "$INSTALL_DIR" && "$BUN_BIN" install --frozen-lockfile >/dev/null 2>&1 \
+      || "$BUN_BIN" install >/dev/null 2>&1 ) || true
   mkdir -p "$BIN_DIR"
   rm -f "$BIN_DIR/keryx"
   cat > "$BIN_DIR/keryx" <<EOF

@@ -42,10 +42,13 @@ interface ParserLike {
   setLanguage(language: unknown): void;
   parse(input: string): { rootNode: TsNode } | null;
 }
-interface ParserModuleLike {
+// Version-tolerant view over the two shipped APIs:
+//   0.22 — default export is the Parser class; `Parser.Language.load`, `Parser.init`.
+//   0.25 — named `Parser` + top-level `Language.load`; no default export.
+interface ParserApi {
   init?: () => Promise<void>;
-  Language?: { load(pathOrBytes: string): Promise<unknown> };
-  new (): ParserLike;
+  loadLanguage: (pathOrBytes: string) => Promise<unknown>;
+  create: () => ParserLike;
 }
 
 // Build the capability spec for `resolveCapability(cwd, spec)`. Dep-only gate at
@@ -83,23 +86,23 @@ class TreesitterAdapter implements CapabilityAdapter<BuildInput, SymbolLayer> {
 
   async run(input: BuildInput): Promise<SymbolLayer> {
     const available: GrammarLanguage[] = this.grammars.map((grammar) => grammar.language);
-    const parserModule = normalizeParserModule(this.dep);
-    if (!parserModule) {
+    const api = normalizeParserApi(this.dep);
+    if (!api) {
       return { symbols: [], calls: [] };
     }
-    if (typeof parserModule.init === "function") {
-      await parserModule.init();
+    if (typeof api.init === "function") {
+      await api.init();
     }
 
     // Load + cache one parser per resolved grammar language.
     const parsers = new Map<GrammarLanguage, ParserLike>();
     for (const grammar of this.grammars) {
       try {
-        const language = await parserModule.Language?.load(grammar.path);
+        const language = await api.loadLanguage(grammar.path);
         if (!language) {
           continue;
         }
-        const parser = new parserModule();
+        const parser = api.create();
         parser.setLanguage(language);
         parsers.set(grammar.language, parser);
       } catch {
@@ -138,16 +141,53 @@ class TreesitterAdapter implements CapabilityAdapter<BuildInput, SymbolLayer> {
   }
 }
 
-function normalizeParserModule(dep: unknown): ParserModuleLike | null {
+// Resolve a version-tolerant parser API from whatever `web-tree-sitter` shape the
+// runtime provides (0.22 default-export class vs 0.25 named exports).
+function normalizeParserApi(dep: unknown): ParserApi | null {
   if (!dep) {
     return null;
   }
-  const candidate = dep as { default?: unknown };
-  const chosen = candidate.default ?? dep;
-  if (typeof chosen === "function") {
-    return chosen as unknown as ParserModuleLike;
+  const ns = dep as { default?: unknown; Parser?: unknown; Language?: unknown; init?: unknown };
+  const ParserClass =
+    typeof ns.default === "function"
+      ? (ns.default as new () => ParserLike)
+      : typeof ns.Parser === "function"
+        ? (ns.Parser as new () => ParserLike)
+        : typeof dep === "function"
+          ? (dep as new () => ParserLike)
+          : null;
+  if (!ParserClass) {
+    return null;
   }
-  return null;
+
+  const classInit = (ParserClass as unknown as { init?: unknown }).init;
+  const init =
+    typeof classInit === "function"
+      ? (classInit as () => Promise<void>).bind(ParserClass)
+      : typeof ns.init === "function"
+        ? (ns.init as () => Promise<void>).bind(ns)
+        : undefined;
+
+  // Resolve the grammar loader LAZILY: in 0.22 `Parser.Language.load` only
+  // becomes available AFTER `Parser.init()` runs, so binding it eagerly here
+  // (before init) would miss it and wrongly disable the whole capability.
+  const loadLanguage = (p: string): Promise<unknown> => {
+    const classLoad = (ParserClass as unknown as { Language?: { load?: unknown } }).Language;
+    if (typeof classLoad?.load === "function") {
+      return (classLoad.load as (x: string) => Promise<unknown>).call(classLoad, p); // 0.22
+    }
+    const nsLoad = ns.Language as { load?: unknown } | undefined;
+    if (typeof nsLoad?.load === "function") {
+      return (nsLoad.load as (x: string) => Promise<unknown>).call(nsLoad, p); // 0.25
+    }
+    return Promise.reject(new Error("web-tree-sitter: no Language.load"));
+  };
+
+  return {
+    ...(init ? { init } : {}),
+    loadLanguage,
+    create: () => new ParserClass(),
+  };
 }
 
 function compareSymbols(a: SymbolNode, b: SymbolNode): number {
