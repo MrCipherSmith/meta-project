@@ -271,7 +271,27 @@ async function runSymbol(rest: string[]): Promise<void> {
       console.log(`- … +${impact.length - 60} more`);
     }
   }
+  await printDocumentedIn([...new Set(result.definitions.map((d) => d.path))]);
   await printStaleNote();
+}
+
+// code -> knowledge: wiki pages that document the given file(s). Best-effort and
+// lazy so gdgraph never hard-depends on the wiki; silent when the wiki is empty.
+async function printDocumentedIn(files: string[]): Promise<void> {
+  try {
+    const { wikiPagesForFile } = await import("../wiki/service");
+    const cwd = process.cwd();
+    const pages = new Set<string>();
+    for (const file of files) {
+      for (const page of await wikiPagesForFile(cwd, file)) pages.add(page);
+    }
+    if (pages.size === 0) return;
+    console.log("");
+    console.log(`## Documented in (wiki, ${pages.size})`);
+    for (const page of [...pages].sort()) console.log(`- ${page}`);
+  } catch {
+    // wiki unavailable ⇒ skip silently.
+  }
 }
 
 async function printStaleNote(): Promise<void> {

@@ -1,5 +1,19 @@
 import { expect, test } from "bun:test";
-import { backlinksFor, buildBacklinkIndex, extractLinks, resolveLink } from "./backlinks";
+import { backlinksFor, buildBacklinkIndex, extractCodePaths, extractLinks, resolveLink } from "./backlinks";
+
+test("extractCodePaths pulls file-like code spans (repo-relative), skips prose", () => {
+  const md = "See `src/gdgraph/query.ts` and `src/a/b.tsx`. Not `foo` or `a-word` or `NAME`.";
+  expect(extractCodePaths(md)).toEqual(["src/gdgraph/query.ts", "src/a/b.tsx"]);
+});
+
+test("buildBacklinkIndex inverts code-span refs (wiki -> code edges) as repo-relative", () => {
+  const pages = [
+    { repoPath: ".metaproject/wiki/components/src-gdgraph.md", content: "Key files: `src/gdgraph/query.ts`" },
+  ];
+  const index = buildBacklinkIndex(pages);
+  // resolved repo-relative, NOT relative to the page's folder
+  expect(backlinksFor(index, "src/gdgraph/query.ts")).toEqual([".metaproject/wiki/components/src-gdgraph.md"]);
+});
 
 test("extractLinks pulls local markdown targets, skips external/anchors", () => {
   const md = "See [A](../components/a.md) and [code](../../../src/x.ts). [ext](https://y.com) [top](#h)";

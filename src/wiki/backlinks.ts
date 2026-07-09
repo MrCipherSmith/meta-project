@@ -14,6 +14,25 @@ export interface WikiPageRef {
 }
 
 const LINK = /\[[^\]]*\]\(([^)]+)\)/g;
+const CODE_SPAN = /`([^`]+)`/g;
+// A code span that is a source-file reference (has a dir separator + code ext).
+// Wiki `collect` writes Related Code / Key files as `src/x.ts` code spans, so
+// these are the wiki→code edges the backlink inversion must also see.
+const FILE_LIKE = /^[\w./@-]+\.(ts|tsx|js|jsx|mjs|cjs|py|go|rs|java|rb|php|c|h|cc|cpp|hpp|cs|swift|kt|scala|sh)$/;
+
+// Extract repo-relative source paths written as inline code spans.
+export function extractCodePaths(content: string): string[] {
+  const out: string[] = [];
+  let match: RegExpExecArray | null;
+  CODE_SPAN.lastIndex = 0;
+  while ((match = CODE_SPAN.exec(content)) !== null) {
+    const raw = (match[1] ?? "").trim();
+    if (raw.includes("/") && FILE_LIKE.test(raw)) {
+      out.push(raw);
+    }
+  }
+  return out;
+}
 
 // Extract local markdown link targets (skip external URLs and pure anchors).
 export function extractLinks(content: string): string[] {
@@ -42,17 +61,19 @@ export function resolveLink(fromRepoPath: string, raw: string): string {
 // Build the reverse index: target repo-path -> sorted list of pages linking to it.
 export function buildBacklinkIndex(pages: WikiPageRef[]): Map<string, string[]> {
   const index = new Map<string, string[]>();
+  const add = (target: string, from: string): void => {
+    if (!target) return;
+    const list = index.get(target) ?? [];
+    if (!list.includes(from)) {
+      list.push(from);
+      index.set(target, list);
+    }
+  };
   for (const page of pages) {
     const from = page.repoPath.split(path.sep).join("/");
-    for (const raw of extractLinks(page.content)) {
-      const target = resolveLink(from, raw);
-      if (!target) continue;
-      const list = index.get(target) ?? [];
-      if (!list.includes(from)) {
-        list.push(from);
-        index.set(target, list);
-      }
-    }
+    // Markdown links are page-relative; code-span file refs are repo-relative.
+    for (const raw of extractLinks(page.content)) add(resolveLink(from, raw), from);
+    for (const raw of extractCodePaths(page.content)) add(path.posix.normalize(raw), from);
   }
   for (const list of index.values()) list.sort();
   return index;

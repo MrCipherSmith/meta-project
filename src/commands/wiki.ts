@@ -219,24 +219,13 @@ async function runBacklinks(args: string[]): Promise<void> {
   }
 
   const cwd = process.cwd();
-  const { collectPages } = await import("../wiki/service");
-  const { buildBacklinkIndex, backlinksFor } = await import("../wiki/backlinks");
   const pathMod = (await import("node:path")).default;
-  const { readFile } = await import("node:fs/promises");
-
-  const pages = await collectPages(cwd);
-  const refs = await Promise.all(
-    pages.map(async (p) => ({
-      repoPath: pathMod.relative(cwd, p.absolutePath).split(pathMod.sep).join("/"),
-      content: await readFile(p.absolutePath, "utf8"),
-    })),
-  );
-  const index = buildBacklinkIndex(refs);
+  const { wikiPagesForFile } = await import("../wiki/service");
 
   // Normalize the query to a repo-relative posix path (accept a wiki path or a
   // code file path relative to the repo root).
   const targetRel = pathMod.relative(cwd, pathMod.resolve(cwd, target)).split(pathMod.sep).join("/");
-  const wikiBacklinks = backlinksFor(index, targetRel);
+  const wikiBacklinks = await wikiPagesForFile(cwd, targetRel);
 
   console.log(`# backlinks: ${targetRel}`);
   console.log("");

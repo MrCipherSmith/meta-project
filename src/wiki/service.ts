@@ -4,6 +4,7 @@ import path from "node:path";
 import { pathExists } from "../lib/fs";
 import { guardOutput } from "../security/guard";
 import { wikiAsk } from "./ask";
+import { backlinksFor, buildBacklinkIndex } from "./backlinks";
 import {
   WIKI_INDEX_BEGIN,
   WIKI_INDEX_END,
@@ -725,6 +726,20 @@ async function writeCollectedPage(
     source: candidate.source,
     action: exists ? "updated" : "created",
   };
+}
+
+// Wiki pages that reference `targetRepoPath` (a repo-relative file, posix or
+// native) — the "documented in" reverse lookup. Shared by `wiki backlinks` and
+// the gdgraph code→wiki tie-in. Best-effort: returns [] when the wiki is empty.
+export async function wikiPagesForFile(cwd: string, targetRepoPath: string): Promise<string[]> {
+  const pages = await collectPages(cwd);
+  const refs = await Promise.all(
+    pages.map(async (page) => ({
+      repoPath: path.relative(cwd, page.absolutePath).split(path.sep).join("/"),
+      content: await readFile(page.absolutePath, "utf8"),
+    })),
+  );
+  return backlinksFor(buildBacklinkIndex(refs), targetRepoPath);
 }
 
 export async function collectPages(cwd: string): Promise<WikiPage[]> {
