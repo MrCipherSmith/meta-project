@@ -39,7 +39,7 @@ test("seedAssetsLock writes a valid lock into a fresh metaproject", async () => 
     await mkdir(meta, { recursive: true });
     await seedAssetsLock(meta);
     const parsed = JSON.parse(await readFile(path.join(meta, "assets.lock.json"), "utf8"));
-    expect(parsed.assets["tree-sitter-typescript"].sha256).toBe(GRAMMAR_ASSETS["tree-sitter-typescript"].sha256);
+    expect(parsed.assets["tree-sitter-typescript"].sha256).toBe(GRAMMAR_ASSETS["tree-sitter-typescript"]?.sha256);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
