@@ -2,7 +2,51 @@ import { expect, test } from "bun:test";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { wikiCollect } from "./service";
+import { pathExists } from "../lib/fs";
+import { wikiCollect, wikiPruneOrphans } from "./service";
+
+const jsonl = (rows: object[]): string => rows.map((r) => JSON.stringify(r)).join("\n");
+
+test("prune removes orphan draft pages when a module is deleted, keeps human-owned ones", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "gd-wiki-prune-"));
+  const graphDir = path.join(root, ".metaproject", "data", "gdgraph", "storage");
+  const components = path.join(root, ".metaproject", "wiki", "components");
+  const nodesPath = path.join(graphDir, "nodes.jsonl");
+  try {
+    await mkdir(graphDir, { recursive: true });
+    // Three 2-file modules → three component pages.
+    await writeFile(nodesPath, jsonl([
+      { id: "src/keep/a.ts", kind: "file", path: "src/keep/a.ts" },
+      { id: "src/keep/b.ts", kind: "file", path: "src/keep/b.ts" },
+      { id: "src/gone-draft/a.ts", kind: "file", path: "src/gone-draft/a.ts" },
+      { id: "src/gone-draft/b.ts", kind: "file", path: "src/gone-draft/b.ts" },
+      { id: "src/gone-accepted/a.ts", kind: "file", path: "src/gone-accepted/a.ts" },
+      { id: "src/gone-accepted/b.ts", kind: "file", path: "src/gone-accepted/b.ts" },
+    ]), "utf8");
+    await writeFile(path.join(graphDir, "edges.jsonl"), "", "utf8");
+
+    await wikiCollect({ cwd: root });
+    // Human accepts one of the soon-to-be-deleted modules' pages.
+    const acceptedPath = path.join(components, "src-gone-accepted.md");
+    await writeFile(acceptedPath, (await readFile(acceptedPath, "utf8")).replace("Status: draft", "Status: accepted"), "utf8");
+
+    // Simulate deleting both gone-* modules from the codebase (graph rebuilt).
+    await writeFile(nodesPath, jsonl([
+      { id: "src/keep/a.ts", kind: "file", path: "src/keep/a.ts" },
+      { id: "src/keep/b.ts", kind: "file", path: "src/keep/b.ts" },
+    ]), "utf8");
+
+    const prune = await wikiPruneOrphans(root);
+
+    expect(prune.pruned).toEqual([".metaproject/wiki/components/src-gone-draft.md"]);
+    expect(prune.orphanedAccepted).toEqual([".metaproject/wiki/components/src-gone-accepted.md"]);
+    expect(await pathExists(path.join(components, "src-gone-draft.md"))).toBe(false);
+    expect(await pathExists(acceptedPath)).toBe(true);
+    expect(await pathExists(path.join(components, "src-keep.md"))).toBe(true);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
 
 test("collect creates draft wiki pages from graph, health, and testing artifacts without overwriting manual edits", async () => {
   const root = await mkdtemp(path.join(tmpdir(), "gd-wiki-collect-"));

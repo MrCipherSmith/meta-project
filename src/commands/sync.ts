@@ -76,7 +76,12 @@ export async function syncCommand(args: string[]): Promise<void> {
       await applyModule(cwd, module, provenance.commit, at);
       console.log("  → updated + provenance advanced");
       if (module === "gdwiki" && code.deleted.length > 0) {
-        console.log("  note: pages for deleted modules are not auto-pruned yet — run `keryx wiki collect` + remove stale pages.");
+        const { wikiPruneOrphans } = await import("../wiki/service");
+        const prune = await wikiPruneOrphans(cwd);
+        for (const page of prune.pruned) console.log(`  - pruned orphan page (module removed): ${page}`);
+        for (const page of prune.orphanedAccepted) {
+          console.log(`  ! stale page — module removed but page is human-owned, delete manually if intended: ${page}`);
+        }
       }
     } else {
       console.log("  → run `keryx sync --apply` to update");
