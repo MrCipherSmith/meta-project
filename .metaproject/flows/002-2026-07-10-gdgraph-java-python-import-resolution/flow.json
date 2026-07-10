@@ -1,0 +1,159 @@
+{
+  "schemaVersion": 1,
+  "id": "002",
+  "slug": "gdgraph-java-python-import-resolution",
+  "title": "gdgraph Java/Python import resolution",
+  "status": "in-progress",
+  "createdAt": "2026-07-10T10:18:23.628Z",
+  "updatedAt": "2026-07-10T12:18:47.597Z",
+  "source": {
+    "type": "description",
+    "ref": null
+  },
+  "acChecksum": "sha256:f2e7956c714eda57adc3de8220e391668196f609cbc4f5a2f67cd72886481ae4",
+  "acConfirmed": {},
+  "pr": {
+    "url": null
+  },
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Collect remaining context",
+      "kind": "context",
+      "status": "done"
+    },
+    {
+      "id": "T2",
+      "title": "Implement per plan",
+      "kind": "implement",
+      "status": "done"
+    },
+    {
+      "id": "T3",
+      "title": "Add/adjust tests and make them pass",
+      "kind": "test",
+      "status": "done"
+    },
+    {
+      "id": "T4",
+      "title": "Self-review and prepare draft PR",
+      "kind": "review",
+      "status": "done"
+    },
+    {
+      "id": "T5",
+      "title": "Gradle source-root resolver (Groovy + Kotlin DSL)",
+      "kind": "implement",
+      "status": "done"
+    },
+    {
+      "id": "T6",
+      "title": "Python resolver + relative-import extraction fix",
+      "kind": "implement",
+      "status": "done"
+    },
+    {
+      "id": "T7",
+      "title": "Seed tree-sitter-java/python grammars in src/assets/seed.ts",
+      "kind": "implement",
+      "status": "done"
+    },
+    {
+      "id": "T8",
+      "title": "Dead-code decision: wire or remove detectSupportedLanguages/renderGdgraphConfig",
+      "kind": "implement",
+      "status": "done"
+    },
+    {
+      "id": "T9",
+      "title": "Update requirements package status, roadmap line, version bumps",
+      "kind": "docs",
+      "status": "done"
+    }
+  ],
+  "history": [
+    {
+      "at": "2026-07-10T10:18:23.628Z",
+      "event": "created"
+    },
+    {
+      "at": "2026-07-10T10:21:36.084Z",
+      "event": "task-added",
+      "detail": "T5: Gradle source-root resolver (Groovy + Kotlin DSL)"
+    },
+    {
+      "at": "2026-07-10T10:21:36.199Z",
+      "event": "task-added",
+      "detail": "T6: Python resolver + relative-import extraction fix"
+    },
+    {
+      "at": "2026-07-10T10:21:36.293Z",
+      "event": "task-added",
+      "detail": "T7: Seed tree-sitter-java/python grammars in src/assets/seed.ts"
+    },
+    {
+      "at": "2026-07-10T10:21:36.421Z",
+      "event": "task-added",
+      "detail": "T8: Dead-code decision: wire or remove detectSupportedLanguages/renderGdgraphConfig"
+    },
+    {
+      "at": "2026-07-10T10:21:36.521Z",
+      "event": "task-added",
+      "detail": "T9: Update requirements package status, roadmap line, version bumps"
+    },
+    {
+      "at": "2026-07-10T10:21:43.621Z",
+      "event": "frozen",
+      "detail": "10 criteria; checksum recorded"
+    },
+    {
+      "at": "2026-07-10T10:21:43.757Z",
+      "event": "started"
+    },
+    {
+      "at": "2026-07-10T10:21:56.121Z",
+      "event": "task-done",
+      "detail": "T1: Collect remaining context"
+    },
+    {
+      "at": "2026-07-10T10:28:00.265Z",
+      "event": "task-done",
+      "detail": "T3: Add/adjust tests and make them pass"
+    },
+    {
+      "at": "2026-07-10T11:55:17.494Z",
+      "event": "task-done",
+      "detail": "T2: Implement per plan"
+    },
+    {
+      "at": "2026-07-10T12:02:31.252Z",
+      "event": "task-done",
+      "detail": "T5: Gradle source-root resolver (Groovy + Kotlin DSL)"
+    },
+    {
+      "at": "2026-07-10T12:02:31.360Z",
+      "event": "task-done",
+      "detail": "T6: Python resolver + relative-import extraction fix"
+    },
+    {
+      "at": "2026-07-10T12:05:41.482Z",
+      "event": "task-done",
+      "detail": "T7: Seed tree-sitter-java/python grammars in src/assets/seed.ts"
+    },
+    {
+      "at": "2026-07-10T12:05:41.561Z",
+      "event": "task-done",
+      "detail": "T8: Dead-code decision: wire or remove detectSupportedLanguages/renderGdgraphConfig"
+    },
+    {
+      "at": "2026-07-10T12:16:32.021Z",
+      "event": "task-done",
+      "detail": "T9: Update requirements package status, roadmap line, version bumps"
+    },
+    {
+      "at": "2026-07-10T12:18:47.597Z",
+      "event": "task-done",
+      "detail": "T4: Self-review and prepare draft PR"
+    }
+  ]
+}

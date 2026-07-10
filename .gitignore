@@ -28,6 +28,8 @@ coverage/
 # Security: local-only HMAC key, self-protect state, and local hash report must never be committed.
 .metaproject/data/security/raw/
 .metaproject/data/security/raw/**
+# Also guard nested copies (e.g. a security command run with cwd inside a flow dir).
+**/.metaproject/data/security/raw/
 .metaproject/data/security/artifacts/latest.md
 .metaproject/data/security/artifacts/latest.json
 .metaproject/reports/

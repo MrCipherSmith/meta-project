@@ -4,6 +4,26 @@ import path from "node:path";
 import { expect, test } from "bun:test";
 import { GRAMMAR_ASSETS, mergeGrammarAssets, seedAssetsLock } from "./seed";
 
+test("AC6 — Java and Python grammars are seeded into a fresh lock", async () => {
+  // New projects must receive the Java/Python tree-sitter grammars on init/update.
+  for (const id of ["tree-sitter-java", "tree-sitter-python"]) {
+    expect(GRAMMAR_ASSETS[id]).toBeDefined();
+    expect(GRAMMAR_ASSETS[id]!.sha256).toMatch(/^[0-9a-f]{64}$/);
+    expect(GRAMMAR_ASSETS[id]!.size).toBeGreaterThan(0);
+  }
+  const root = await mkdtemp(path.join(tmpdir(), "keryx-seed-lang-"));
+  try {
+    const meta = path.join(root, ".metaproject");
+    await mkdir(meta, { recursive: true });
+    await seedAssetsLock(meta);
+    const parsed = JSON.parse(await readFile(path.join(meta, "assets.lock.json"), "utf8"));
+    expect(parsed.assets["tree-sitter-java"]).toBeDefined();
+    expect(parsed.assets["tree-sitter-python"]).toBeDefined();
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("mergeGrammarAssets adds all grammars to an empty lock", () => {
   const { lock, changed } = mergeGrammarAssets({});
   expect(changed).toBe(true);
