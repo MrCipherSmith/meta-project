@@ -188,20 +188,35 @@ function extractImportSpecifiers(content: string): string[] {
 }
 
 function extractImportSpecifiersFallback(content: string): string[] {
-  const withoutComments = content
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .replace(/\/\/.*$/gm, "");
-
   const specifiers = new Set<string>();
-  const patterns = [
+
+  // Remove comments (JavaScript/TypeScript/Java style)
+  const withoutLineComments = content.replace(/\/\/.*$/gm, "");
+  const withoutBlockComments = withoutLineComments.replace(/\/\*[\s\S]*?\*\//g, "");
+  // Python-style comments
+  const cleaned = withoutBlockComments.replace(/#.*$/gm, "");
+
+  // JavaScript/TypeScript patterns
+  const jsPatterns = [
     /\bimport\s+(?:type\s+)?(?:[^'"]*?\s+from\s+)?["']([^"']+)["']/g,
     /\bexport\s+(?:type\s+)?[^'"]*?\s+from\s+["']([^"']+)["']/g,
     /\bimport\s*\(\s*["']([^"']+)["']\s*\)/g,
     /\brequire\s*\(\s*["']([^"']+)["']\s*\)/g,
   ];
 
-  for (const pattern of patterns) {
-    for (const match of withoutComments.matchAll(pattern)) {
+  // Java patterns (import com.example.Class;)
+  const javaPatterns = [
+    /\bimport\s+(?:static\s+)?([a-zA-Z_][a-zA-Z0-9_\.]*(?:\.\*)?)\s*;/g,
+  ];
+
+  // Python patterns (import module, from module import name)
+  const pythonPatterns = [
+    /\bimport\s+([a-zA-Z_][a-zA-Z0-9_\.]*)/g,
+    /\bfrom\s+([a-zA-Z_][a-zA-Z0-9_\.]*)\s+import/g,
+  ];
+
+  for (const pattern of [...jsPatterns, ...javaPatterns, ...pythonPatterns]) {
+    for (const match of cleaned.matchAll(pattern)) {
       const specifier = match[1];
       if (specifier) {
         specifiers.add(specifier);
