@@ -9,7 +9,7 @@ import path from "node:path";
 import { loadAssetsLock, registryFromLock } from "../../assets/lock";
 import { resolveAsset } from "../../assets/resolver";
 
-export type GrammarLanguage = "typescript" | "tsx" | "javascript";
+export type GrammarLanguage = "typescript" | "tsx" | "javascript" | "java" | "python";
 
 // The asset id for a language's grammar in `assets.lock.json`.
 export function grammarAssetId(language: GrammarLanguage): string {
@@ -17,8 +17,11 @@ export function grammarAssetId(language: GrammarLanguage): string {
 }
 
 // Map an extractor language to its parsed-symbol language tag.
-export function symbolLanguage(language: GrammarLanguage): "typescript" | "javascript" {
-  return language === "javascript" ? "javascript" : "typescript";
+export function symbolLanguage(language: GrammarLanguage): "typescript" | "javascript" | "java" | "python" {
+  if (language === "javascript") return "javascript";
+  if (language === "python") return "python";
+  if (language === "java") return "java";
+  return "typescript";
 }
 
 export interface ResolvedGrammar {
@@ -68,9 +71,15 @@ export async function resolveGrammars(
 export function toGrammarLanguages(languages: string[]): GrammarLanguage[] {
   const out: GrammarLanguage[] = [];
   for (const language of languages) {
-    if (language === "typescript" || language === "tsx" || language === "javascript") {
-      if (!out.includes(language)) {
-        out.push(language);
+    if (
+      language === "typescript" ||
+      language === "tsx" ||
+      language === "javascript" ||
+      language === "java" ||
+      language === "python"
+    ) {
+      if (!out.includes(language as GrammarLanguage)) {
+        out.push(language as GrammarLanguage);
       }
     }
   }
@@ -87,7 +96,11 @@ export function grammarForFile(file: string, available: GrammarLanguage[]): Gram
         ? ["typescript"]
         : ext === ".jsx" || ext === ".js" || ext === ".mjs" || ext === ".cjs"
           ? ["javascript"]
-          : [];
+          : ext === ".java"
+            ? ["java"]
+            : ext === ".py"
+              ? ["python"]
+              : [];
   for (const language of preference) {
     if (available.includes(language)) {
       return language;

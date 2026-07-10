@@ -194,3 +194,85 @@ test("unresolved calls to unknown callees are kept as unresolved-call edges", ()
   expect(unresolved[0]?.to).toBe("externalThing");
   expect(unresolved[0]?.resolved).toBe(false);
 });
+
+test("Java class and method extraction", () => {
+  const idNode = (text: string): TsNode => mk({ type: "identifier", text });
+  const methodBody = mk({ type: "block", line: 4, namedChildren: [
+    mk({ type: "method_invocation", line: 4, fields: { method: idNode("helper") }, text: "helper()" }),
+  ]});
+  const methodHelper = mk({
+    type: "method_declaration",
+    line: 3,
+    endLine: 3,
+    fields: { name: idNode("helper"), parameters: mk({ type: "formal_parameters", text: "()" }) },
+  });
+  const methodMain = mk({
+    type: "method_declaration",
+    line: 4,
+    endLine: 5,
+    fields: { name: idNode("main"), parameters: mk({ type: "formal_parameters", text: "()" }) },
+    namedChildren: [methodBody],
+  });
+  const classBody = mk({ type: "class_body", line: 2, endLine: 6, namedChildren: [methodHelper, methodMain] });
+  const classApp = mk({
+    type: "class_declaration",
+    line: 1,
+    endLine: 6,
+    fields: { name: idNode("App") },
+    namedChildren: [classBody],
+  });
+  const root = mk({ type: "program", line: 1, endLine: 6, namedChildren: [classApp] });
+  const layer = extractSymbolLayer(root, "src/App.java", "java");
+
+  expect(layer.symbols).toHaveLength(3); // App class + 2 methods
+  const classSymbol = layer.symbols.find((s) => s.name === "App");
+  expect(classSymbol).toBeDefined();
+  expect(classSymbol?.kind).toBe("class");
+
+  const methods = layer.symbols.filter((s) => s.kind === "method");
+  expect(methods).toHaveLength(2);
+});
+
+test("Python function and class extraction", () => {
+  const idNode = (text: string): TsNode => mk({ type: "identifier", text });
+  const funcBody = mk({ type: "block", line: 4, namedChildren: [
+    mk({ type: "call", line: 4, fields: { function: idNode("helper") }, text: "helper()" }),
+  ]});
+  const funcHelper = mk({
+    type: "function_definition",
+    line: 2,
+    endLine: 2,
+    fields: { name: idNode("helper"), parameters: mk({ type: "parameters", text: "()" }) },
+  });
+  const funcMain = mk({
+    type: "function_definition",
+    line: 4,
+    endLine: 5,
+    fields: { name: idNode("main"), parameters: mk({ type: "parameters", text: "()" }) },
+    namedChildren: [funcBody],
+  });
+  const methodProcess = mk({
+    type: "function_definition",
+    line: 8,
+    endLine: 8,
+    fields: { name: idNode("process"), parameters: mk({ type: "parameters", text: "(self)" }) },
+  });
+  const classBody = mk({ type: "block", line: 7, endLine: 9, namedChildren: [methodProcess] });
+  const classApp = mk({
+    type: "class_definition",
+    line: 6,
+    endLine: 9,
+    fields: { name: idNode("App") },
+    namedChildren: [classBody],
+  });
+  const root = mk({ type: "program", line: 1, endLine: 9, namedChildren: [funcHelper, funcMain, classApp] });
+  const layer = extractSymbolLayer(root, "src/main.py", "python");
+
+  expect(layer.symbols).toHaveLength(4); // 2 functions + 1 class + 1 nested function (process)
+  const classSymbol = layer.symbols.find((s) => s.name === "App");
+  expect(classSymbol).toBeDefined();
+  expect(classSymbol?.kind).toBe("class");
+
+  const functions = layer.symbols.filter((s) => s.kind === "function");
+  expect(functions.length).toBeGreaterThan(0); // Should have at least the top-level functions
+});

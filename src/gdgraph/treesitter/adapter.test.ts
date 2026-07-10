@@ -177,3 +177,73 @@ test("AC1.1 additive write path — enrich writes symbols.jsonl + calls.jsonl vi
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("Java grammar resolution — grammarForFile selects java for .java files", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "keryx-java-"));
+  try {
+    const grammarsDir = path.join(root, "grammars");
+    await mkdir(path.join(root, ".metaproject"), { recursive: true });
+    await mkdir(grammarsDir, { recursive: true });
+
+    const wasmPath = path.join(grammarsDir, "tree-sitter-java.wasm");
+    const bytes = Buffer.from("fake-java-grammar");
+    await writeFile(wasmPath, bytes);
+    const sha = createHash("sha256").update(bytes).digest("hex");
+
+    await writeFile(
+      path.join(root, ".metaproject", "assets.lock.json"),
+      JSON.stringify({
+        schemaVersion: 1,
+        assets: {
+          "tree-sitter-java": {
+            version: "0.1.13",
+            url: "https://example.dev/tree-sitter-java.wasm",
+            sha256: sha,
+            size: bytes.length,
+          },
+        },
+      }),
+    );
+
+    const spec = createTreesitterSpec(root, { languages: ["java"], grammarsPath: grammarsDir });
+    const adapter = spec.load({ dep: mockParserModule(), asset: null });
+    expect(await adapter.isAvailable()).toBe(true);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("Python grammar resolution — grammarForFile selects python for .py files", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "keryx-python-"));
+  try {
+    const grammarsDir = path.join(root, "grammars");
+    await mkdir(path.join(root, ".metaproject"), { recursive: true });
+    await mkdir(grammarsDir, { recursive: true });
+
+    const wasmPath = path.join(grammarsDir, "tree-sitter-python.wasm");
+    const bytes = Buffer.from("fake-python-grammar");
+    await writeFile(wasmPath, bytes);
+    const sha = createHash("sha256").update(bytes).digest("hex");
+
+    await writeFile(
+      path.join(root, ".metaproject", "assets.lock.json"),
+      JSON.stringify({
+        schemaVersion: 1,
+        assets: {
+          "tree-sitter-python": {
+            version: "0.1.13",
+            url: "https://example.dev/tree-sitter-python.wasm",
+            sha256: sha,
+            size: bytes.length,
+          },
+        },
+      }),
+    );
+
+    const spec = createTreesitterSpec(root, { languages: ["python"], grammarsPath: grammarsDir });
+    const adapter = spec.load({ dep: mockParserModule(), asset: null });
+    expect(await adapter.isAvailable()).toBe(true);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

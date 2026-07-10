@@ -22,14 +22,46 @@ export interface TsNode {
   readonly children: TsNode[];
 }
 
-type Language = "typescript" | "javascript";
+type Language = "typescript" | "javascript" | "java" | "python";
 
-const FUNCTION_TYPES = new Set(["function_declaration", "function_signature", "generator_function_declaration"]);
-const METHOD_TYPES = new Set(["method_definition", "method_signature"]);
-const CLASS_TYPES = new Set(["class_declaration", "class"]);
-const INTERFACE_TYPES = new Set(["interface_declaration"]);
-const CALL_TYPES = new Set(["call_expression", "new_expression"]);
-const ARROW_HOLDER_TYPES = new Set(["lexical_declaration", "variable_declaration"]);
+const FUNCTION_TYPES = new Set([
+  // TypeScript/JavaScript
+  "function_declaration", "function_signature", "generator_function_declaration",
+  // Python
+  "function_definition",
+]);
+const METHOD_TYPES = new Set([
+  // TypeScript/JavaScript
+  "method_definition", "method_signature",
+  // Java
+  "method_declaration",
+]);
+const CLASS_TYPES = new Set([
+  // TypeScript/JavaScript
+  "class_declaration", "class",
+  // Java
+  "class_declaration",
+  // Python
+  "class_definition",
+]);
+const INTERFACE_TYPES = new Set([
+  // TypeScript/JavaScript
+  "interface_declaration",
+  // Java
+  "interface_declaration",
+]);
+const CALL_TYPES = new Set([
+  // TypeScript/JavaScript
+  "call_expression", "new_expression",
+  // Java
+  "method_invocation",
+  // Python
+  "call",
+]);
+const ARROW_HOLDER_TYPES = new Set([
+  // TypeScript/JavaScript
+  "lexical_declaration", "variable_declaration",
+]);
 
 interface RawSymbol {
   base: string;
@@ -256,8 +288,21 @@ function makeSymbol(
 }
 
 function callFromNode(node: TsNode, filePath: string, enclosingSymbolId: string | null): CallEdge | null {
-  const fn = node.childForFieldName("function") ?? node.childForFieldName("constructor");
-  const calleeText = fn ? firstLine(fn.text) : firstLine(node.text);
+  // Extract function/method reference from call expressions
+  const fn = node.childForFieldName("function")
+    ?? node.childForFieldName("constructor")
+    ?? node.childForFieldName("method"); // Java method_invocation
+
+  let calleeText: string;
+  if (fn?.text) {
+    calleeText = firstLine(fn.text);
+  } else if (node.text) {
+    // For Python and Java: fall back to extracting from full text
+    calleeText = firstLine(node.text);
+  } else {
+    return null;
+  }
+
   if (!calleeText) {
     return null;
   }
@@ -298,16 +343,19 @@ function renderSignature(node: TsNode, kind: SymbolKind, container: string | nul
   const params = node.childForFieldName("parameters");
   const paramText = params ? firstLine(params.text) : "()";
   const prefix = container ? `${container}.` : "";
-  if (kind === "class") {
-    return `class ${name}`;
+
+  switch (kind) {
+    case "class":
+      return `class ${name}`;
+    case "interface":
+      return `interface ${name}`;
+    case "method":
+      return `${prefix}${name}${paramText}`;
+    case "function":
+      return `${name}${paramText}`;
+    default:
+      return `${name}${paramText}`;
   }
-  if (kind === "interface") {
-    return `interface ${name}`;
-  }
-  if (kind === "method") {
-    return `${prefix}${name}${paramText}`;
-  }
-  return `${name}${paramText}`;
 }
 
 function lastSegment(callee: string): string {
