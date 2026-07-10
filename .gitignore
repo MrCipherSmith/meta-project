@@ -8,6 +8,7 @@ coverage/
 # Metaproject: keep agent-facing context versioned, ignore executable/generated internals.
 .metaproject/runtime/
 .metaproject/core/**/*.ts
+.metaproject/data/**/.provenance.json
 .metaproject/data/**/storage/
 .metaproject/data/**/raw/
 .metaproject/data/**/queries/

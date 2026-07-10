@@ -277,6 +277,8 @@ export async function wikiCollect(input: WikiCollectInput): Promise<WikiCollectR
   }
 
   const index = await wikiGenerateIndex(input.cwd);
+  const { recordProvenance } = await import("../sync/provenance");
+  await recordProvenance(input.cwd, "gdwiki", generatedAt);
   return {
     generatedAt,
     created: pages.filter((page) => page.action === "created").length,

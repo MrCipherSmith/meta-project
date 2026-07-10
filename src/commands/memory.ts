@@ -102,6 +102,8 @@ async function runIndex(args: string[]): Promise<void> {
   const embeddings = args.includes("--embeddings");
   const result = await getService().index({ cwd: process.cwd(), embeddings });
   console.log(`Indexed ${result.entryCount} entries -> ${result.path}`);
+  const { recordProvenance } = await import("../sync/provenance");
+  await recordProvenance(process.cwd(), "memory", new Date().toISOString());
   if (result.embeddings) {
     if (result.embeddings.built) {
       console.log(

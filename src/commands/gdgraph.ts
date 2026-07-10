@@ -33,6 +33,8 @@ export async function gdgraphCommand(args: string[]): Promise<void> {
     const result = await buildGraph(process.cwd());
     console.log(`gdgraph build complete: ${result.nodes} nodes, ${result.edges} edges`);
     console.log(`summary: ${result.summaryPath}`);
+    const { recordProvenance } = await import("../sync/provenance");
+    await recordProvenance(process.cwd(), "gdgraph", new Date().toISOString());
     return;
   }
 

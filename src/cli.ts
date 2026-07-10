@@ -5,6 +5,7 @@ import { ctxCommand } from "./commands/ctx";
 import { gdgraphCommand } from "./commands/gdgraph";
 import { wikiCommand } from "./commands/wiki";
 import { orientCommand } from "./commands/orient";
+import { syncCommand } from "./commands/sync";
 import { skillVerifySkillCommand, skillsCommand } from "./commands/skills";
 import { healthCommand } from "./commands/health";
 import { testCommand } from "./commands/test";
@@ -85,6 +86,11 @@ export async function main(): Promise<void> {
 
   if (command === "orient") {
     await orientCommand(args.slice(1));
+    return;
+  }
+
+  if (command === "sync") {
+    await syncCommand(args.slice(1));
     return;
   }
 
