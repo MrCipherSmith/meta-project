@@ -6,7 +6,6 @@
 // and the `ctx.ts` config idiom). Every field falls back individually.
 
 import path from "node:path";
-import { Glob } from "bun";
 import { pathExists } from "../lib/fs";
 import { readJsonFileOr } from "../lib/json";
 
@@ -112,52 +111,3 @@ function numberOr(value: unknown, fallback: number): number {
 type DeepPartial<T> = {
   [K in keyof T]?: T[K] extends Record<string, unknown> ? DeepPartial<T[K]> : T[K];
 };
-
-// Automatically detect supported languages based on files found in the project.
-// Returns a prioritized list of languages to enable (e.g. ["java"] for Java project,
-// ["typescript", "tsx", "javascript", "python"] for mixed projects).
-export async function detectSupportedLanguages(cwd: string): Promise<string[]> {
-  const detected = new Set<string>();
-
-  // True as soon as one matching file exists — short-circuits the scan.
-  const hasMatch = async (pattern: string): Promise<boolean> => {
-    for await (const _ of new Glob(pattern).scan({ cwd, onlyFiles: true })) {
-      return true;
-    }
-    return false;
-  };
-
-  // Check for TypeScript/JavaScript files
-  if (await hasMatch("**/*.{ts,tsx,js,jsx,mjs,cjs}")) {
-    detected.add("typescript");
-    detected.add("tsx");
-    detected.add("javascript");
-  }
-
-  // Check for Java files
-  if (await hasMatch("**/*.java")) {
-    detected.add("java");
-  }
-
-  // Check for Python files
-  if (await hasMatch("**/*.py")) {
-    detected.add("python");
-  }
-
-  // Return in priority order
-  const priority = ["typescript", "tsx", "javascript", "java", "python"];
-  return priority.filter((lang) => detected.has(lang));
-}
-
-// Render a gdgraph config with detected or specified languages.
-export function renderGdgraphConfig(languages: string[]): string {
-  const config: GdgraphConfig = {
-    affected: DEFAULT_GDGRAPH_CONFIG.affected,
-    repomap: DEFAULT_GDGRAPH_CONFIG.repomap,
-    treesitter: {
-      grammarsPath: null,
-      languages,
-    },
-  };
-  return JSON.stringify(config, null, 2) + "\n";
-}

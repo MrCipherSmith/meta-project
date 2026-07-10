@@ -62,16 +62,28 @@ type PathMapping = {
   targets: string[];
 };
 
-type TsconfigResolver = {
+// A per-language import resolver, selected by the importing file's language.
+// TS/JS keeps the tsconfig/relative logic; Java/Python get source-layout aware
+// resolvers. `candidateBases` receives `fromFile` so language-specific resolvers
+// (e.g. Python relative imports) can resolve against the importing file.
+type ImportResolver = {
   matchesAlias(specifier: string): boolean;
-  candidateBases(specifier: string): string[];
+  candidateBases(specifier: string, fromFile: string): string[];
+};
+
+// All resolvers are constructed ONCE per build (source roots parsed once, cached)
+// and selected per file by `pickResolver`.
+type ResolverSet = {
+  tsconfig: ImportResolver;
+  java: ImportResolver;
+  python: ImportResolver;
 };
 
 export async function buildGraph(projectRoot: string): Promise<BuildResult> {
   const collection = await collectSourceFiles(projectRoot);
   const files = collection.files;
   const fileSet = new Set(files);
-  const resolver = await loadTsconfigResolver(projectRoot);
+  const resolvers = await loadResolvers(projectRoot);
   const nodes: GraphNode[] = files.map((file) => ({
     id: file,
     kind: "file",
@@ -86,12 +98,20 @@ export async function buildGraph(projectRoot: string): Promise<BuildResult> {
     const absolutePath = path.join(projectRoot, file);
     const content = await readFile(absolutePath, "utf8");
     fileRecords.push({ path: file, content });
-    const specifiers = extractImportSpecifiers(content);
+    const language = getLanguage(file);
+    const resolver = pickResolver(resolvers, language);
+    // Java/Python imports are always real module references — a non-relative one
+    // that fails to resolve must be recorded as `unresolved` (never silently
+    // dropped), so the resolution metric is honest. TS/JS keeps the exact
+    // original guard (relative + tsconfig alias only) ⇒ byte-identical output.
+    const isLanguageAware = language === "java" || language === "python";
+    const specifiers = extractImportSpecifiers(content, language);
 
     for (const specifier of specifiers) {
       const resolved = resolveImport(projectRoot, file, specifier, fileSet, resolver);
       const asset = resolved ? null : resolveAssetImport(projectRoot, file, specifier, resolver);
-      const shouldTrackUnresolved = specifier.startsWith(".") || resolver.matchesAlias(specifier);
+      const shouldTrackUnresolved =
+        specifier.startsWith(".") || resolver.matchesAlias(specifier) || isLanguageAware;
       if (!resolved && !asset && !shouldTrackUnresolved) {
         continue;
       }
@@ -174,7 +194,15 @@ async function collectSourceFiles(projectRoot: string): Promise<SourceCollection
   return { files: result.sort(), skippedDirectories: skippedDirectories.sort() };
 }
 
-function extractImportSpecifiers(content: string): string[] {
+function extractImportSpecifiers(content: string, language: string): string[] {
+  // Java/Python are not TS/JS syntax — the tsx transpiler cannot scan them
+  // (it throws today, which is why they already reach the fallback). Route them
+  // explicitly to the regex fallback that carries the java/python patterns,
+  // rather than depending on the transpiler always throwing. TS/JS keep the
+  // exact original transpiler-then-fallback path ⇒ byte-identical output.
+  if (language === "java" || language === "python") {
+    return extractImportSpecifiersFallback(content);
+  }
   try {
     const scanner = new Bun.Transpiler({ loader: "tsx" });
     return [...new Set(scanner
@@ -209,10 +237,16 @@ function extractImportSpecifiersFallback(content: string): string[] {
     /\bimport\s+(?:static\s+)?([a-zA-Z_][a-zA-Z0-9_\.]*(?:\.\*)?)\s*;/g,
   ];
 
-  // Python patterns (import module, from module import name)
+  // Python patterns (import module, from module import name).
+  // - `import` is anchored to statement start so the `import` in
+  //   `from . import mod` is not mis-read as importing a module named `mod`.
+  // - The relative form (`from . import x`, `from ..a.b import c`) was dropped
+  //   before because the module regex required a leading letter; the third
+  //   pattern captures the leading-dot forms.
   const pythonPatterns = [
-    /\bimport\s+([a-zA-Z_][a-zA-Z0-9_\.]*)/g,
+    /^[ \t]*import\s+([a-zA-Z_][a-zA-Z0-9_\.]*)/gm,
     /\bfrom\s+([a-zA-Z_][a-zA-Z0-9_\.]*)\s+import/g,
+    /\bfrom\s+(\.+[a-zA-Z0-9_\.]*)\s+import/g,
   ];
 
   for (const pattern of [...jsPatterns, ...javaPatterns, ...pythonPatterns]) {
@@ -232,7 +266,7 @@ function resolveImport(
   fromFile: string,
   specifier: string,
   fileSet: Set<string>,
-  resolver: TsconfigResolver,
+  resolver: ImportResolver,
 ): string | null {
   for (const base of importCandidateBases(projectRoot, fromFile, specifier, resolver)) {
     const resolved = resolveSourceCandidate(base, fileSet);
@@ -247,7 +281,7 @@ function resolveAssetImport(
   projectRoot: string,
   fromFile: string,
   specifier: string,
-  resolver: TsconfigResolver,
+  resolver: ImportResolver,
 ): string | null {
   for (const candidate of importCandidateBases(projectRoot, fromFile, specifier, resolver)) {
     const extension = path.posix.extname(candidate);
@@ -262,14 +296,16 @@ function importCandidateBases(
   projectRoot: string,
   fromFile: string,
   specifier: string,
-  resolver: TsconfigResolver,
+  resolver: ImportResolver,
 ): string[] {
   const normalizedSpecifier = stripImportSuffix(specifier);
-  if (normalizedSpecifier.startsWith(".")) {
+  // Relative specifiers are filesystem-relative for TS/JS, but Python uses
+  // dotted-level semantics (`.x`, `..a.b`) — hand those to the Python resolver.
+  if (normalizedSpecifier.startsWith(".") && getLanguage(fromFile) !== "python") {
     const fromDir = path.posix.dirname(fromFile);
     return [normalizePath(path.posix.normalize(path.posix.join(fromDir, normalizedSpecifier)))];
   }
-  return resolver.candidateBases(normalizedSpecifier)
+  return resolver.candidateBases(normalizedSpecifier, fromFile)
     .map((candidate) => normalizePath(path.relative(projectRoot, path.join(projectRoot, candidate))));
 }
 
@@ -278,6 +314,9 @@ function resolveSourceCandidate(base: string, fileSet: Set<string>): string | nu
     base,
     ...SOURCE_RESOLUTION_EXTENSIONS.map((extension) => `${base}${extension}`),
     ...SOURCE_RESOLUTION_EXTENSIONS.map((extension) => path.posix.join(base, `index${extension}`)),
+    // Python package: `pkg` → `pkg/__init__.py`. Harmless for other languages
+    // (never present in their file sets), so TS/JS resolution is unchanged.
+    path.posix.join(base, "__init__.py"),
   ];
 
   return candidates.find((candidate) => fileSet.has(candidate)) ?? null;
@@ -290,7 +329,173 @@ function stripImportSuffix(specifier: string): string {
   return cutIndex === undefined ? specifier : specifier.slice(0, cutIndex);
 }
 
-async function loadTsconfigResolver(projectRoot: string): Promise<TsconfigResolver> {
+// Build every per-language resolver once. Source roots for Java are parsed a
+// single time here and captured in the resolver closure (no per-file re-parse).
+async function loadResolvers(projectRoot: string): Promise<ResolverSet> {
+  const tsconfig = await loadTsconfigResolver(projectRoot);
+  const java = await loadJavaResolver(projectRoot);
+  const python = loadPythonResolver(projectRoot);
+  return { tsconfig, java, python };
+}
+
+function pickResolver(resolvers: ResolverSet, language: string): ImportResolver {
+  if (language === "java") {
+    return resolvers.java;
+  }
+  if (language === "python") {
+    return resolvers.python;
+  }
+  return resolvers.tsconfig;
+}
+
+// Java resolver — maps a fully-qualified name `a.b.C` to `<sourceRoot>/a/b/C`
+// (dots→slashes) for each discovered source root; `resolveSourceCandidate`
+// appends `.java`. Source roots come from `pom.xml` (Gradle: T5), defaulting to
+// the Maven conventions when build config is absent/unparseable.
+async function loadJavaResolver(projectRoot: string): Promise<ImportResolver> {
+  const roots = await discoverJavaSourceRoots(projectRoot);
+  return createJavaResolver(roots);
+}
+
+async function discoverJavaSourceRoots(projectRoot: string): Promise<string[]> {
+  const pomPath = path.join(projectRoot, "pom.xml");
+  if (existsSync(pomPath)) {
+    try {
+      const roots = parseMavenSourceRoots(await readFile(pomPath, "utf8"));
+      if (roots.length > 0) {
+        return roots;
+      }
+    } catch {
+      // Unparseable pom ⇒ fall back to conventions.
+    }
+  }
+  for (const gradleName of ["build.gradle", "build.gradle.kts"]) {
+    const gradlePath = path.join(projectRoot, gradleName);
+    if (existsSync(gradlePath)) {
+      try {
+        const roots = parseGradleSourceRoots(await readFile(gradlePath, "utf8"));
+        if (roots.length > 0) {
+          return roots;
+        }
+      } catch {
+        // Unparseable build script ⇒ fall back to conventions.
+      }
+    }
+  }
+  return ["src/main/java", "src/test/java"];
+}
+
+function createJavaResolver(sourceRoots: string[]): ImportResolver {
+  return {
+    matchesAlias() {
+      return false;
+    },
+    candidateBases(specifier) {
+      // Wildcard `import a.b.*;` is a package reference, not a file — never
+      // fabricate a file edge for it (it is tracked as `unresolved` instead).
+      if (specifier.endsWith(".*")) {
+        return [];
+      }
+      const relative = specifier.split(".").join("/");
+      return sourceRoots.map((root) => normalizePath(path.posix.join(root, relative)));
+    },
+  };
+}
+
+// Python resolver — resolves dotted modules against the project root (and `src/`
+// when present), plus relative imports against the importing file's package.
+// `resolveSourceCandidate` appends `.py` / `__init__.py`.
+function loadPythonResolver(projectRoot: string): ImportResolver {
+  const hasSrc = existsSync(path.join(projectRoot, "src"));
+  return createPythonResolver(hasSrc);
+}
+
+function createPythonResolver(hasSrc: boolean): ImportResolver {
+  const roots = hasSrc ? ["", "src"] : [""];
+  return {
+    matchesAlias() {
+      return false;
+    },
+    candidateBases(specifier, fromFile) {
+      if (specifier.startsWith(".")) {
+        // Relative import: leading dots = level. 1 dot = the importing file's
+        // package; each extra dot walks one package up. The remaining dotted
+        // path (if any) is appended as sub-packages.
+        const dots = /^\.+/.exec(specifier)?.[0].length ?? 0;
+        const rest = specifier.slice(dots);
+        let baseDir = path.posix.dirname(fromFile);
+        for (let level = 1; level < dots; level += 1) {
+          baseDir = path.posix.dirname(baseDir);
+        }
+        const suffix = rest ? rest.split(".").join("/") : "";
+        const base = suffix ? path.posix.join(baseDir, suffix) : baseDir;
+        return [normalizePath(base)];
+      }
+      const relative = specifier.split(".").join("/");
+      return roots.map((root) =>
+        normalizePath(root ? path.posix.join(root, relative) : relative),
+      );
+    },
+  };
+}
+
+// Parse Maven source roots from a `pom.xml` string (repo-relative, POSIX).
+// - single module: honors `<build><sourceDirectory>` / `<testSourceDirectory>`,
+//   defaulting to `src/main/java` / `src/test/java`.
+// - multi-module: unions each `<module>`'s conventional roots.
+// Lightweight string/regex scan — no XML dependency, graceful on malformed input.
+export function parseMavenSourceRoots(pomXml: string): string[] {
+  // Always try the Maven conventions — real poms often only reference the source
+  // dir via a `${project.build.sourceDirectory}` property inside a plugin config
+  // (which resolves to `src/main/java`), so the conventions must be present even
+  // when an explicit-looking `<sourceDirectory>` tag exists.
+  const roots = new Set<string>(["src/main/java", "src/test/java"]);
+
+  for (const match of pomXml.matchAll(/<module>\s*([^<]+?)\s*<\/module>/g)) {
+    const moduleDir = match[1]?.trim();
+    if (moduleDir && !moduleDir.includes("${")) {
+      roots.add(normalizePath(path.posix.join(moduleDir, "src/main/java")));
+      roots.add(normalizePath(path.posix.join(moduleDir, "src/test/java")));
+    }
+  }
+
+  // Union any explicit, literal source-dir overrides. Skip Maven property
+  // placeholders (`${...}`) — they cannot be statically resolved to a real path.
+  for (const tag of ["sourceDirectory", "testSourceDirectory"]) {
+    const pattern = new RegExp(`<${tag}>\\s*([^<]+?)\\s*</${tag}>`, "g");
+    for (const match of pomXml.matchAll(pattern)) {
+      const dir = match[1]?.trim();
+      if (dir && !dir.includes("${")) {
+        roots.add(normalizePath(dir));
+      }
+    }
+  }
+
+  return [...roots];
+}
+
+// Parse Gradle source roots from a `build.gradle`/`build.gradle.kts` string.
+// Reads `srcDirs` entries from `sourceSets { … { java { srcDirs … } } }` in both
+// the Groovy DSL (`srcDirs 'a', 'b'`) and the Kotlin DSL (`srcDirs("a", "b")`).
+// Falls back to the Maven-layout conventions when no `srcDirs` are declared.
+export function parseGradleSourceRoots(buildGradle: string): string[] {
+  const roots = new Set<string>();
+  for (const match of buildGradle.matchAll(/srcDirs\s*\(?\s*([^)\n]+)/g)) {
+    for (const quoted of (match[1] ?? "").matchAll(/['"]([^'"]+)['"]/g)) {
+      const dir = quoted[1]?.trim();
+      if (dir) {
+        roots.add(normalizePath(dir));
+      }
+    }
+  }
+  if (roots.size === 0) {
+    roots.add("src/main/java");
+    roots.add("src/test/java");
+  }
+  return [...roots];
+}
+
+async function loadTsconfigResolver(projectRoot: string): Promise<ImportResolver> {
   const empty = createTsconfigResolver(null, []);
   const tsconfigPath = path.join(projectRoot, "tsconfig.json");
   if (!existsSync(tsconfigPath)) {
@@ -323,7 +528,7 @@ async function loadTsconfigResolver(projectRoot: string): Promise<TsconfigResolv
   }
 }
 
-function createTsconfigResolver(baseUrl: string | null, mappings: PathMapping[]): TsconfigResolver {
+function createTsconfigResolver(baseUrl: string | null, mappings: PathMapping[]): ImportResolver {
   return {
     matchesAlias(specifier) {
       const normalizedSpecifier = stripImportSuffix(specifier);
@@ -457,10 +662,14 @@ async function writeSummary(
   const assets = graph.edges.filter((edge) => edge.kind === "asset");
   const codeNodes = graph.nodes.filter((node) => node.kind === "file");
   const assetNodes = graph.nodes.filter((node) => node.kind === "asset");
+  // Resolution is measured over ALL extracted specifiers (resolved + unresolved).
+  // Non-relative Java/Python imports that fail to resolve are now recorded as
+  // `unresolved` edges (not dropped), so this denominator is honest. When zero
+  // imports were extracted the rate is `n/a` — never a false `100%` from `0/0`.
   const importTotal = imports.length + unresolved.length;
-  const resolvedPercent = importTotal > 0
-    ? Math.round((imports.length / importTotal) * 1000) / 10
-    : 100;
+  const resolutionDisplay = importTotal > 0
+    ? `${Math.round((imports.length / importTotal) * 1000) / 10}%`
+    : "n/a";
   const moduleRows = Object.entries(buildModuleMap({ nodes: codeNodes, edges: graph.edges }))
     .map(([moduleName, files]) => ({ moduleName, files: files.length }))
     .sort((a, b) => b.files - a.files)
@@ -485,8 +694,8 @@ async function writeSummary(
 - Edges: ${graph.edges.length}
 - Import edges: ${imports.length}
 - Asset edges: ${assets.length}
-- Unresolved relative imports: ${unresolved.length}
-- Import resolution: ${resolvedPercent}%
+- Unresolved imports: ${unresolved.length}
+- Import resolution: ${resolutionDisplay}
 - Skipped generated/static directories: ${collection.skippedDirectories.length}
 
 ## Top Modules
