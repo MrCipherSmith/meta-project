@@ -1,5 +1,5 @@
 # Managed Review Artifact Lifecycle
-Version: 0.1.0
+Version: 0.2.0
 
 ## Purpose
 
@@ -8,11 +8,15 @@ to flows.
 
 ## Creation
 
-A managed review package is created when:
+A managed review package is created by the current compatibility surface when:
 
 - `review-orchestrator` runs in `attach-review` mode;
 - `review-orchestrator` runs in `review-flow` mode;
 - a user asks to ingest an existing review report into Task Manager context.
+
+The target architecture lets `flow-reviewer` create and own these artifacts
+inside a dedicated review flow with per-reviewer tasks and immutable attempts.
+See [Flow Reviewer Artifact Lifecycle](../flow-reviewer/artifact-lifecycle.md).
 
 ## Review Id
 

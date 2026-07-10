@@ -1,5 +1,5 @@
 # Requirements Roadmap
-Version: 0.2.0
+Version: 0.3.0
 
 ## Status
 
@@ -10,4 +10,5 @@ state. Runtime claims must be backed by source, tests, or a verification report.
 
 | Package | Status | Summary |
 |---|---|---|
-| [Managed Review Feedback Loop](managed-review-feedback-loop/README.md) | implemented (initial runtime slice) | Managed reviews can run standalone, attach to flows, ingest reports, persist coverage/findings/decisions/learning artifacts, and complete only when the package is structurally complete. |
+| [Managed Review Feedback Loop](managed-review-feedback-loop/README.md) | implemented (initial runtime slice) | Low-level managed review persistence supports standalone/attached packages, ingest, coverage, findings, decisions, learning, and structural completion. Target orchestration ownership moves to Flow Reviewer. |
+| [Flow Reviewer](flow-reviewer/README.md) | specification ready (future) | Task Manager-aware review orchestrator above stateless Review Orchestrator, with one task and durable history per reviewer, adaptive model routing, compact shared context, resume, schemas, and Gherkin acceptance scenarios. |

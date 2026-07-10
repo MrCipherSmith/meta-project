@@ -1,5 +1,5 @@
 # Managed Review Feedback Loop PRD
-Version: 0.1.0
+Version: 0.2.0
 
 ## Problem
 
@@ -19,10 +19,12 @@ implementation flow cannot learn from it reliably.
 
 ## Goal
 
-Make review results durable and traceable by allowing `review-orchestrator` to
-attach review packages to existing Task Manager flows or create standalone
-managed review flows. The system should preserve review coverage, findings,
-decisions, and skill-learning candidates in a format future agents can consume.
+Make review results durable and traceable through a reusable managed review
+package runtime. The future `flow-reviewer` orchestration layer attaches or
+links those packages to Task Manager flows, while stateless
+`review-orchestrator` supplies review planning and consolidation. The system
+preserves review coverage, findings, decisions, and skill-learning candidates
+in a format future agents can consume.
 
 ## Users
 
@@ -36,9 +38,9 @@ decisions, and skill-learning candidates in a format future agents can consume.
 
 ### R1: Detect Related Flow
 
-When reviewing a PR, branch, issue, or path, `review-orchestrator` must attempt
-to locate related flow metadata by PR URL, issue URL, branch name, or source
-reference.
+When reviewing a PR, branch, issue, or path in managed mode, the managed review
+caller must attempt to locate related flow metadata by PR URL, issue URL, branch
+name, or source reference.
 
 ### R2: Support Two Managed Modes
 
@@ -108,7 +110,8 @@ preventable process gaps.
 
 ## Recommendation
 
-Implement managed review as an opt-in or auto-suggested mode inside
-`review-orchestrator`, with `attach-review` as the default when a related flow is
-unambiguously detected. Keep plain report-only review as an explicit lightweight
-mode.
+Keep the implemented package persistence and CLI as a low-level substrate.
+Implement managed lifecycle in `flow-reviewer`, which composes stateless
+`review-orchestrator` planning and consolidation. Keep plain report-only review
+as the default one-shot mode, and require explicit managed review intent before
+creating Task Manager state.

@@ -1,5 +1,5 @@
 # Managed Review Metrics and Validation
-Version: 0.1.0
+Version: 0.2.0
 
 ## Purpose
 
@@ -21,7 +21,7 @@ skill-learning feedback without making every review too heavy.
 ### Scenario 1: Attach Review To Existing Flow
 
 Given a flow has a PR URL in its flow metadata,
-when `review-orchestrator` reviews that PR in managed mode,
+when the managed review caller reviews that PR in compatibility attach mode,
 then it writes a review package under the flow's `reviews/` directory.
 
 ### Scenario 2: Post-Flow Review Ingest
@@ -68,3 +68,7 @@ Before implementation is accepted:
 - links from README and specification resolve;
 - docpack-review reports no blockers;
 - runtime tests cover attach-review, review-flow, ingest, and lightweight modes.
+
+Per-reviewer Task Manager lifecycle, model routing, token reuse, and resume
+validation are specified separately in
+[Flow Reviewer Metrics and Validation](../flow-reviewer/metrics-and-validation.md).

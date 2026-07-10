@@ -1,10 +1,12 @@
 # Managed Review Agent Protocol
-Version: 0.1.0
+Version: 0.2.0
 
 ## Purpose
 
-Define how agents should run managed review without losing Task Manager context
-or over-blocking completed flows.
+Define the compatibility protocol for managed review package persistence without
+losing Task Manager context or over-blocking completed flows. The future
+per-reviewer Task Manager protocol is owned by
+[Flow Reviewer](../flow-reviewer/agent-protocol.md).
 
 ## Modes
 
@@ -41,7 +43,8 @@ converted into learning/follow-up decisions.
 1. Build review context from target metadata, diff/path scope, existing flow
    metadata, and compact gdctx artifacts.
 2. Resolve related flow by explicit id, PR URL, issue URL, or branch metadata.
-3. Select reviewers and record the reviewer coverage plan before dispatch.
+3. Use stateless `review-orchestrator` to select reviewers and record the
+   reviewer coverage plan before dispatch.
 4. Dispatch reviewers with explicit schema-governed payloads.
 5. Consolidate findings into `report.md`.
 6. Normalize findings into `findings.json`.
@@ -49,6 +52,10 @@ converted into learning/follow-up decisions.
 8. Write `learning.md` with candidates or `none`.
 9. Write `decisions.md` with the chosen disposition per finding.
 10. Complete the review package only after required artifacts exist.
+
+For a full managed lifecycle with one flow task and history per reviewer, route
+to `flow-reviewer`. Do not extend this compatibility protocol by duplicating
+reviewer orchestration.
 
 ## Classification Rules
 

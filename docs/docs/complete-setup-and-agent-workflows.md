@@ -785,6 +785,55 @@ to code, and verify claims against source. Include entry points, data flow, stat
 ownership, failure handling, tests, and known constraints. Do not modify files.
 ```
 
+### Enrich wiki drafts with the `gdwiki` skill
+
+Use this prompt for a controlled enrichment batch. The `gdwiki` skill treats
+wiki prose generation as bounded synthesis, so it should use a cheaper,
+non-flagship model and reserve a stronger model only for sample review.
+
+```text
+Use the project-local gdwiki skill to enrich up to <BATCH_SIZE> highest-priority
+draft wiki pages. Read .metaproject/index.md and the gdwiki SKILL.md first.
+
+Prepare deterministically: refresh gdgraph only if stale, run keryx wiki collect,
+and rebuild the wiki index. Prioritize draft pages by their Depended on by graph
+signal. For each page, read only the Key files listed in its generated Reference
+section plus the minimum additional code needed to verify claims.
+
+Use a cheap/non-flagship model for page enrichment. If subagents and per-agent
+model assignment are available, dispatch one independent subagent per page and
+keep the batch bounded. Fill Overview, How it works, Key concepts, and Main flows;
+preserve the generated Reference section exactly. Ground every claim in code,
+set completed pages to Status: accepted, and bump their versions.
+
+Review a sample for factual accuracy, then run keryx wiki index, keryx wiki
+check-links, and keryx wiki validate. Report pages enriched, pages still draft,
+the model strategy used, validation results, and the recommended next batch.
+Do not commit or push.
+```
+
+### Short wiki enrichment prompt
+
+```text
+Use the local gdwiki skill to enrich the next <COUNT> highest-priority draft wiki
+pages. Use a cheap model, one page per independent subagent when available, read
+only each page's Key files, preserve its generated Reference section, ground all
+claims in code, mark completed pages accepted, then reindex and validate the wiki.
+Do not commit or push.
+```
+
+### Enrich wiki pages affected by recent changes
+
+```text
+Use the local gdwiki skill to update wiki coverage for changes since <GIT_REF>.
+Run keryx wiki collect --changed --since <GIT_REF>, enrich only the newly created
+or refreshed draft pages, and use a cheap/non-flagship model for the prose work.
+Preserve generated Reference sections, verify claims against the listed Key files,
+mark completed pages accepted with bumped versions, then run wiki index,
+check-links, and validate. Report changed pages, remaining drafts, and failures.
+Do not commit or push.
+```
+
 ### Implement a feature through Task Manager
 
 ```text

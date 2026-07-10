@@ -1,19 +1,24 @@
 # Managed Review Feedback Loop
-Version: 0.1.0
+Version: 0.2.0
 
 ## Purpose
 
-Define the implementation package for making `gdskills/review-orchestrator`
-Task Manager-aware. The goal is to preserve review context, reviewer coverage,
-findings, and skill-learning handoff as durable artifacts that can attach to an
-existing flow or stand alone as a managed review flow.
+Define the low-level managed review persistence and feedback package used to
+preserve review context, reviewer coverage, findings, decisions, and
+skill-learning handoff as durable artifacts.
 
 ## Status
 
-First runtime slice implemented. The CLI/runtime now supports managed review
-package creation for attach-review, review-flow, ingest, status, complete, and
-lightweight report-only mode. Full reviewer dispatch automation remains owned by
-`review-orchestrator`.
+First runtime slice implemented. The CLI/runtime supports managed review package
+creation for attach-review, review-flow, ingest, status, complete, and
+lightweight report-only mode.
+
+Target orchestration ownership has changed: the future
+[Flow Reviewer](../flow-reviewer/README.md) skill owns Task Manager lifecycle,
+per-reviewer tasks, attempts, resume, and completion. `review-orchestrator`
+remains a stateless review planning and consolidation engine. The current
+runtime slice is a persistence substrate to migrate or compose, not the final
+orchestration boundary.
 
 ## Document Index
 
@@ -38,6 +43,7 @@ lightweight report-only mode. Full reviewer dispatch automation remains owned by
 - Make post-flow review findings available to future `flow-orchestrator`,
   `job-orchestrator`, `review-orchestrator`, and `entity-skill-learner` runs.
 - Preserve lightweight review mode for users who only need a fast report.
+- Provide persistence primitives reusable by `flow-reviewer`.
 
 ## Non-Goals
 
@@ -50,6 +56,7 @@ lightweight report-only mode. Full reviewer dispatch automation remains owned by
 
 - `tasks` / `flow`: owns flow state and lifecycle gates.
 - `gdskills`: owns review, orchestration, skill learning, and worker contracts.
+- `flow-reviewer`: future owner of managed review orchestration and task history.
 - `gdctx`: provides compact diff/search/read artifacts for review context.
 - `memory`: stores accepted long-lived lessons after review decisions.
 - `health`: contributes quality gate evidence when a review is attached to a PR.

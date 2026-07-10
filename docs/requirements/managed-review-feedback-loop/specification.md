@@ -1,10 +1,12 @@
 # Managed Review Feedback Loop Specification
-Version: 0.1.0
+Version: 0.2.0
 
 ## Identity
 
 - Capability name: Managed Review Feedback Loop.
-- Primary skill: `gdskills/review/review-orchestrator`.
+- Runtime owner: `src/review` and `keryx review` persistence commands.
+- Target orchestration skill: `gdskills/review/flow-reviewer`.
+- Stateless review engine: `gdskills/review/review-orchestrator`.
 - Supporting skills: `flow-orchestrator`, `job-orchestrator`,
   `entity-skill-learner`, `docpack-review`.
 - Supporting modules: `tasks`, `gdskills`, `gdctx`, `memory`, `health`.
@@ -54,7 +56,9 @@ user-level operations:
 | `review status` | Show review package status, coverage, and unresolved decisions. |
 | `review complete` | Mark managed review decisions as recorded. |
 
-The skill surface must support equivalent behavior when invoked by agents:
+The existing skill surface supports equivalent behavior for compatibility. The
+target `flow-reviewer` contract is defined in the
+[Flow Reviewer requirements package](../flow-reviewer/README.md):
 
 ```json
 {
@@ -69,7 +73,8 @@ The skill surface must support equivalent behavior when invoked by agents:
 
 ## Flow Detection
 
-`review-orchestrator` must try to resolve a related flow from:
+The managed review caller, and ultimately `flow-reviewer`, must try to resolve a
+related flow from:
 
 1. explicit `flow_id`;
 2. PR URL stored in `.metaproject/flows/*/flow.json.pr.url`;
@@ -166,8 +171,10 @@ silently treat one narrow reviewer as full review coverage.
 
 ### `review-orchestrator`
 
-`review-orchestrator` owns reviewer selection, report consolidation, managed
-review package creation, and post-flow finding classification.
+`review-orchestrator` owns stateless reviewer selection and report
+consolidation. `flow-reviewer` owns managed review flow creation, per-reviewer
+tasks and history, package lifecycle, and post-flow decisions. Existing
+`review-orchestrator` managed modes are transitional compatibility behavior.
 
 ### `entity-skill-learner`
 
@@ -199,3 +206,5 @@ must not claim checks are green unless health or CI evidence exists.
 - AC6: Lightweight review mode remains available without writing flow artifacts.
 - AC7: Documentation and runtime tests prove managed review does not mutate
   `flow.json` directly.
+- AC8: Target orchestration ownership and migration are documented by the
+  `flow-reviewer` package without overstating current implementation.
