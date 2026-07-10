@@ -18,10 +18,6 @@ The core is deterministic, local, and offline — with zero runtime dependencies
 
 > **Model assets are optional.** Features like semantic memory search, ML-based security detection, and tree-sitter parsing use downloadable models/grammars that are **not bundled and not required**. When an asset is absent, keryx automatically falls back to its deterministic implementation — nothing to configure, nothing breaks.
 
-<p align="center">
-  <img src="docs/assets/keryx-hero.png" alt="keryx — orchestrate AI workflows" width="760">
-</p>
-
 ## Quick Start
 
 ```bash
