@@ -53,7 +53,7 @@
 
 | Фаза | Волна | Таски | Осн. модель | Статус | Ветка/PR | Дата | Заметки |
 |---|---|---|---|---|---|---|---|
-| 1 | W1 Решения | D-01…D-04 | Opus | ⬜ | — | — | — |
+| 1 | W1 Решения | D-01…D-04 | Opus | ✅ | `feature/keryx-harness-impl` | 2026-07-12 | flow 003; 4 ADR + `decision-registry.md` + `research-ledger.md` в `docs/decisions/keryx-harness/`; AC1–AC5 ✅; T9 consistency-review PASS, contradiction-check NO-CONTRADICTION; OPEN-1…OPEN-4 сохранены; frozen requirements пакет не тронут. Health WARN — pre-existing `src/**` churn, не от W1 (docs-only). Осн. модель de-facto: оркестратор+D-02/03/04 — Opus, D-01 — Haiku 4.5. |
 | 2 | W2 Task Manager | TM-01…TM-03 | Opus | ⬜ | — | — | предпосылка для flow-интеграции |
 | 3 | W3 Перенос corpus | EV-01 | Opus | ⬜ | — | — | `src/harness/` → `src/eval/`, освободить `src/harness/` под рантайм |
 | 4 | W4 Контракты | C-01…C-03 | Opus | ⬜ | — | — | реестр + валидатор + фикстур-матрицы |

@@ -1,0 +1,205 @@
+{
+  "schemaVersion": 1,
+  "id": "003",
+  "slug": "keryx-harness-w1-decisions",
+  "title": "Freeze Keryx Harness W1 decisions D-01..D-04 (Release 0 boundary, ownership, security, provider/branch/child)",
+  "status": "in-progress",
+  "createdAt": "2026-07-11T20:08:06.862Z",
+  "updatedAt": "2026-07-11T20:55:49.640Z",
+  "source": {
+    "type": "description",
+    "ref": null
+  },
+  "acChecksum": "sha256:49b2ab825d986446924909e2ad8d838c681f21fea36e7e70b18fdab44f720316",
+  "acConfirmed": {
+    "AC1": {
+      "at": "2026-07-11T20:55:49.424Z",
+      "note": "ADR-0001: R0 offline/read-only boundary + 10 measurable success criteria (PRD+R0-01..03) + 24-item signed table; no unresolved boundary. T9 PASS."
+    },
+    "AC2": {
+      "at": "2026-07-11T20:55:49.481Z",
+      "note": "ADR-0002: Task Manager sole coordinator; 14-row ownership/import matrix, inward ports; contradiction-check vs S-06/R1-03 => NO-CONTRADICTION. T9 PASS."
+    },
+    "AC3": {
+      "at": "2026-07-11T20:55:49.535Z",
+      "note": "ADR-0003: profile/isolation matrix mapped to policy-profile.schema.json (real profileId enums) + S-04/R1-01/M-02; explicit typed fail-closed. T9 PASS."
+    },
+    "AC4": {
+      "at": "2026-07-11T20:55:49.589Z",
+      "note": "ADR-0004: provider/branch/child records linked to real schema $id (S-02/S-08/S-09) + research-ledger; OPEN-1..4 preserved, none guessed. T9 PASS."
+    },
+    "AC5": {
+      "at": "2026-07-11T20:55:49.640Z",
+      "note": "decision-registry: D-01..04 SIGNED; four ADRs mutually consistent & consistent with frozen pkg; docs/requirements unmodified (git clean). T9 PASS."
+    }
+  },
+  "pr": {
+    "url": null
+  },
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Collect remaining context",
+      "kind": "context",
+      "status": "done"
+    },
+    {
+      "id": "T2",
+      "title": "Implement per plan",
+      "kind": "implement",
+      "status": "done"
+    },
+    {
+      "id": "T3",
+      "title": "Add/adjust tests and make them pass",
+      "kind": "test",
+      "status": "done"
+    },
+    {
+      "id": "T4",
+      "title": "Self-review and prepare draft PR",
+      "kind": "review",
+      "status": "done"
+    },
+    {
+      "id": "T5",
+      "title": "D-01: Freeze Release 0 boundary ADR + measurable success criteria + signed decision table",
+      "kind": "docs",
+      "status": "done"
+    },
+    {
+      "id": "T6",
+      "title": "D-02: Freeze single-coordinator ownership/import matrix + contradiction check",
+      "kind": "docs",
+      "status": "done"
+    },
+    {
+      "id": "T7",
+      "title": "D-03: Freeze security profile/isolation matrix + fail-closed decision",
+      "kind": "docs",
+      "status": "done"
+    },
+    {
+      "id": "T8",
+      "title": "D-04: Freeze provider-state/branch/child-wire decision records linked to schemas + research ledger",
+      "kind": "docs",
+      "status": "done"
+    },
+    {
+      "id": "T9",
+      "title": "W1 verification: consistency/contradiction check + architecture/security/contract review tracks",
+      "kind": "review",
+      "status": "done"
+    }
+  ],
+  "history": [
+    {
+      "at": "2026-07-11T20:08:06.862Z",
+      "event": "created"
+    },
+    {
+      "at": "2026-07-11T20:09:01.554Z",
+      "event": "task-added",
+      "detail": "T5: D-01: Freeze Release 0 boundary ADR + measurable success criteria + signed decision table"
+    },
+    {
+      "at": "2026-07-11T20:09:01.608Z",
+      "event": "task-added",
+      "detail": "T6: D-02: Freeze single-coordinator ownership/import matrix + contradiction check"
+    },
+    {
+      "at": "2026-07-11T20:09:01.658Z",
+      "event": "task-added",
+      "detail": "T7: D-03: Freeze security profile/isolation matrix + fail-closed decision"
+    },
+    {
+      "at": "2026-07-11T20:09:01.709Z",
+      "event": "task-added",
+      "detail": "T8: D-04: Freeze provider-state/branch/child-wire decision records linked to schemas + research ledger"
+    },
+    {
+      "at": "2026-07-11T20:09:01.759Z",
+      "event": "task-added",
+      "detail": "T9: W1 verification: consistency/contradiction check + architecture/security/contract review tracks"
+    },
+    {
+      "at": "2026-07-11T20:11:16.530Z",
+      "event": "frozen",
+      "detail": "5 criteria; checksum recorded"
+    },
+    {
+      "at": "2026-07-11T20:11:16.587Z",
+      "event": "started"
+    },
+    {
+      "at": "2026-07-11T20:11:39.064Z",
+      "event": "task-done",
+      "detail": "T1: Collect remaining context"
+    },
+    {
+      "at": "2026-07-11T20:15:36.081Z",
+      "event": "task-done",
+      "detail": "T5: D-01: Freeze Release 0 boundary ADR + measurable success criteria + signed decision table"
+    },
+    {
+      "at": "2026-07-11T20:22:14.540Z",
+      "event": "task-done",
+      "detail": "T6: D-02: Freeze single-coordinator ownership/import matrix + contradiction check"
+    },
+    {
+      "at": "2026-07-11T20:22:14.595Z",
+      "event": "task-done",
+      "detail": "T7: D-03: Freeze security profile/isolation matrix + fail-closed decision"
+    },
+    {
+      "at": "2026-07-11T20:22:14.647Z",
+      "event": "task-done",
+      "detail": "T8: D-04: Freeze provider-state/branch/child-wire decision records linked to schemas + research ledger"
+    },
+    {
+      "at": "2026-07-11T20:26:21.918Z",
+      "event": "task-done",
+      "detail": "T9: W1 verification: consistency/contradiction check + architecture/security/contract review tracks"
+    },
+    {
+      "at": "2026-07-11T20:26:21.974Z",
+      "event": "task-done",
+      "detail": "T2: Implement per plan"
+    },
+    {
+      "at": "2026-07-11T20:26:22.025Z",
+      "event": "task-done",
+      "detail": "T3: Add/adjust tests and make them pass"
+    },
+    {
+      "at": "2026-07-11T20:26:22.076Z",
+      "event": "task-done",
+      "detail": "T4: Self-review and prepare draft PR"
+    },
+    {
+      "at": "2026-07-11T20:55:49.424Z",
+      "event": "ac-confirmed",
+      "detail": "AC1: ADR-0001: R0 offline/read-only boundary + 10 measurable success criteria (PRD+R0-01..03) + 24-item signed table; no unresolved boundary. T9 PASS."
+    },
+    {
+      "at": "2026-07-11T20:55:49.481Z",
+      "event": "ac-confirmed",
+      "detail": "AC2: ADR-0002: Task Manager sole coordinator; 14-row ownership/import matrix, inward ports; contradiction-check vs S-06/R1-03 => NO-CONTRADICTION. T9 PASS."
+    },
+    {
+      "at": "2026-07-11T20:55:49.535Z",
+      "event": "ac-confirmed",
+      "detail": "AC3: ADR-0003: profile/isolation matrix mapped to policy-profile.schema.json (real profileId enums) + S-04/R1-01/M-02; explicit typed fail-closed. T9 PASS."
+    },
+    {
+      "at": "2026-07-11T20:55:49.589Z",
+      "event": "ac-confirmed",
+      "detail": "AC4: ADR-0004: provider/branch/child records linked to real schema $id (S-02/S-08/S-09) + research-ledger; OPEN-1..4 preserved, none guessed. T9 PASS."
+    },
+    {
+      "at": "2026-07-11T20:55:49.640Z",
+      "event": "ac-confirmed",
+      "detail": "AC5: decision-registry: D-01..04 SIGNED; four ADRs mutually consistent & consistent with frozen pkg; docs/requirements unmodified (git clean). T9 PASS."
+    }
+  ]
+}
