@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "reviewId": "2026-07-11-keryx-project-agent-harness-remediation-1",
+  "mode": "review-flow",
+  "status": "draft",
+  "target": {"kind": "path", "ref": "/Users/tsaitler.aleksandr/goodea/goodpro-manager/docs/requirements/keryx-project-agent-harness"},
+  "managedReview": {
+    "sourceReview": "/Users/tsaitler.aleksandr/goodea/goodpro-manager/.metaproject/reviews/2026-07-10-review-flow-users-tsaitler-aleksandr-goodea-goodpro-",
+    "iteration": 1,
+    "sourceImmutable": true
+  },
+  "artifacts": {
+    "scope": ".metaproject/reviews/2026-07-11-keryx-project-agent-harness-remediation-1/scope.md",
+    "coverage": ".metaproject/reviews/2026-07-11-keryx-project-agent-harness-remediation-1/coverage.md",
+    "report": ".metaproject/reviews/2026-07-11-keryx-project-agent-harness-remediation-1/report.md",
+    "findings": ".metaproject/reviews/2026-07-11-keryx-project-agent-harness-remediation-1/findings.json",
+    "decisions": ".metaproject/reviews/2026-07-11-keryx-project-agent-harness-remediation-1/decisions.md",
+    "learning": ".metaproject/reviews/2026-07-11-keryx-project-agent-harness-remediation-1/learning.md"
+  },
+  "reviewTracks": [
+    {"reviewer": "docpack-completeness", "status": "run"},
+    {"reviewer": "contract-schema-quality", "status": "run"},
+    {"reviewer": "architecture-coordinator-ownership", "status": "run"},
+    {"reviewer": "security-boundaries", "status": "run"},
+    {"reviewer": "testing-replay", "status": "run"},
+    {"reviewer": "gherkin-traceability", "status": "run"},
+    {"reviewer": "strict-synthesis", "status": "run"}
+  ],
+  "createdAt": "2026-07-11T00:00:00Z",
+  "updatedAt": "2026-07-11T00:00:00Z"
+}

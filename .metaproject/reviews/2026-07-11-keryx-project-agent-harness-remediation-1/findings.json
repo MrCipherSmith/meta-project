@@ -1,0 +1,58 @@
+[
+  {
+    "id": "R1-003",
+    "severity": "P0",
+    "title": "Draft 2020-12 and semantic validation evidence is unavailable",
+    "sourceFindingIds": ["S-02", "S-07", "S-11"],
+    "file": "docs/requirements/keryx-project-agent-harness/schemas/fixtures/fixture-matrix.json",
+    "line_or_section": "semanticOnly; schema-validation-report.md",
+    "problem": "The package relies on a pinned Gherkin parser, Draft 2020-12 keywords, cross-file references, and semantic invariants, but the reports record parser/standards validation as unavailable and `$ref`/semantic validation as PENDING.",
+    "evidence": "schema-validation-report.md reports JSON parse PASS but Draft 2020-12 capability NOT RUN and `$ref` resolution/semantic fixtures PENDING; the bounded Gherkin check could not run the required parser. The matrix lists causal ordering, approval consumption, replay side-effect prohibition, budget conservation, and Task Manager ownership as semanticOnly.",
+    "impact": "A JSON parse pass cannot establish enforceable completion, approval, replay, or state-transition contracts. Completion policy blocks readiness on this gap.",
+    "suggested_fix": "Add pinned Gherkin and Draft 2020-12 validators plus a deterministic semantic runner; persist parser/validator versions, resolved refs, fixture hashes, and failures. Keep the package draft until they run.",
+    "verification": "Run the parser and validate all schemas/catalogs, then execute terminal-state, causal-reference, approval, replay, budget, and ownership checks.",
+    "status": "open"
+  },
+  {
+    "id": "R1-004",
+    "severity": "P1",
+    "title": "Harness orchestration ownership remains ambiguous",
+    "sourceFindingIds": ["S-06", "S-10"],
+    "file": "docs/requirements/keryx-project-agent-harness/specification.md",
+    "line_or_section": "Planned Module Map; Orchestration Model; Canonical Ownership",
+    "problem": "D2 makes Task Manager the sole managed-flow owner, but the module map still reserves `src/harness/orchestration/` for plan/execute/review/fix coordination and the lifecycle describes follow-up-loop behavior. No hard import/authority boundary separates non-managed turns.",
+    "evidence": "The ownership table forbids a second managed loop, while the module map names an orchestration module and the orchestration section lists plan/execute/verify, parallel wave, and review/fix modes. No forbidden-call rule is machine-checkable.",
+    "impact": "Implementers can create a second scheduler or completion authority, recreating S-06 despite D7.",
+    "suggested_fix": "Rename the harness module to execution primitives/turn control, state managed orchestration is an external adapter only, and add a machine-checkable import/ownership matrix with lease semantics.",
+    "verification": "Architecture review confirms one coordinator, one completion evaluator, and no harness write path to managed-flow state.",
+    "status": "open"
+  },
+  {
+    "id": "R1-005",
+    "severity": "P1",
+    "title": "Deprecated child-task schema remains in normative fixture coverage",
+    "sourceFindingIds": ["S-08"],
+    "file": "docs/requirements/keryx-project-agent-harness/schemas/fixtures/fixture-matrix.json",
+    "line_or_section": "harness-agent-task.schema.json row; README schema index",
+    "problem": "`harness-agent-task.schema.json` is deprecated, but it still has positive and negative fixture entries and is listed with active schema families. No concrete gate proves new transports cannot accept it.",
+    "evidence": "The schema has `deprecated: true`, while fixture-matrix.json maps both positive and negative cases and README lists it as a package schema. The canonical extension is separate, but no validator rule rejects deprecated-task persistence.",
+    "impact": "Workers can continue treating the deprecated shape as a valid child contract, preserving S-08's second source of truth.",
+    "suggested_fix": "Move it to a migration-only catalog, prohibit it in transport/persistence validation, and add a negative fixture for new dispatch; retain only adapter migration tests.",
+    "verification": "Contract review confirms canonical subagent-dispatch/result parity and a failing negative test for deprecated-task use.",
+    "status": "open"
+  },
+  {
+    "id": "R1-007",
+    "severity": "P1",
+    "title": "Schema compatibility policy is not machine-checkable",
+    "sourceFindingIds": ["S-02", "S-11"],
+    "file": ".metaproject/jobs/requirements-remediation--keryx-project-agent-harness/contract-inventory.md",
+    "line_or_section": "Normative Rules: version compatibility",
+    "problem": "The inventory promises additive minor versions, incompatible major versions, compatibility ranges, and persistence of original versions, while schemas only constrain integer `schemaVersion` to const 1 and no compatibility registry maps accepted ranges or migration functions.",
+    "evidence": "contract-inventory.md requires readers to accept declared compatibility ranges and write the newest version; the schema set has no declared range or registry entry beyond `schemaVersion: 1`, and migration fixtures are absent.",
+    "impact": "A future schema change can silently break replay/session opening or rewrite history without a deterministic compatibility decision.",
+    "suggested_fix": "Add a version registry with schema id, stored version, accepted range, migration id, and rejection behavior; align schema fields or scope semver compatibility to an implementation artifact.",
+    "verification": "Validate one old-version migration and one incompatible-version rejection for every durable contract family.",
+    "status": "open"
+  }
+]

@@ -1,0 +1,74 @@
+{
+  "phase": "COMPLETION",
+  "intent": "custom",
+  "job_name": "requirements-remediation--keryx-project-agent-harness",
+  "orchestrator": "job-orchestrator+docpack-orchestrator",
+  "started_at": "2026-07-10T20:50:00Z",
+  "metrics_enabled": true,
+  "settings": {
+    "create_pr": false,
+    "auto_create_pr": false,
+    "run_interview": false,
+    "plan_approval": true,
+    "run_final_checks": true,
+    "publish_pr_review_report": "none",
+    "run_deploy": false,
+    "run_changelog": false,
+    "max_review_iterations": 2,
+    "log_prompt_sizes": true,
+    "skip_confirmation_worker_agents": true
+  },
+  "context": {
+    "project_dir": "/Users/tsaitler.aleksandr/goodea/goodpro-manager",
+    "target_package": "docs/requirements/keryx-project-agent-harness",
+    "source_review": ".metaproject/reviews/2026-07-10-review-flow-users-tsaitler-aleksandr-goodea-goodpro-",
+    "base_branch": "main"
+  },
+  "writable_paths": [
+    "docs/requirements/keryx-project-agent-harness/**",
+    "docs/requirements/roadmap.md",
+    ".metaproject/jobs/requirements-remediation--keryx-project-agent-harness/**",
+    "new managed review package for re-review"
+  ],
+  "finding_baseline": {
+    "BLOCKER": ["S-01", "S-02", "S-03", "S-04", "S-06", "S-07", "S-12"],
+    "P0": ["S-05", "S-08", "S-10", "S-11"],
+    "P1": ["S-09"]
+  },
+  "decision_baseline": ["D1", "D2", "D3", "D4", "D5", "D6", "D7"],
+  "context_doc": {
+    "path": ".metaproject/jobs/requirements-remediation--keryx-project-agent-harness/context_v1.md",
+    "version": 1,
+    "status": "collected"
+  },
+  "plan": {
+    "waves": [
+      { "id": "w0", "title": "Job scaffolding", "phase": "0", "status": "completed" },
+      { "id": "w1", "title": "Evidence & traceability", "phase": "1", "status": "completed" },
+      { "id": "w2", "title": "Status/Scope/SLO (README+roadmap+PRD)", "phase": "2", "status": "completed" },
+      { "id": "w3", "title": "Contracts & schemas + inventory + validation", "phase": "4,5-schema,6-schema,11", "status": "completed" },
+      { "id": "w4", "title": "Architecture/ownership + recovery/replay state machines", "phase": "3,6", "status": "completed" },
+      { "id": "w5", "title": "Child-agent cleanup + security contracts", "phase": "5,7", "status": "completed" },
+      { "id": "w6", "title": "Gherkin & traceability", "phase": "8", "status": "completed" },
+      { "id": "w7", "title": "Implementation plan recomposition + research ledger", "phase": "9,10", "status": "completed" },
+      { "id": "w8", "title": "Verification", "phase": "11", "status": "completed" },
+      { "id": "w9", "title": "Review loop (<=2 iterations)", "phase": "12", "status": "completed" },
+      { "id": "w10", "title": "Completion + handoff", "phase": "completion", "status": "completed" }
+    ],
+    "current_wave": "w10"
+  },
+  "findings_status": {
+    "S-01": "resolved", "S-02": "resolved", "S-03": "resolved", "S-04": "resolved",
+    "S-05": "resolved", "S-06": "resolved", "S-07": "resolved", "S-08": "resolved",
+    "S-09": "resolved", "S-10": "resolved", "S-11": "resolved", "S-12": "resolved"
+  },
+  "dispatches": [],
+  "final_status": "completed",
+  "review": {
+    "iterations": 2,
+    "final_review": ".metaproject/reviews/2026-07-11-keryx-project-agent-harness-remediation-2/",
+    "verdict": "PASS",
+    "remaining_blocker_p0_p1": 0
+  },
+  "metrics_report": ".metaproject/jobs/requirements-remediation--keryx-project-agent-harness/metrics/run-2026-07-11.md"
+}
