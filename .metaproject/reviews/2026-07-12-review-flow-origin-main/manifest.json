@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "reviewId": "2026-07-12-review-flow-origin-main",
+  "mode": "review-flow",
+  "status": "closed",
+  "target": {
+    "kind": "branch",
+    "ref": "origin/main"
+  },
+  "artifacts": {
+    "scope": ".metaproject/reviews/2026-07-12-review-flow-origin-main/scope.md",
+    "coverage": ".metaproject/reviews/2026-07-12-review-flow-origin-main/coverage.md",
+    "report": ".metaproject/reviews/2026-07-12-review-flow-origin-main/report.md",
+    "findings": ".metaproject/reviews/2026-07-12-review-flow-origin-main/findings.json",
+    "learning": ".metaproject/reviews/2026-07-12-review-flow-origin-main/learning.md",
+    "decisions": ".metaproject/reviews/2026-07-12-review-flow-origin-main/decisions.md"
+  },
+  "coverage": [
+    {
+      "reviewer": "review-logic",
+      "status": "run",
+      "reason": "selected for managed review package"
+    },
+    {
+      "reviewer": "review-architecture",
+      "status": "run",
+      "reason": "selected for managed review package"
+    },
+    {
+      "reviewer": "review-security-code",
+      "status": "run",
+      "reason": "selected for managed review package"
+    },
+    {
+      "reviewer": "review-performance",
+      "status": "run",
+      "reason": "selected for managed review package"
+    },
+    {
+      "reviewer": "review-testing-practices",
+      "status": "run",
+      "reason": "selected for managed review package"
+    },
+    {
+      "reviewer": "docpack-review",
+      "status": "run",
+      "reason": "selected for managed review package"
+    }
+  ],
+  "createdAt": "2026-07-12T22:11:22.687Z",
+  "updatedAt": "2026-07-12T22:11:22.748Z"
+}

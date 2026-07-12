@@ -21,6 +21,9 @@ intent, implementation plans, and release evidence do not get mixed together.
   their verified implementation state.
 - [Managed Review Feedback Loop](requirements/managed-review-feedback-loop/README.md)
   — requirements and contracts for managed review packages.
+- [Execution Observability](requirements/keryx-execution-observability/README.md)
+  — implemented runtime capability for provenance-aware execution metrics;
+  paired performance benchmarking remains future work.
 
 ## Plans and reports
 
@@ -30,14 +33,16 @@ intent, implementation plans, and release evidence do not get mixed together.
   — verification results, release blockers, and the prioritized cleanup plan.
 - [Implementation spec](report/release-readiness-2026-07-10/implementation-spec.md)
   — approved scope and acceptance criteria for this documentation pass.
+- [Project audit — 2026-07-13](report/project-audit-2026-07-13/README.md)
+  — current documentation/code validation and prioritized remediation plan.
 
 ## Documentation policy
 
-- Repository documentation is English-only.
-- `docs/docs/` describes current behavior and must be verified against source or
-  live CLI help.
-- `docs/requirements/` describes intended behavior and must label implementation
-  status explicitly.
+- `docs/docs/` and `docs/report/` are English current-behavior/evidence
+  documentation and must be verified against source or live CLI help.
+- `docs/requirements/` describes intended behavior, must label implementation
+  status explicitly, and may contain user-language or AI-oriented views when a
+  package declares its canonical version and the views' normative scope.
 - Generated `.metaproject` artifacts are refreshed through the project CLI; raw
   and reproducible outputs remain ignored according to the managed `.gitignore`
   policy.

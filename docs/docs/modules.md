@@ -1,5 +1,15 @@
 # Module Reference
 
+## Execution Metrics (`src/metrics/`)
+
+The `metrics` command is an implemented cross-cutting observability capability,
+not a default product module. It collects versioned execution-run records from
+events, records provenance and reliability, validates/rebuilds records,
+maintains a freshness-aware latest pointer, compares compatible runs, and emits
+lightweight reviewer plans or paired-benchmark templates. It does not claim a
+Keryx/no-Keryx performance improvement until a validated paired benchmark has
+been collected.
+
 `keryx` is a Bun/TypeScript CLI that scaffolds and maintains a per-project
 `.metaproject/` workspace of agent-facing knowledge, quality signals, and managed
 work. It is organized as a thin dispatcher (`cli.ts`) routing to a set of loosely

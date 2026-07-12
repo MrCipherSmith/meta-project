@@ -1,5 +1,5 @@
 # Keryx Project Agent Harness Requirements Package
-Version: 0.7.0
+Version: 0.8.0
 
 ## Purpose
 
@@ -19,14 +19,11 @@ project brain.
 
 ## Status
 
-`specification ready — implementation handoff`. The package is contract-complete
-for a later implementation flow: managed review iteration 2 reports zero
-BLOCKER/P0/P1 findings and all documentation/fixture gates pass. No runtime
-implementation is claimed by this package; all runtime behavior is future work.
-
-The implementation handoff is recorded in
-[flow-orchestrator-handoff](../../../.metaproject/jobs/requirements-remediation--keryx-project-agent-harness/flow-orchestrator-handoff.md)
-and remains subject to the runtime evidence gates listed there.
+`specification ready — Release 0 prerequisites pending`. The package is
+contract-complete for a later implementation flow, but no Harness runtime slice
+is implemented. The authoritative committed handoff is
+[implementation-handoff.md](implementation-handoff.md); it names the remaining
+preconditions and evidence gates for starting Release 0.
 
 ## Release Boundaries
 
@@ -212,7 +209,7 @@ These are contract ceilings, not benchmarks — the implementation may be faster
   - [Fixture matrix](schemas/fixtures/fixture-matrix.json)
   - [Positive contract catalog](schemas/fixtures/positive-contract-catalog.json)
   - [Negative contract catalog](schemas/fixtures/negative-contract-catalog.json)
-  - [Implementation handoff](../../../.metaproject/jobs/requirements-remediation--keryx-project-agent-harness/flow-orchestrator-handoff.md)
+  - [Implementation handoff](implementation-handoff.md)
 
 ## Scope
 

@@ -1,0 +1,25 @@
+# Reviewer Coverage
+
+reviewer: review-logic
+status: run
+reason: selected for managed review package
+
+reviewer: review-architecture
+status: run
+reason: selected for managed review package
+
+reviewer: review-security-code
+status: run
+reason: selected for managed review package
+
+reviewer: review-performance
+status: run
+reason: selected for managed review package
+
+reviewer: review-testing-practices
+status: run
+reason: selected for managed review package
+
+reviewer: docpack-review
+status: run
+reason: selected for managed review package

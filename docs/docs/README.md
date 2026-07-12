@@ -1,6 +1,6 @@
 # keryx — Developer Documentation
 
-**keryx** is a single-binary Bun/TypeScript CLI whose one job is to scaffold and maintain a per-project `.metaproject/` workspace — a file-based "agent operating system" that materializes a repo's structure, quality, tests, conventions, and history as durable Markdown plus machine-readable JSON. It has **no database and no always-on HTTP server**; everything is local-first and offline by default, and external tools (git, gh, eslint, tsc) are optional and degrade gracefully. The CLI performs deterministic mechanics (scaffold, scan, score, checksum, render); the "thinking" is delegated to the agent skills the workspace ships. Its nine default product modules are loosely coupled through files under `.metaproject/data/` rather than direct calls, while MCP remains opt-in.
+**keryx** is a single-binary Bun/TypeScript CLI whose one job is to scaffold and maintain a per-project `.metaproject/` workspace — a file-based "agent operating system" that materializes a repo's structure, quality, tests, conventions, and history as durable Markdown plus machine-readable JSON. It has **no database and no always-on HTTP server**; everything is local-first and offline by default, while MCP HTTP/SSE is an explicit opt-in transport. External tools (git, gh, eslint, tsc) are optional and degrade gracefully. The CLI performs deterministic mechanics (scaffold, scan, score, checksum, render); the "thinking" is delegated to the agent skills the workspace ships. Its nine default product modules are loosely coupled through files under `.metaproject/data/` rather than direct calls, while MCP remains opt-in.
 
 ## Quick start
 
@@ -23,6 +23,10 @@ keryx init
 - **[modules.md](./modules.md)** — One section per module: purpose, CLI surface, key files, mechanics, the `.metaproject/` paths it reads/writes, and integrations.
 - **[cli-reference.md](./cli-reference.md)** — Complete reference for every command, subcommand, flag, and exit code.
 - **[workspace-and-lifecycle.md](./workspace-and-lifecycle.md)** — The `.metaproject/` directory contract, source-of-truth vs generated `data/`, the manifest, agent entrypoints, and the `init`/`update` lifecycle.
+- **Execution Metrics** — the implemented `keryx metrics` surface records
+  provenance-aware execution runs, validates/rebuilds records, compares runs,
+  and creates paired benchmark templates. See [cli-reference.md](./cli-reference.md)
+  and [modules.md](./modules.md).
 
 ## Modules at a glance
 

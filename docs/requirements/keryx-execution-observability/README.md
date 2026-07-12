@@ -1,13 +1,13 @@
 # Keryx Execution Observability Requirements Package
-Version: 0.2.0
+Version: 0.3.0
 
 ## Status
 
-Runtime capability implemented on the feature branch. The provenance,
+Runtime capability implemented in the current codebase. The provenance,
 event-accounting, artifact-lifecycle, hook, baseline, lightweight, and
-benchmark-template contracts are backed by source and focused tests. No paired
-Keryx/no-Keryx performance result has been run or claimed; representative task
-selection remains a product decision.
+benchmark-template contracts are backed by `src/metrics/`, the `metrics` CLI
+surface, and focused tests. No paired Keryx/no-Keryx performance result has been
+run or claimed; representative task selection remains a product decision.
 
 ## Purpose
 

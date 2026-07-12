@@ -40,6 +40,7 @@ code `1`.
 | `memory` | Store and search long-term project memory. |
 | `flow` | Agent-first work lifecycle (Task Manager). |
 | `review` | Create and complete durable managed review packages. |
+| `metrics` | Collect, validate, inspect, compare, and benchmark provenance-aware execution runs. |
 | `rules` | Sync/distill root AGENTS.md/CLAUDE.md into project rules. |
 | `standard` | Validate the workspace against the Metaproject Standard and report capabilities. |
 | `agents` | Manage the optional global Metaproject bootstrap for agent runtimes. |
@@ -59,6 +60,30 @@ sanctioned exception is **`mcp serve`**, which hard-fails with an actionable
 message when the optional MCP SDK is not installed.
 
 ---
+
+## metrics
+
+Execution Metrics records provenance-aware execution data without turning it
+into an implementation requirement for every read-only command. The command
+works with versioned run records and a `latest` pointer; it does not fabricate
+tokens, cost, or timing that the runtime did not observe.
+
+```
+keryx metrics status
+keryx metrics collect --events <events.json> [--run-id <id>] [--skill <name>]
+keryx metrics validate <run.json>
+keryx metrics latest
+keryx metrics show <run-id>
+keryx metrics compare <run-a> <run-b> [--json]
+keryx metrics rebuild --source <events.json>
+keryx metrics plan --profile lightweight [--changed <file,...>]
+keryx metrics benchmark init --tasks <task-a,task-b,task-c> --out <manifest.json>
+keryx metrics benchmark validate <manifest.json>
+```
+
+`benchmark init` creates a paired-run template; it is not a benchmark result.
+Use `validate` to check a collected run record and `compare` only for compatible
+provenance records.
 
 ## init
 

@@ -2,7 +2,7 @@
 
 ## System overview
 
-**keryx** is a single-binary Bun/TypeScript command-line tool (`keryx`, v0.1.0, ESM). It has **no database, no HTTP server, and no network service**. Its one job is to **scaffold and maintain a per-project `.metaproject/` workspace** — a file-based "agent operating system" that makes an AI coding agent more effective and more governable inside an existing repository.
+**keryx** is a single-binary Bun/TypeScript command-line tool (`keryx`, v0.1.0, ESM). It has **no database and no always-on/default HTTP server or network service**. The optional MCP HTTP/SSE transport is explicitly enabled and separate from the local deterministic core. Its one job is to **scaffold and maintain a per-project `.metaproject/` workspace** — a file-based "agent operating system" that makes an AI coding agent more effective and more governable inside an existing repository.
 
 The core idea: instead of an agent re-deriving a project's structure, quality, tests, conventions, and history from raw files on every task, keryx materializes that knowledge as durable, human-editable Markdown plus machine-readable JSON artifacts under `.metaproject/`, and installs routing rules so any agent that reads the repo's `AGENTS.md`/`CLAUDE.md` is directed to consult that workspace first.
 
@@ -62,6 +62,7 @@ Two invariants define the system and recur across every module:
 | **memory** | `src/memory/` | `memory` | Long-term typed project memory (lessons/decisions/constraints); deterministic search, dedup, ingest, reflect. |
 | **flow** | `src/flow/` | `flow` (manifest id `tasks`) | Agent-first work lifecycle: scaffold a "flow" package, drive a status state machine, enforce completion gates. |
 | **review** | `src/review/`, `src/commands/review.ts` | `review` | Managed review packages: standalone, flow-attached, or report-ingested review state with explicit coverage, findings, decisions, learning handoff, and completion validation. |
+| **metrics** | `src/metrics/`, `src/commands/metrics.ts` | `metrics` | Provenance-aware execution-run records: collect, validate, inspect, compare, rebuild, select a lightweight plan, and create/validate paired benchmark templates. |
 | **security** | `src/security/` | `security` | Agent input/output + artifact security: deterministic secret/PII/injection/egress detectors, policy resolution, redaction, and a pass/needs-approval/fail gate (`status`/`scan`/`check-input`/`check-output`/`redact`/`report`/`policy`); MCP-manifest scanning (`scan-mcp`); merge-safe agent security-hook install (`hooks`); labeled-corpus FN-rate evaluation (`eval`, optionally `--with-model`); incident log (`incidents`); plus a config-checksum self-protect tamper guard. |
 | **orientation** | `src/ctx/orient.ts`, `src/ctx/orient-runtimes.ts`, `src/commands/orient.ts` | `orient` | Build a bounded graph + wiki startup context and install/remove compatible turn-start hooks for Claude, Codex, and Cursor. |
 | **capability** | `src/capability/` | — (substrate) | The opt-in seam every feature layer instantiates: `resolveCapability(cwd, spec)` gates on manifest + optional dep + verified asset, returns an adapter or `null`. Never throws. |

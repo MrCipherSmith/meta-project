@@ -1,0 +1,90 @@
+[
+  {
+    "id": "F-001",
+    "severity": "major",
+    "reviewer": "review-orchestrator",
+    "summary": "[major] Enforced flow completion accepts `needs-approval`",
+    "classification": "skill_learning_candidate",
+    "flow_relevance": "standalone_review"
+  },
+  {
+    "id": "F-002",
+    "severity": "major",
+    "reviewer": "review-orchestrator",
+    "summary": "[major] Flow security evidence is missing-or-stale fail-open",
+    "classification": "skill_learning_candidate",
+    "flow_relevance": "standalone_review"
+  },
+  {
+    "id": "F-003",
+    "severity": "major",
+    "reviewer": "review-orchestrator",
+    "summary": "[major] Invalid security config can downgrade enforcement",
+    "classification": "skill_learning_candidate",
+    "flow_relevance": "standalone_review"
+  },
+  {
+    "id": "F-004",
+    "severity": "major",
+    "reviewer": "review-orchestrator",
+    "summary": "[major] MCP resources allow symlink escape and bypass redaction",
+    "classification": "skill_learning_candidate",
+    "flow_relevance": "standalone_review"
+  },
+  {
+    "id": "F-005",
+    "severity": "minor",
+    "reviewer": "review-orchestrator",
+    "summary": "[minor] MCP boundary documentation omits approved direct imports",
+    "classification": "skill_learning_candidate",
+    "flow_relevance": "standalone_review"
+  },
+  {
+    "id": "F-006",
+    "severity": "minor",
+    "reviewer": "review-orchestrator",
+    "summary": "[minor] MCP HTTP transport is not constrained to loopback",
+    "classification": "skill_learning_candidate",
+    "flow_relevance": "standalone_review"
+  },
+  {
+    "id": "F-007",
+    "severity": "major",
+    "reviewer": "review-orchestrator",
+    "summary": "[major] Health can hide a globally failing TypeScript check",
+    "classification": "skill_learning_candidate",
+    "flow_relevance": "standalone_review"
+  },
+  {
+    "id": "F-008",
+    "severity": "minor",
+    "reviewer": "review-orchestrator",
+    "summary": "[minor] Coverage and Health gating are not enforced by CI",
+    "classification": "skill_learning_candidate",
+    "flow_relevance": "standalone_review"
+  },
+  {
+    "id": "F-009",
+    "severity": "major",
+    "reviewer": "review-orchestrator",
+    "summary": "[major] Requirements roadmap omitted the Harness prerequisite",
+    "classification": "skill_learning_candidate",
+    "flow_relevance": "standalone_review"
+  },
+  {
+    "id": "F-010",
+    "severity": "major",
+    "reviewer": "review-orchestrator",
+    "summary": "[major] Requirements package referenced an uncommitted handoff",
+    "classification": "skill_learning_candidate",
+    "flow_relevance": "standalone_review"
+  },
+  {
+    "id": "F-011",
+    "severity": "minor",
+    "reviewer": "review-orchestrator",
+    "summary": "[minor] Current-behavior documentation omitted Execution Metrics",
+    "classification": "skill_learning_candidate",
+    "flow_relevance": "standalone_review"
+  }
+]
