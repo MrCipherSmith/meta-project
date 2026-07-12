@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://keryx.dev/schemas/pairing-request/1.0.0",
+  "title": "Pairing Request",
+  "description": "One-time, short-lived local pairing request. The code is opaque and never a bot token.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "pairingId", "codeHash", "expiresAt", "installationId", "correlationId"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "pairingId": { "type": "string", "format": "uuid" },
+    "codeHash": { "type": "string", "pattern": "^[A-Fa-f0-9]{64}$" },
+    "expiresAt": { "type": "string", "format": "date-time" },
+    "installationId": { "type": "string", "format": "uuid" },
+    "correlationId": { "type": "string", "format": "uuid" },
+    "allowedUserIds": { "type": "array", "items": { "type": "integer" }, "uniqueItems": true }
+  }
+}

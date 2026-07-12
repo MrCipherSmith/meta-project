@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://keryx.dev/schemas/approval-callback/1.0.0",
+  "title": "Approval Callback",
+  "description": "Opaque one-time callback reference; it contains no raw action arguments or secrets.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "approvalId", "bindingId", "decision", "expiresAt", "correlationId"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "approvalId": { "type": "string", "format": "uuid" },
+    "bindingId": { "type": "string", "format": "uuid" },
+    "decision": { "enum": ["approve", "reject"] },
+    "expiresAt": { "type": "string", "format": "date-time" },
+    "correlationId": { "type": "string", "format": "uuid" },
+    "callbackNonceHash": { "type": "string", "pattern": "^[A-Fa-f0-9]{64}$" }
+  }
+}

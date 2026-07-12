@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://keryx.dev/schemas/outbound-notification/1.0.0",
+  "title": "Outbound Notification",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "notificationId", "bindingId", "category", "severity", "summary", "correlationId", "createdAt"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "notificationId": { "type": "string", "format": "uuid" },
+    "bindingId": { "type": "string", "format": "uuid" },
+    "category": { "enum": ["status", "progress", "error", "approval", "cancellation", "connection"] },
+    "severity": { "enum": ["info", "warning", "error"] },
+    "summary": { "type": "string", "minLength": 1, "maxLength": 2048 },
+    "correlationId": { "type": "string", "format": "uuid" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "expiresAt": { "type": "string", "format": "date-time" },
+    "approval": { "$ref": "approval-callback.schema.json" }
+  }
+}
