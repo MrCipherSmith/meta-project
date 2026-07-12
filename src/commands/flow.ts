@@ -14,7 +14,7 @@ import {
   symbols,
   nextSteps,
 } from "../lib/ui";
-import type { FlowService, FlowStatus, TaskKind } from "../flow/types";
+import type { FlowService, FlowStatus, TaskDisposition, TaskKind } from "../flow/types";
 
 // Colorize a flow status: terminal states green/red, active states cyan,
 // pre-work states yellow.
@@ -168,13 +168,18 @@ async function runTask(args: string[]): Promise<void> {
     const id = requireId(args.slice(1));
     const title = optionValue(args, "--title");
     if (!title) {
-      throw new Error('Usage: keryx flow task add <id> --title "<t>" [--kind context|implement|test|review|docs]');
+      throw new Error('Usage: keryx flow task add <id> --title "<t>" [--kind context|implement|test|review|docs] [--depends T1,T2]');
     }
+    const dependsRaw = optionValue(args, "--depends");
+    const dependsOn = dependsRaw
+      ? dependsRaw.split(",").map((value) => value.trim().toUpperCase()).filter(Boolean)
+      : undefined;
     const flow = await getService().taskAdd({
       cwd: process.cwd(),
       id,
       title,
       kind: optionValue(args, "--kind") as TaskKind | undefined,
+      dependsOn,
     });
     console.log(`  ${style.green(symbols.ok)} Added ${style.bold(flow.tasks[flow.tasks.length - 1]?.id ?? "task")} to flow ${flow.id}`);
     return;
@@ -183,9 +188,14 @@ async function runTask(args: string[]): Promise<void> {
     const id = args[1];
     const taskId = args[2];
     if (!id || !taskId) {
-      throw new Error("Usage: keryx flow task done <id> <taskId>");
+      throw new Error("Usage: keryx flow task done <id> <taskId> [--disposition completed|blocked|failed|skipped]");
     }
-    const flow = await getService().taskDone({ cwd: process.cwd(), id, taskId });
+    const flow = await getService().taskDone({
+      cwd: process.cwd(),
+      id,
+      taskId,
+      disposition: optionValue(args, "--disposition") as TaskDisposition | undefined,
+    });
     const done = flow.tasks.filter((task) => task.status === "done").length;
     console.log(`  ${style.green(symbols.ok)} Task ${style.bold(taskId.toUpperCase())} done ${style.dim(`(${done}/${flow.tasks.length})`)}`);
     return;
@@ -316,8 +326,8 @@ function printHelp(): void {
     "keryx flow status <id>",
     "keryx flow freeze <id>",
     "keryx flow start <id>",
-    'keryx flow task add <id> --title "<t>" [--kind context|implement|test|review|docs]',
-    "keryx flow task done <id> <taskId>",
+    'keryx flow task add <id> --title "<t>" [--kind context|implement|test|review|docs] [--depends T1,T2]',
+    "keryx flow task done <id> <taskId> [--disposition completed|blocked|failed|skipped]",
     'keryx flow ac confirm <id> <ACn> [--note "<evidence>"]',
     'keryx flow ac update <id> --reason "<why>"',
     "keryx flow implemented <id> --pr <url>",

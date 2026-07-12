@@ -10,11 +10,57 @@ export type FlowStatus =
 export type TaskKind = "context" | "implement" | "test" | "review" | "docs";
 export type TaskStatus = "todo" | "in-progress" | "done";
 
+// --- Task Manager evolution (TM-01: schemaVersion 2 additive fields) ---
+// Every field below is OPTIONAL; no existing v1 field is removed or made
+// required. See docs/decisions/keryx-harness/TM-01-task-manager-evolution.md.
+
+export type AttemptOutcome = "started" | "paused" | "completed" | "failed" | "blocked";
+
+// Immutable, append-only attempt-log entry (harness appends; never rewrites).
+export type AttemptEntry = {
+  at: string; // ISO 8601
+  outcome: AttemptOutcome;
+  detail?: string | undefined;
+};
+
+export type TaskAttempts = {
+  count: number;
+  log: AttemptEntry[];
+};
+
+// Explicit terminal state distinct from `status` (applies once status is "done").
+export type TaskDisposition = "completed" | "blocked" | "failed" | "skipped";
+
+// Per-task execution budget. All fields optional; absence = no per-task override.
+export type TaskBudget = {
+  maxSeconds?: number | undefined;
+  maxToolCalls?: number | undefined;
+  maxRetries?: number | undefined;
+  maxTokens?: number | undefined;
+};
+
+// Reference to the harness run/session that executed this task. Set by Task
+// Manager / flow-orchestrator ONLY (D-02 invariant). Harness reads, never writes.
+export type TaskRunLink = {
+  runId: string;
+  sessionId: string;
+  attempt: number;
+  at?: string | undefined;
+};
+
 export type FlowTask = {
   id: string; // T1, T2, ...
   title: string;
   kind: TaskKind;
   status: TaskStatus;
+  // --- v2 additive fields (all optional) ---
+  dependsOn?: string[] | undefined;
+  attempts?: TaskAttempts | undefined;
+  disposition?: TaskDisposition | undefined;
+  acRefs?: string[] | undefined;
+  evidenceRefs?: string[] | undefined;
+  budget?: TaskBudget | undefined;
+  runLink?: TaskRunLink | undefined;
 };
 
 export type FlowSource = {
@@ -29,7 +75,7 @@ export type FlowHistoryEvent = {
 };
 
 export type FlowState = {
-  schemaVersion: 1;
+  schemaVersion: 1 | 2;
   id: string; // "001"
   slug: string;
   title: string;
@@ -118,6 +164,8 @@ export type FlowTaskAddInput = {
   id: string;
   title: string;
   kind?: TaskKind | undefined;
+  // v2: optional task dependencies (IDs of tasks this one depends on).
+  dependsOn?: string[] | undefined;
 };
 
 export type FlowCompleteResult = {
@@ -142,7 +190,12 @@ export interface FlowService {
   freeze(input: { cwd: string; id: string }): Promise<FlowState>;
   start(input: { cwd: string; id: string }): Promise<FlowState>;
   taskAdd(input: FlowTaskAddInput): Promise<FlowState>;
-  taskDone(input: { cwd: string; id: string; taskId: string }): Promise<FlowState>;
+  taskDone(input: {
+    cwd: string;
+    id: string;
+    taskId: string;
+    disposition?: TaskDisposition | undefined;
+  }): Promise<FlowState>;
   acConfirm(input: {
     cwd: string;
     id: string;
