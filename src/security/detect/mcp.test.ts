@@ -6,8 +6,8 @@ import {
   hashToolDefinition,
   scanMcpManifest,
 } from "./mcp";
-import { runCorpus, loadCorpusCases } from "../../harness/corpus";
-import { gateCorpus } from "../../harness/gate";
+import { runCorpus, loadCorpusCases } from "../../eval/corpus";
+import { gateCorpus } from "../../eval/gate";
 
 const CORPUS_DIR = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
