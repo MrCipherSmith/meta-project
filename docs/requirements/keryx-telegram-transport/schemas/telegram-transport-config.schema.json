@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://keryx.dev/schemas/telegram-transport-config/1.0.0",
+  "title": "Telegram Transport Configuration",
+  "description": "Safe Telegram transport configuration. Raw tokens are intentionally absent.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "enabled", "mode", "credentialRef"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "enabled": { "type": "boolean" },
+    "mode": { "enum": ["local-polling", "server-webhook"] },
+    "credentialRef": { "$ref": "credential-reference.schema.json" },
+    "allowedUpdateTypes": {
+      "type": "array",
+      "items": { "enum": ["message", "callback_query"] },
+      "uniqueItems": true,
+      "minItems": 1
+    },
+    "bindingStoreRef": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "webhook": { "$ref": "webhook-configuration.schema.json" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "mode": { "const": "server-webhook" } }, "required": ["mode"] },
+      "then": { "required": ["webhook"] }
+    }
+  ]
+}

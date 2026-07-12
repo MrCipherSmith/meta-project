@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://keryx.dev/schemas/webhook-configuration/1.0.0",
+  "title": "Webhook Configuration",
+  "description": "Future server/headless transport configuration; not used by Release 0 local polling.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "url", "secretTokenRef", "allowedUpdateTypes"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "url": { "type": "string", "format": "uri", "pattern": "^https://" },
+    "secretTokenRef": { "$ref": "credential-reference.schema.json" },
+    "allowedUpdateTypes": {
+      "type": "array",
+      "items": { "enum": ["message", "callback_query"] },
+      "uniqueItems": true,
+      "minItems": 1
+    },
+    "maxConnections": { "type": "integer", "minimum": 1, "maximum": 100 },
+    "dropPendingUpdates": { "type": "boolean", "default": false }
+  }
+}

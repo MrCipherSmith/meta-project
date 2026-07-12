@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://keryx.dev/schemas/pairing-result/1.0.0",
+  "title": "Pairing Result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "pairingId", "status", "correlationId", "completedAt"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "pairingId": { "type": "string", "format": "uuid" },
+    "status": { "enum": ["paired", "expired", "replayed", "unauthorized", "rejected"] },
+    "bindingId": { "type": "string", "format": "uuid" },
+    "correlationId": { "type": "string", "format": "uuid" },
+    "completedAt": { "type": "string", "format": "date-time" },
+    "safeSummary": { "type": "string", "maxLength": 512 }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "paired" } }, "required": ["status"] },
+      "then": { "required": ["bindingId"] }
+    }
+  ]
+}

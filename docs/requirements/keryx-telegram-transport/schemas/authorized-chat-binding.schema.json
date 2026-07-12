@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://keryx.dev/schemas/authorized-chat-binding/1.0.0",
+  "title": "Authorized Chat Binding",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "bindingId", "installationId", "chatId", "telegramUserId", "state", "createdAt"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "bindingId": { "type": "string", "format": "uuid" },
+    "installationId": { "type": "string", "format": "uuid" },
+    "chatId": { "type": "integer" },
+    "telegramUserId": { "type": "integer" },
+    "state": { "enum": ["active", "revoked"] },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "revokedAt": { "type": "string", "format": "date-time" },
+    "allowlisted": { "type": "boolean", "default": true }
+  }
+}
