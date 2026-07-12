@@ -275,3 +275,23 @@ export function validateAgainstSchema(
   validateNode(data, root, root, "$", { resolver }, errors);
   return { valid: errors.length === 0, errors };
 }
+
+/**
+ * Additive: validate `data` against an in-memory schema object, reusing the same
+ * {@link validateNode} core as {@link validateAgainstSchema}. Unlike the
+ * file-based entry point, the schema is supplied directly (e.g. a tool's inline
+ * `inputSchema`) rather than loaded from disk. `opts.schemaDir` is only consulted
+ * if the inline schema carries a cross-file `$ref`; inline schemas without refs
+ * need no directory and none is read.
+ */
+export function validateAgainstSchemaObject(
+  schema: JsonSchema | Record<string, unknown>,
+  data: unknown,
+  opts?: { schemaDir?: string },
+): ValidationResult {
+  const resolver = new SchemaResolver(opts?.schemaDir ?? ".");
+  const root: Record<string, unknown> = isPlainObject(schema) ? schema : {};
+  const errors: SchemaError[] = [];
+  validateNode(data, schema as JsonSchema, root, "$", { resolver }, errors);
+  return { valid: errors.length === 0, errors };
+}
