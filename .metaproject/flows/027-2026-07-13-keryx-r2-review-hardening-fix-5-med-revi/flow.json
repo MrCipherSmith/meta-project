@@ -3,9 +3,9 @@
   "id": "027",
   "slug": "keryx-r2-review-hardening-fix-5-med-revi",
   "title": "keryx R2 review hardening — fix 5 MED review findings (SSRF-detect, exit-code, signal-class, 2 test gaps, dispatch DRY)",
-  "status": "in-progress",
+  "status": "done",
   "createdAt": "2026-07-13T19:47:44.197Z",
-  "updatedAt": "2026-07-13T20:13:03.525Z",
+  "updatedAt": "2026-07-13T20:14:30.870Z",
   "source": {
     "type": "description",
     "ref": null
@@ -29,7 +29,7 @@
     }
   },
   "pr": {
-    "url": null
+    "url": "https://github.com/MrCipherSmith/keryx/pull/30"
   },
   "tasks": [
     {
@@ -226,6 +226,20 @@
       "at": "2026-07-13T20:13:03.525Z",
       "event": "ac-confirmed",
       "detail": "AC5"
+    },
+    {
+      "at": "2026-07-13T20:14:01.119Z",
+      "event": "implemented",
+      "detail": "draft PR: https://github.com/MrCipherSmith/keryx/pull/30 (warning: PR is not a draft)"
+    },
+    {
+      "at": "2026-07-13T20:14:29.029Z",
+      "event": "completing"
+    },
+    {
+      "at": "2026-07-13T20:14:30.870Z",
+      "event": "done",
+      "detail": "all gates passed"
     }
   ]
 }
