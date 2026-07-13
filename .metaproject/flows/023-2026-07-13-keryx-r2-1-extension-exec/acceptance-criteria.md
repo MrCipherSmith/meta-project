@@ -1,0 +1,17 @@
+# Acceptance Criteria
+
+Rules:
+
+- Criteria lines use the exact format `- ACn: <criterion>`.
+- After `flow freeze` this file is checksum-protected: any edit outside
+  `keryx flow ac update` fails every gate and status transition.
+- Completion requires every ACn to be confirmed via
+  `keryx flow ac confirm <id> <ACn>`.
+
+## Criteria
+
+- AC1: Extension canonical dispatch/result (SC_R08_CHILD_DISPATCH_CANONICAL_RESULT) — `src/harness/extension/execute.ts` `dispatchExtension` takes a REGISTERED extension (registry `ok`, with a `capabilityGrant`) + a coordinator's reserved child budget and builds a canonical child dispatch that validates against the canonical `subagent-dispatch.schema.json` and the frozen `harness-child-contract-extension.schema.json` (via the `src/contracts` validator); a STATUS-first result is normalized to a canonical `subagent-result` (via the reused `parseChildResult`) that validates against `subagent-result.schema.json` BEFORE persistence (the persisted form is the canonical object, never the raw STATUS string); the dispatch is bounded to the extension's granted capabilities.
+- AC2: Escalation requires policy (SC_R08_EXTENSION_ESCALATION_REQUIRES_POLICY, negative — KEY security) — `evaluateExtensionGrant` grants a requested capability set that is ⊆ the extension's `capabilityGrant`; a request for BROADER tools/provider access (⊄ the grant) is an ESCALATION that is DENIED unless ALL of an explicit policy decision (allow), parent-linked provenance, and a valid approval (W10 `checkApproval`) are present — each missing piece independently denies, and each denial reason names the missing piece; a denied escalation grants NOTHING (no silent authority gain); out-of-enum capability/policy fails closed. Reuses the W12 `inheritPolicy` unconditional per-capability containment + the W10 approval model + `childProvenance`.
+- AC3: NEEDS_CONTEXT retry (SC_R08_NEEDS_CONTEXT_ADAPTER) — `retryWithContext` handles a NEEDS_CONTEXT child result naming ONE missing bounded artifact by producing a retry dispatch with the SAME dispatch id that adds ONLY that artifact to the bounded context (the added-context set equals exactly {that artifact}); the prior attempt's record remains immutable (reuse W8 immutable-attempts — a mutation attempt throws / the prior attempt is deep-equal after the retry).
+- AC4: D-02 + reuse — the extension/child paths NEVER write flow.json (no `writeFlow`/flow.json write is reachable from `src/harness/extension/**`; the parent owns completion via the W11 ManagedFlowPort); the W12 child contract/isolation/spawn, W15 extension registry, W11 flow-port, W10 approval, W8 resume, and the `src/contracts` validator are REUSED (composition / additive-only — no rewrite of existing behavior).
+- AC5: No regression / determinism / scope / deps — `tsc --noEmit` is clean and the full `bun test` suite is ≥ the pre-change baseline of 1210 pass with the new tests green and 0 fail; behavior is deterministic (injected id/clock, no `Date.now`/`Math.random`); no new production dependency (`dependencies` `{}`), no provider SDK, no network, no real fs mutation in tests; new runtime code lives under `src/harness/extension/` (with additive-only edits to prior modules if strictly needed); the frozen requirements package, canonical contract schemas, `src/eval/`, `src/contracts/`, and ADR-0001…0004 are NOT modified. R2-2/R2-3/R2-4/R2-5 are out of scope.

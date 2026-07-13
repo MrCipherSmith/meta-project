@@ -119,6 +119,18 @@ const CAPABILITY_KEYS: readonly (keyof PolicyProfileDefaults)[] = [
 ];
 
 /**
+ * Additive: is `value` one of the fixed capability vocabulary keys
+ * (`read/write/shell/network/delegate`) that {@link inheritPolicy} contains
+ * per-capability? Exposes the same closed vocabulary reused by the extension
+ * escalation check WITHOUT widening or mutating the private `CAPABILITY_KEYS`
+ * (no behavior change to `inheritPolicy`). Fail-closed callers treat any
+ * out-of-vocabulary capability as unknown.
+ */
+export function isKnownCapability(value: string): value is keyof PolicyProfileDefaults {
+  return (CAPABILITY_KEYS as readonly string[]).includes(value);
+}
+
+/**
  * Strength ordering of the isolation control (`not-required < required-fail-closed`).
  * A child may only KEEP or STRENGTHEN isolation; downgrading
  * `required-fail-closed` -> `not-required` is a fail-open and is DENIED.

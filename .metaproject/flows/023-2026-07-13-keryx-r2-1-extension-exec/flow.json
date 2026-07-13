@@ -1,0 +1,231 @@
+{
+  "schemaVersion": 2,
+  "id": "023",
+  "slug": "keryx-r2-1-extension-exec",
+  "title": "keryx Release 2 R2-1 extension execution",
+  "status": "in-progress",
+  "createdAt": "2026-07-13T14:41:09.426Z",
+  "updatedAt": "2026-07-13T15:16:29.500Z",
+  "source": {
+    "type": "description",
+    "ref": null
+  },
+  "acChecksum": "sha256:abd02fbaad7356a569d9a965769e8a98dba371de11cb5862ed3b21972d966fd2",
+  "acConfirmed": {
+    "AC1": {
+      "at": "2026-07-13T15:16:29.296Z"
+    },
+    "AC2": {
+      "at": "2026-07-13T15:16:29.346Z"
+    },
+    "AC3": {
+      "at": "2026-07-13T15:16:29.398Z"
+    },
+    "AC4": {
+      "at": "2026-07-13T15:16:29.449Z"
+    },
+    "AC5": {
+      "at": "2026-07-13T15:16:29.500Z"
+    }
+  },
+  "pr": {
+    "url": null
+  },
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Collect remaining context",
+      "kind": "context",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T2",
+      "title": "Implement per plan",
+      "kind": "implement",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T3",
+      "title": "Add/adjust tests and make them pass",
+      "kind": "test",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T4",
+      "title": "Self-review and prepare draft PR",
+      "kind": "review",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T5",
+      "title": "RED: dispatchExtension (canonical round-trip, STATUS->canonical) + evaluateExtensionGrant (escalation requires policy+provenance+approval, deny) + retryWithContext (NEEDS_CONTEXT same-id/add-only/immutable)",
+      "kind": "test",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T6",
+      "title": "impl: src/harness/extension/execute.ts (compose W12 contract/isolation + W15 registry + W10 approval + W8 immutable + src/contracts); additive-only; GREEN",
+      "kind": "implement",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T7",
+      "title": "review (security/contract): escalation fail-closed adversarial + canonical validation + STATUS->canonical + NEEDS_CONTEXT invariants + D-02 + reuse-only + determinism + deps {} + frozen untouched",
+      "kind": "review",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    }
+  ],
+  "history": [
+    {
+      "at": "2026-07-13T14:41:09.426Z",
+      "event": "created"
+    },
+    {
+      "at": "2026-07-13T14:45:42.204Z",
+      "event": "task-added",
+      "detail": "T5: RED: dispatchExtension (canonical round-trip, STATUS->canonical) + evaluateExtensionGrant (escalation requires policy+provenance+approval, deny) + retryWithContext (NEEDS_CONTEXT same-id/add-only/immutable)"
+    },
+    {
+      "at": "2026-07-13T14:45:42.256Z",
+      "event": "task-added",
+      "detail": "T6: impl: src/harness/extension/execute.ts (compose W12 contract/isolation + W15 registry + W10 approval + W8 immutable + src/contracts); additive-only; GREEN"
+    },
+    {
+      "at": "2026-07-13T14:45:42.307Z",
+      "event": "task-added",
+      "detail": "T7: review (security/contract): escalation fail-closed adversarial + canonical validation + STATUS->canonical + NEEDS_CONTEXT invariants + D-02 + reuse-only + determinism + deps {} + frozen untouched"
+    },
+    {
+      "at": "2026-07-13T14:56:26.477Z",
+      "event": "frozen",
+      "detail": "5 criteria; checksum recorded"
+    },
+    {
+      "at": "2026-07-13T14:56:26.528Z",
+      "event": "started"
+    },
+    {
+      "at": "2026-07-13T14:56:26.578Z",
+      "event": "task-done",
+      "detail": "T1: Collect remaining context"
+    },
+    {
+      "at": "2026-07-13T15:11:33.484Z",
+      "event": "task-done",
+      "detail": "T5: RED: dispatchExtension (canonical round-trip, STATUS->canonical) + evaluateExtensionGrant (escalation requires policy+provenance+approval, deny) + retryWithContext (NEEDS_CONTEXT same-id/add-only/immutable)"
+    },
+    {
+      "at": "2026-07-13T15:11:33.535Z",
+      "event": "task-done",
+      "detail": "T6: impl: src/harness/extension/execute.ts (compose W12 contract/isolation + W15 registry + W10 approval + W8 immutable + src/contracts); additive-only; GREEN"
+    },
+    {
+      "at": "2026-07-13T15:16:29.089Z",
+      "event": "task-done",
+      "detail": "T7: review (security/contract): escalation fail-closed adversarial + canonical validation + STATUS->canonical + NEEDS_CONTEXT invariants + D-02 + reuse-only + determinism + deps {} + frozen untouched"
+    },
+    {
+      "at": "2026-07-13T15:16:29.143Z",
+      "event": "task-done",
+      "detail": "T2: Implement per plan"
+    },
+    {
+      "at": "2026-07-13T15:16:29.193Z",
+      "event": "task-done",
+      "detail": "T3: Add/adjust tests and make them pass"
+    },
+    {
+      "at": "2026-07-13T15:16:29.244Z",
+      "event": "task-done",
+      "detail": "T4: Self-review and prepare draft PR"
+    },
+    {
+      "at": "2026-07-13T15:16:29.296Z",
+      "event": "ac-confirmed",
+      "detail": "AC1"
+    },
+    {
+      "at": "2026-07-13T15:16:29.347Z",
+      "event": "ac-confirmed",
+      "detail": "AC2"
+    },
+    {
+      "at": "2026-07-13T15:16:29.398Z",
+      "event": "ac-confirmed",
+      "detail": "AC3"
+    },
+    {
+      "at": "2026-07-13T15:16:29.449Z",
+      "event": "ac-confirmed",
+      "detail": "AC4"
+    },
+    {
+      "at": "2026-07-13T15:16:29.500Z",
+      "event": "ac-confirmed",
+      "detail": "AC5"
+    }
+  ]
+}

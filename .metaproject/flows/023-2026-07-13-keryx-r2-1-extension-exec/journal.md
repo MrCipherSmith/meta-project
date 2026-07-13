@@ -1,0 +1,20 @@
+# Flow Journal
+
+- 2026-07-13T14:41:09.426Z - flow created
+- 2026-07-13T14:45:42.204Z - task-added: T5: RED: dispatchExtension (canonical round-trip, STATUS->canonical) + evaluateExtensionGrant (escalation requires policy+provenance+approval, deny) + retryWithContext (NEEDS_CONTEXT same-id/add-only/immutable)
+- 2026-07-13T14:45:42.256Z - task-added: T6: impl: src/harness/extension/execute.ts (compose W12 contract/isolation + W15 registry + W10 approval + W8 immutable + src/contracts); additive-only; GREEN
+- 2026-07-13T14:45:42.307Z - task-added: T7: review (security/contract): escalation fail-closed adversarial + canonical validation + STATUS->canonical + NEEDS_CONTEXT invariants + D-02 + reuse-only + determinism + deps {} + frozen untouched
+- 2026-07-13T14:56:26.477Z - frozen: 5 criteria; checksum recorded
+- 2026-07-13T14:56:26.528Z - started
+- 2026-07-13T14:56:26.578Z - task-done: T1: Collect remaining context
+- 2026-07-13T15:11:33.484Z - task-done: T5: RED: dispatchExtension (canonical round-trip, STATUS->canonical) + evaluateExtensionGrant (escalation requires policy+provenance+approval, deny) + retryWithContext (NEEDS_CONTEXT same-id/add-only/immutable)
+- 2026-07-13T15:11:33.535Z - task-done: T6: impl: src/harness/extension/execute.ts (compose W12 contract/isolation + W15 registry + W10 approval + W8 immutable + src/contracts); additive-only; GREEN
+- 2026-07-13T15:16:29.089Z - task-done: T7: review (security/contract): escalation fail-closed adversarial + canonical validation + STATUS->canonical + NEEDS_CONTEXT invariants + D-02 + reuse-only + determinism + deps {} + frozen untouched
+- 2026-07-13T15:16:29.143Z - task-done: T2: Implement per plan
+- 2026-07-13T15:16:29.193Z - task-done: T3: Add/adjust tests and make them pass
+- 2026-07-13T15:16:29.244Z - task-done: T4: Self-review and prepare draft PR
+- 2026-07-13T15:16:29.296Z - ac-confirmed: AC1
+- 2026-07-13T15:16:29.347Z - ac-confirmed: AC2
+- 2026-07-13T15:16:29.398Z - ac-confirmed: AC3
+- 2026-07-13T15:16:29.449Z - ac-confirmed: AC4
+- 2026-07-13T15:16:29.500Z - ac-confirmed: AC5
