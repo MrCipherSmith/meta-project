@@ -3,9 +3,9 @@
   "id": "026",
   "slug": "keryx-release-2-r2-5-real-subprocess-exe",
   "title": "keryx Release 2 R2-5 real-subprocess executor (SC_R04 live enforcement, closes F-1)",
-  "status": "in-progress",
+  "status": "done",
   "createdAt": "2026-07-13T18:17:02.756Z",
-  "updatedAt": "2026-07-13T18:57:49.410Z",
+  "updatedAt": "2026-07-13T18:59:42.037Z",
   "source": {
     "type": "description",
     "ref": null
@@ -29,7 +29,7 @@
     }
   },
   "pr": {
-    "url": null
+    "url": "https://github.com/MrCipherSmith/keryx/pull/29"
   },
   "tasks": [
     {
@@ -226,6 +226,34 @@
       "at": "2026-07-13T18:57:49.410Z",
       "event": "ac-confirmed",
       "detail": "AC5"
+    },
+    {
+      "at": "2026-07-13T18:58:50.734Z",
+      "event": "implemented",
+      "detail": "draft PR: https://github.com/MrCipherSmith/keryx/pull/29 (warning: PR is not a draft)"
+    },
+    {
+      "at": "2026-07-13T18:58:50.808Z",
+      "event": "completing"
+    },
+    {
+      "at": "2026-07-13T18:58:52.624Z",
+      "event": "completion-failed",
+      "detail": "pull-request: PR checks not green"
+    },
+    {
+      "at": "2026-07-13T18:59:40.128Z",
+      "event": "implemented",
+      "detail": "draft PR: https://github.com/MrCipherSmith/keryx/pull/29 (warning: PR is not a draft)"
+    },
+    {
+      "at": "2026-07-13T18:59:40.201Z",
+      "event": "completing"
+    },
+    {
+      "at": "2026-07-13T18:59:42.037Z",
+      "event": "done",
+      "detail": "all gates passed"
     }
   ]
 }
