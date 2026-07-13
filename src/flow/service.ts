@@ -240,7 +240,7 @@ export function createFlowService(deps: FlowServiceDeps): FlowService {
       });
     },
 
-    async taskDone({ cwd, id, taskId, disposition }): Promise<FlowState> {
+    async taskDone({ cwd, id, taskId, disposition, evidenceRefs, runLink }): Promise<FlowState> {
       return mutate(cwd, id, async ({ dir, flow }) => {
       await assertAcIntact(cwd, dir, flow);
       const task = flow.tasks.find((item) => item.id.toUpperCase() === taskId.toUpperCase());
@@ -251,6 +251,15 @@ export function createFlowService(deps: FlowServiceDeps): FlowService {
       // Disposition is distinct from status (TM-01 §6). Honor an explicit
       // disposition; otherwise default a completed task to "completed".
       task.disposition = disposition ?? task.disposition ?? "completed";
+      // v2 additive (backward-compatible): when the caller supplies mapped
+      // evidence refs / run link (e.g. the harness ManagedFlowPort), record them
+      // on the task. Omitted args leave existing behavior untouched.
+      if (evidenceRefs !== undefined) {
+        task.evidenceRefs = evidenceRefs;
+      }
+      if (runLink !== undefined) {
+        task.runLink = runLink;
+      }
       return save(cwd, dir, flow, "task-done", `${task.id}: ${task.title}`);
       });
     },

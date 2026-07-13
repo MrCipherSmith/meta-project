@@ -195,6 +195,11 @@ export interface FlowService {
     id: string;
     taskId: string;
     disposition?: TaskDisposition | undefined;
+    // v2 additive (backward-compatible): when provided, the harness's mapped
+    // evidence refs / run link are set on the task. Existing callers that omit
+    // these are unaffected. Only Task Manager writes these to flow.json (D-02).
+    evidenceRefs?: string[] | undefined;
+    runLink?: TaskRunLink | undefined;
   }): Promise<FlowState>;
   acConfirm(input: {
     cwd: string;

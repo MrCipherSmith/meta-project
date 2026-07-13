@@ -1,0 +1,24 @@
+# Flow Journal
+
+- 2026-07-13T03:12:22.995Z - flow created
+- 2026-07-13T03:12:23.063Z - task-added: T5: FI-01 RED: ManagedFlowPort — harness gate/evidence/runLink -> Task Manager via API; harness never writes flow.json; disposition mapping; TM-migration
+- 2026-07-13T03:12:23.115Z - task-added: T6: FI-01 impl: additive taskDone(evidenceRefs?/runLink?) in src/flow + src/harness/flow/managed-flow-port.ts adapter; GREEN
+- 2026-07-13T03:12:23.165Z - task-added: T7: FI-02 tests: single-coordinator parity + failure-disposition + no-duplicate-coordinator + TM-migration; parity.ts helper
+- 2026-07-13T03:12:23.217Z - task-added: T8: W11 verification: code-verifier + D-02 (harness no flow.json write) + single-coordinator + additive-only backward-compat + determinism + frozen untouched
+- 2026-07-13T03:14:38.030Z - frozen: 5 criteria; checksum recorded
+- 2026-07-13T03:14:38.084Z - started
+- 2026-07-13T03:14:38.138Z - task-done: T1: Collect remaining context
+- 2026-07-13T03:23:33.190Z - task-done: T5: FI-01 RED: ManagedFlowPort — harness gate/evidence/runLink -> Task Manager via API; harness never writes flow.json; disposition mapping; TM-migration
+- 2026-07-13T03:26:32.849Z - task-done: T6: FI-01 impl: additive taskDone(evidenceRefs?/runLink?) in src/flow + src/harness/flow/managed-flow-port.ts adapter; GREEN
+- 2026-07-13T03:31:53.926Z - task-done: T7: FI-02 tests: single-coordinator parity + failure-disposition + no-duplicate-coordinator + TM-migration; parity.ts helper
+- 2026-07-13T03:37:59.565Z - task-done: T5: FI-01 RED: ManagedFlowPort — harness gate/evidence/runLink -> Task Manager via API; harness never writes flow.json; disposition mapping; TM-migration
+- 2026-07-13T03:37:59.616Z - task-done: T6: FI-01 impl: additive taskDone(evidenceRefs?/runLink?) in src/flow + src/harness/flow/managed-flow-port.ts adapter; GREEN
+- 2026-07-13T03:37:59.666Z - task-done: T8: W11 verification: code-verifier + D-02 (harness no flow.json write) + single-coordinator + additive-only backward-compat + determinism + frozen untouched
+- 2026-07-13T03:37:59.715Z - task-done: T2: Implement per plan
+- 2026-07-13T03:37:59.763Z - task-done: T3: Add/adjust tests and make them pass
+- 2026-07-13T03:37:59.812Z - task-done: T4: Self-review and prepare draft PR
+- 2026-07-13T03:38:11.789Z - ac-confirmed: AC1
+- 2026-07-13T03:38:11.838Z - ac-confirmed: AC2
+- 2026-07-13T03:38:11.887Z - ac-confirmed: AC3
+- 2026-07-13T03:38:11.935Z - ac-confirmed: AC4
+- 2026-07-13T03:38:11.984Z - ac-confirmed: AC5
