@@ -47,6 +47,15 @@ export async function main(): Promise<void> {
     return;
   }
 
+  // A `--flag` first argument (other than --help/--version handled above) means
+  // the user wants the interactive shell with options, e.g. `keryx --provider
+  // ollama --model llama3.1:latest` — route it to the shell rather than treating
+  // the flag as an unknown command.
+  if (command.startsWith("--")) {
+    await shellCommand(args);
+    return;
+  }
+
   if (command === "init") {
     await initCommand(args.slice(1));
     return;

@@ -1,0 +1,22 @@
+# Flow Journal
+
+- 2026-07-13T12:06:46.874Z - flow created
+- 2026-07-13T12:09:57.818Z - task-added: T5: RED: detectProviders (ollama /api/tags + env anthropic + fake, fail-soft) + pickProviderModel (numbered picker) + shell /models,/provider,/connect; offline injected
+- 2026-07-13T12:09:57.870Z - task-added: T6: impl: src/commands/select.ts (detectProviders+pickProviderModel) + additive shell.ts (slash + detect+pick, remove hardcode, polish) + cli.ts; readline no dep; GREEN
+- 2026-07-13T12:09:57.922Z - task-added: T7: review: no hardcoded default + fail-soft detect + credential-never-stored + reuse-only + deps {} + no runtime-contract change + no regression + D-02 + frozen untouched
+- 2026-07-13T12:09:57.975Z - task-added: T8: live smoke: bare keryx -> detect -> pick provider/model -> multi-turn chat vs Ollama; /models; anthropic no-key fail-closed
+- 2026-07-13T13:17:11.744Z - frozen: 5 criteria; checksum recorded
+- 2026-07-13T13:17:11.800Z - started
+- 2026-07-13T13:17:11.850Z - task-done: T1: Collect remaining context
+- 2026-07-13T13:33:21.983Z - task-done: T5: RED: detectProviders (ollama /api/tags + env anthropic + fake, fail-soft) + pickProviderModel (numbered picker) + shell /models,/provider,/connect; offline injected
+- 2026-07-13T13:33:22.033Z - task-done: T6: impl: src/commands/select.ts (detectProviders+pickProviderModel) + additive shell.ts (slash + detect+pick, remove hardcode, polish) + cli.ts; readline no dep; GREEN
+- 2026-07-13T13:38:01.963Z - task-done: T7: review: no hardcoded default + fail-soft detect + credential-never-stored + reuse-only + deps {} + no runtime-contract change + no regression + D-02 + frozen untouched
+- 2026-07-13T13:40:25.278Z - task-done: T8: live smoke: bare keryx -> detect -> pick provider/model -> multi-turn chat vs Ollama; /models; anthropic no-key fail-closed
+- 2026-07-13T13:40:25.334Z - task-done: T2: Implement per plan
+- 2026-07-13T13:40:25.393Z - task-done: T3: Add/adjust tests and make them pass
+- 2026-07-13T13:40:25.445Z - task-done: T4: Self-review and prepare draft PR
+- 2026-07-13T13:40:25.496Z - ac-confirmed: AC1
+- 2026-07-13T13:40:25.546Z - ac-confirmed: AC2
+- 2026-07-13T13:40:25.598Z - ac-confirmed: AC3
+- 2026-07-13T13:40:25.650Z - ac-confirmed: AC4
+- 2026-07-13T13:40:25.701Z - ac-confirmed: AC5

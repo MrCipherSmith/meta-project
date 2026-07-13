@@ -28,6 +28,7 @@ import type {
   NormalizedRequest,
   ProviderPort,
 } from "../harness/provider/types";
+import { detectProviders, pickProviderModel } from "./select";
 
 /** Async line source + write sink; no real stdio is reached by `runShell`. */
 export interface ShellIO {
@@ -41,17 +42,42 @@ export interface ShellDeps {
   clock: () => string;
   idSeq: () => string;
   initial: { provider: string; model: string; baseUrl?: string };
+  /**
+   * Bundled detect+pick selector for the `/models` and `/provider` (no-arg)
+   * slash commands. `/models` passes `{ onlyProvider: <current provider> }` to
+   * offer only the current provider's models; `/provider` passes no opts (a
+   * full re-selection across all providers). When omitted, both commands
+   * write a "not available" message and no-op (they NEVER crash the loop).
+   */
+  selectProviderModel?: (
+    io: ShellIO,
+    opts?: { onlyProvider?: string },
+  ) => Promise<{ provider: string; model: string; baseUrl?: string }>;
 }
 
 /** A short, trusted system instruction assembled by the (trusted) shell itself. */
 const SYSTEM_INSTRUCTION = "You are the keryx interactive shell assistant. Answer concisely.";
+
+/** Static guidance for `/connect` — never reads/echoes an actual credential. */
+const CONNECT_GUIDANCE = [
+  "To use Anthropic (claude-*) models, set the ANTHROPIC_API_KEY environment",
+  "variable before launching keryx, e.g.:",
+  "",
+  "  export ANTHROPIC_API_KEY=your-anthropic-key",
+  "",
+  "keryx reads ANTHROPIC_API_KEY from the environment only — it never stores,",
+  "logs, or echoes the key. Then run /provider to pick the anthropic provider.",
+  "",
+].join("\n");
 
 /** Help text listing the slash commands (must mention /model, /clear, /exit). */
 const HELP_TEXT = [
   "Commands:",
   "  /help              Show this help",
   "  /model <name>      Switch the active model for subsequent turns",
-  "  /provider <name>   Switch the active provider for subsequent turns",
+  "  /models            Pick a model for the current provider (numbered menu)",
+  "  /provider [name]   Switch provider by name, or (no arg) re-run full selection",
+  "  /connect           Show how to set ANTHROPIC_API_KEY for anthropic models",
   "  /clear             Clear the conversation history",
   "  /exit, /quit       Leave the shell",
   "",
@@ -102,11 +128,39 @@ export async function runShell(io: ShellIO, deps: ShellDeps): Promise<void> {
         }
         continue;
       }
+      if (command === "/models") {
+        if (deps.selectProviderModel === undefined) {
+          io.write("Interactive model selection is not available in this session.\n");
+          continue;
+        }
+        const picked = await deps.selectProviderModel(io, { onlyProvider: providerName });
+        providerName = picked.provider;
+        modelName = picked.model;
+        baseUrl = picked.baseUrl;
+        provider = makeActive();
+        continue;
+      }
       if (command === "/provider") {
         if (argument.length > 0) {
+          // Explicit by-name switch (keeps the model + baseUrl selection).
           providerName = argument;
           provider = makeActive();
+          continue;
         }
+        if (deps.selectProviderModel === undefined) {
+          io.write("Interactive provider selection is not available in this session.\n");
+          continue;
+        }
+        // Pass an empty opts object (no `onlyProvider`) → full re-selection.
+        const picked = await deps.selectProviderModel(io, {});
+        providerName = picked.provider;
+        modelName = picked.model;
+        baseUrl = picked.baseUrl;
+        provider = makeActive();
+        continue;
+      }
+      if (command === "/connect") {
+        io.write(CONNECT_GUIDANCE);
         continue;
       }
       io.write(`Unknown command: ${command}. Type /help for commands.\n`);
@@ -168,6 +222,10 @@ export async function runShell(io: ShellIO, deps: ShellDeps): Promise<void> {
       // by strict providers like the Anthropic Messages API).
       history.pop();
     }
+
+    // Terminate the streamed reply with a blank line so consecutive turns are
+    // visually separated instead of running together on one line.
+    io.write("\n\n");
   }
 }
 
@@ -194,21 +252,41 @@ function realMakeProvider(write: (s: string) => void): ShellDeps["makeProvider"]
   };
 }
 
+/** Build the bundled detect+pick selector wired to real `fetch` + `process.env`. */
+function realSelectProviderModel(baseUrl: string | undefined): NonNullable<ShellDeps["selectProviderModel"]> {
+  return async (io, opts) => {
+    const detected = await detectProviders({
+      fetch: globalThis.fetch,
+      env: process.env,
+      ...(baseUrl !== undefined ? { baseUrl } : {}),
+    });
+    const filtered =
+      opts?.onlyProvider !== undefined ? detected.filter((d) => d.name === opts.onlyProvider) : detected;
+    const list = filtered.length > 0 ? filtered : detected;
+    return pickProviderModel(io, list);
+  };
+}
+
 /**
  * Thin TTY wrapper (NOT unit-tested): parses `--provider` / `--model` /
  * `--base-url`, wires a real `node:readline` stdin line source + a
  * `process.stdout` sink, and runs the deterministic core.
+ *
+ * When `--provider` is ABSENT, it first detects the available providers and
+ * runs the interactive numbered picker (replacing any hardcoded default). When
+ * `--provider X` is given, the picker is skipped: the model is `--model Y` if
+ * given, otherwise that provider's first detected model.
  */
 export async function shellCommand(args: string[]): Promise<void> {
-  let provider = "ollama";
-  let model = "llama3.1:latest";
+  let providerArg: string | undefined;
+  let modelArg: string | undefined;
   let baseUrl: string | undefined;
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
     if (arg === "--provider") {
-      provider = args[++i] ?? provider;
+      providerArg = args[++i] ?? providerArg;
     } else if (arg === "--model") {
-      model = args[++i] ?? model;
+      modelArg = args[++i] ?? modelArg;
     } else if (arg === "--base-url") {
       baseUrl = args[++i];
     }
@@ -218,18 +296,55 @@ export async function shellCommand(args: string[]): Promise<void> {
     process.stdout.write(s);
   };
   const rl = readline.createInterface({ input: process.stdin });
-  const io: ShellIO = { lines: rl, write };
-  const deps: ShellDeps = {
-    makeProvider: realMakeProvider(write),
-    clock: () => new Date().toISOString(),
-    idSeq: () => randomUUID(),
-    initial: baseUrl === undefined ? { provider, model } : { provider, model, baseUrl },
-  };
+  // A SINGLE shared line iterator so the picker and the REPL consume stdin in
+  // sequence (two independent iterators would race over the same readline).
+  const lineIterator = rl[Symbol.asyncIterator]();
+  const sharedLines: AsyncIterable<string> = { [Symbol.asyncIterator]: () => lineIterator };
+  const io: ShellIO = { lines: sharedLines, write };
 
-  write(`keryx shell — ${provider}/${model}${baseUrl !== undefined ? ` (${baseUrl})` : ""}\n`);
-  write("Type a message, or /help for commands.\n");
-
+  let provider: string;
+  let model: string;
   try {
+    if (providerArg === undefined) {
+      // No provider flag: detect + interactively pick.
+      const detected = await detectProviders({
+        fetch: globalThis.fetch,
+        env: process.env,
+        ...(baseUrl !== undefined ? { baseUrl } : {}),
+      });
+      const picked = await pickProviderModel(io, detected);
+      provider = picked.provider;
+      model = picked.model;
+      if (picked.baseUrl !== undefined) {
+        baseUrl = picked.baseUrl;
+      }
+    } else {
+      provider = providerArg;
+      if (modelArg !== undefined) {
+        model = modelArg;
+      } else {
+        // Resolve the provider's first detected model (no hardcoded default).
+        const detected = await detectProviders({
+          fetch: globalThis.fetch,
+          env: process.env,
+          ...(baseUrl !== undefined ? { baseUrl } : {}),
+        });
+        const match = detected.find((d) => d.name === providerArg);
+        model = match?.models[0] ?? "fake-echo";
+      }
+    }
+
+    const deps: ShellDeps = {
+      makeProvider: realMakeProvider(write),
+      clock: () => new Date().toISOString(),
+      idSeq: () => randomUUID(),
+      initial: baseUrl === undefined ? { provider, model } : { provider, model, baseUrl },
+      selectProviderModel: realSelectProviderModel(baseUrl),
+    };
+
+    write(`keryx shell — ${provider}/${model}${baseUrl !== undefined ? ` (${baseUrl})` : ""}\n`);
+    write("Type a message, or /help for commands.\n");
+
     await runShell(io, deps);
   } finally {
     rl.close();
