@@ -1,0 +1,256 @@
+{
+  "schemaVersion": 2,
+  "id": "022",
+  "slug": "keryx-r2-4-tui",
+  "title": "keryx Release 2 R2-4 interactive CLI TUI adapter",
+  "status": "in-progress",
+  "createdAt": "2026-07-13T12:06:46.874Z",
+  "updatedAt": "2026-07-13T13:40:25.701Z",
+  "source": {
+    "type": "description",
+    "ref": null
+  },
+  "acChecksum": "sha256:fb166644a038cf6e24cf4d8b1f9d5558c1ee4d15d3d95f9b9dc788f4c666cf4b",
+  "acConfirmed": {
+    "AC1": {
+      "at": "2026-07-13T13:40:25.496Z"
+    },
+    "AC2": {
+      "at": "2026-07-13T13:40:25.546Z"
+    },
+    "AC3": {
+      "at": "2026-07-13T13:40:25.598Z"
+    },
+    "AC4": {
+      "at": "2026-07-13T13:40:25.650Z"
+    },
+    "AC5": {
+      "at": "2026-07-13T13:40:25.701Z"
+    }
+  },
+  "pr": {
+    "url": null
+  },
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Collect remaining context",
+      "kind": "context",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T2",
+      "title": "Implement per plan",
+      "kind": "implement",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T3",
+      "title": "Add/adjust tests and make them pass",
+      "kind": "test",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T4",
+      "title": "Self-review and prepare draft PR",
+      "kind": "review",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T5",
+      "title": "RED: detectProviders (ollama /api/tags + env anthropic + fake, fail-soft) + pickProviderModel (numbered picker) + shell /models,/provider,/connect; offline injected",
+      "kind": "test",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T6",
+      "title": "impl: src/commands/select.ts (detectProviders+pickProviderModel) + additive shell.ts (slash + detect+pick, remove hardcode, polish) + cli.ts; readline no dep; GREEN",
+      "kind": "implement",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T7",
+      "title": "review: no hardcoded default + fail-soft detect + credential-never-stored + reuse-only + deps {} + no runtime-contract change + no regression + D-02 + frozen untouched",
+      "kind": "review",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T8",
+      "title": "live smoke: bare keryx -> detect -> pick provider/model -> multi-turn chat vs Ollama; /models; anthropic no-key fail-closed",
+      "kind": "test",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    }
+  ],
+  "history": [
+    {
+      "at": "2026-07-13T12:06:46.874Z",
+      "event": "created"
+    },
+    {
+      "at": "2026-07-13T12:09:57.818Z",
+      "event": "task-added",
+      "detail": "T5: RED: detectProviders (ollama /api/tags + env anthropic + fake, fail-soft) + pickProviderModel (numbered picker) + shell /models,/provider,/connect; offline injected"
+    },
+    {
+      "at": "2026-07-13T12:09:57.870Z",
+      "event": "task-added",
+      "detail": "T6: impl: src/commands/select.ts (detectProviders+pickProviderModel) + additive shell.ts (slash + detect+pick, remove hardcode, polish) + cli.ts; readline no dep; GREEN"
+    },
+    {
+      "at": "2026-07-13T12:09:57.922Z",
+      "event": "task-added",
+      "detail": "T7: review: no hardcoded default + fail-soft detect + credential-never-stored + reuse-only + deps {} + no runtime-contract change + no regression + D-02 + frozen untouched"
+    },
+    {
+      "at": "2026-07-13T12:09:57.975Z",
+      "event": "task-added",
+      "detail": "T8: live smoke: bare keryx -> detect -> pick provider/model -> multi-turn chat vs Ollama; /models; anthropic no-key fail-closed"
+    },
+    {
+      "at": "2026-07-13T13:17:11.744Z",
+      "event": "frozen",
+      "detail": "5 criteria; checksum recorded"
+    },
+    {
+      "at": "2026-07-13T13:17:11.800Z",
+      "event": "started"
+    },
+    {
+      "at": "2026-07-13T13:17:11.850Z",
+      "event": "task-done",
+      "detail": "T1: Collect remaining context"
+    },
+    {
+      "at": "2026-07-13T13:33:21.983Z",
+      "event": "task-done",
+      "detail": "T5: RED: detectProviders (ollama /api/tags + env anthropic + fake, fail-soft) + pickProviderModel (numbered picker) + shell /models,/provider,/connect; offline injected"
+    },
+    {
+      "at": "2026-07-13T13:33:22.033Z",
+      "event": "task-done",
+      "detail": "T6: impl: src/commands/select.ts (detectProviders+pickProviderModel) + additive shell.ts (slash + detect+pick, remove hardcode, polish) + cli.ts; readline no dep; GREEN"
+    },
+    {
+      "at": "2026-07-13T13:38:01.963Z",
+      "event": "task-done",
+      "detail": "T7: review: no hardcoded default + fail-soft detect + credential-never-stored + reuse-only + deps {} + no runtime-contract change + no regression + D-02 + frozen untouched"
+    },
+    {
+      "at": "2026-07-13T13:40:25.278Z",
+      "event": "task-done",
+      "detail": "T8: live smoke: bare keryx -> detect -> pick provider/model -> multi-turn chat vs Ollama; /models; anthropic no-key fail-closed"
+    },
+    {
+      "at": "2026-07-13T13:40:25.334Z",
+      "event": "task-done",
+      "detail": "T2: Implement per plan"
+    },
+    {
+      "at": "2026-07-13T13:40:25.393Z",
+      "event": "task-done",
+      "detail": "T3: Add/adjust tests and make them pass"
+    },
+    {
+      "at": "2026-07-13T13:40:25.445Z",
+      "event": "task-done",
+      "detail": "T4: Self-review and prepare draft PR"
+    },
+    {
+      "at": "2026-07-13T13:40:25.496Z",
+      "event": "ac-confirmed",
+      "detail": "AC1"
+    },
+    {
+      "at": "2026-07-13T13:40:25.546Z",
+      "event": "ac-confirmed",
+      "detail": "AC2"
+    },
+    {
+      "at": "2026-07-13T13:40:25.598Z",
+      "event": "ac-confirmed",
+      "detail": "AC3"
+    },
+    {
+      "at": "2026-07-13T13:40:25.650Z",
+      "event": "ac-confirmed",
+      "detail": "AC4"
+    },
+    {
+      "at": "2026-07-13T13:40:25.701Z",
+      "event": "ac-confirmed",
+      "detail": "AC5"
+    }
+  ]
+}

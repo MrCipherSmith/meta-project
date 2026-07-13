@@ -69,6 +69,43 @@
 // OFFLINE / DETERMINISTIC: no real `process.stdin`/`stdout`, no network, no
 // `Date.now`/`Math.random` — `deps.clock`/`deps.idSeq` are always injected
 // fixed stubs.
+//
+// --- flow 022, T5 / AC3 additions (RED: pins an ADDITIVE `ShellDeps` field
+// `runShell` does not implement yet — T6 adds it to `src/commands/shell.ts`).
+// See `.metaproject/flows/022-2026-07-13-keryx-r2-4-tui/{context.md,
+// acceptance-criteria.md}` (AC3) for the frozen scope.
+//
+// PINNED SELECTOR SEAM (T6 implements exactly this; chosen to keep `runShell`
+// decoupled from `./select`'s `fetch`/`env` plumbing — it only needs the
+// bundled detect+pick behaviour as one injected function):
+//   export interface ShellDeps {
+//     ...(unchanged fields)...
+//     selectProviderModel?: (
+//       io: ShellIO,
+//       opts?: { onlyProvider?: string },
+//     ) => Promise<{ provider: string; model: string; baseUrl?: string }>;
+//   }
+//   - `/models`  calls `deps.selectProviderModel?.(io, { onlyProvider: <current providerName> })`
+//     — offers ONLY the current provider's models. On a valid result, `runShell`
+//     updates the active provider/model/baseUrl (recreating the provider via
+//     the existing `makeActive()` pattern) so the NEXT turn uses it.
+//   - `/provider` calls `deps.selectProviderModel?.(io)` (no `onlyProvider`) —
+//     a full re-detection/pick across all providers; same update-then-use
+//     behaviour.
+//   - When `deps.selectProviderModel` is undefined, `/models` and `/provider`
+//     write a message containing "not available" and are no-ops — NEVER a
+//     crash, NEVER a model turn.
+//   - `/connect` needs NO new deps: it writes STATIC guidance mentioning
+//     `ANTHROPIC_API_KEY` (how to `export` it) and never reads/echoes any
+//     actual credential value.
+//   - `shellCommand` (T6, not unit-tested here) wires `selectProviderModel` by
+//     composing `./select`'s `detectProviders` + `pickProviderModel` with the
+//     real `process.env`/`fetch`, filtering to `opts.onlyProvider` when given.
+//
+// This file's NEW tests below will not fully typecheck until T6 lands the
+// additive `selectProviderModel` field on `ShellDeps` — the same kind of
+// expected RED as `select.test.ts`'s missing-module import (a documented gap
+// for T6 to fill, not a test bug).
 
 import { describe, expect, test } from "bun:test";
 import { FakeProvider, type FakeProviderTranscript, requestHashOf } from "../harness/provider/fake-provider";
@@ -412,5 +449,156 @@ describe("AC2 — slash commands + provider_error resilience", () => {
     expect(output).toContain("Recovered");
     // Both turns reached the provider: the loop did not stop after the error.
     expect(captured.length).toBe(2);
+  });
+});
+
+/** Local alias for the pinned, additive `ShellDeps.selectProviderModel` seam (see file header). */
+type SelectProviderModel = (
+  io: ShellIO,
+  opts?: { onlyProvider?: string },
+) => Promise<{ provider: string; model: string; baseUrl?: string }>;
+
+describe("AC3 — /models, /provider, /connect + credential safety (flow 022)", () => {
+  test("/help now also documents /models, /provider, and /connect", async () => {
+    const streamCalls = { count: 0 };
+    const writes: string[] = [];
+    const io: ShellIO = {
+      lines: linesFrom("/help", "/exit"),
+      write: (s: string) => writes.push(s),
+    };
+    const deps: ShellDeps = {
+      makeProvider: () => countingProvider(streamCalls),
+      clock: fixedClock(),
+      idSeq: fixedIdSeq(),
+      initial: { provider: "fake", model: "fixture-model" },
+    };
+
+    await runShell(io, deps);
+
+    expect(streamCalls.count).toBe(0);
+    const output = writes.join("");
+    expect(output).toMatch(/\/models/);
+    expect(output).toMatch(/\/provider/);
+    expect(output).toMatch(/\/connect/);
+  });
+
+  test("/models lists the current provider's models and a numeric pick switches the model used by the NEXT turn", async () => {
+    const turn = textTranscript("after-models-switch", ["ok"]);
+    const { provider, captured } = capturingFakeProvider([turn]);
+
+    const selectCalls: Array<{ onlyProvider?: string }> = [];
+    // RED: `selectProviderModel` is not yet a known `ShellDeps` field (T6 adds
+    // it) — this object literal is expected to fail typecheck until then.
+    const selectProviderModel: SelectProviderModel = async (io, opts) => {
+      selectCalls.push(opts ?? {});
+      io.write("1. fixture-model-2\n");
+      return { provider: "fake", model: "fixture-model-2" };
+    };
+
+    const io: ShellIO = {
+      lines: linesFrom("/models", "hello after switch", "/exit"),
+      write: () => {},
+    };
+    const deps: ShellDeps = {
+      makeProvider: () => provider,
+      clock: fixedClock(),
+      idSeq: fixedIdSeq(),
+      initial: { provider: "fake", model: "fixture-model" },
+      selectProviderModel,
+    };
+
+    await runShell(io, deps);
+
+    // `/models` restricts detection/pick to the CURRENT provider ("fake").
+    expect(selectCalls).toEqual([{ onlyProvider: "fake" }]);
+    // The turn AFTER the switch used the newly picked model.
+    expect(captured.length).toBe(1);
+    expect(at(captured, 0).modelId).toBe("fixture-model-2");
+  });
+
+  test("/provider re-runs full selection (no onlyProvider) and can switch to a different provider entirely", async () => {
+    const turn = textTranscript("after-provider-switch", ["hi"]);
+    const { provider: switchedProvider, captured } = capturingFakeProvider([turn]);
+
+    const selectCalls: Array<{ onlyProvider?: string } | undefined> = [];
+    const makeProviderCalls: Array<{ name: string; model: string; baseUrl?: string }> = [];
+    const selectProviderModel: SelectProviderModel = async (_io, opts) => {
+      selectCalls.push(opts);
+      return { provider: "ollama", model: "llama3.2", baseUrl: "http://localhost:11434" };
+    };
+    const makeProvider = (name: string, model: string, baseUrl?: string): ProviderPort => {
+      makeProviderCalls.push(baseUrl === undefined ? { name, model } : { name, model, baseUrl });
+      return switchedProvider;
+    };
+
+    const io: ShellIO = {
+      lines: linesFrom("/provider", "hi there", "/exit"),
+      write: () => {},
+    };
+    const deps: ShellDeps = {
+      makeProvider,
+      clock: fixedClock(),
+      idSeq: fixedIdSeq(),
+      initial: { provider: "fake", model: "fixture-model" },
+      selectProviderModel,
+    };
+
+    await runShell(io, deps);
+
+    // `/provider` passes NO `onlyProvider` restriction (full re-detection).
+    expect(selectCalls.length).toBe(1);
+    expect(at(selectCalls, 0)?.onlyProvider).toBeUndefined();
+
+    expect(
+      makeProviderCalls.some(
+        (call) => call.name === "ollama" && call.model === "llama3.2" && call.baseUrl === "http://localhost:11434",
+      ),
+    ).toBe(true);
+    expect(captured.length).toBe(1);
+    expect(at(captured, 0).providerId).toBe("ollama");
+    expect(at(captured, 0).modelId).toBe("llama3.2");
+  });
+
+  test("/models and /provider fail-soft (write a message, never crash) when no selector is injected", async () => {
+    const streamCalls = { count: 0 };
+    const writes: string[] = [];
+    const io: ShellIO = {
+      lines: linesFrom("/models", "/provider", "/exit"),
+      write: (s: string) => writes.push(s),
+    };
+    const deps: ShellDeps = {
+      makeProvider: () => countingProvider(streamCalls),
+      clock: fixedClock(),
+      idSeq: fixedIdSeq(),
+      initial: { provider: "fake", model: "fixture-model" },
+      // selectProviderModel intentionally omitted — must not crash runShell.
+    };
+
+    await expect(runShell(io, deps)).resolves.toBeUndefined();
+    expect(streamCalls.count).toBe(0);
+    expect(writes.join("")).toMatch(/not available/i);
+  });
+
+  test("/connect writes ANTHROPIC_API_KEY guidance and never echoes/stores a credential value", async () => {
+    const streamCalls = { count: 0 };
+    const writes: string[] = [];
+    const io: ShellIO = {
+      lines: linesFrom("/connect", "/exit"),
+      write: (s: string) => writes.push(s),
+    };
+    const deps: ShellDeps = {
+      makeProvider: () => countingProvider(streamCalls),
+      clock: fixedClock(),
+      idSeq: fixedIdSeq(),
+      initial: { provider: "fake", model: "fixture-model" },
+    };
+
+    await runShell(io, deps);
+
+    expect(streamCalls.count).toBe(0);
+    const output = writes.join("");
+    expect(output).toMatch(/ANTHROPIC_API_KEY/);
+    // Never echoes a credential-shaped value (e.g. an "sk-"-prefixed secret).
+    expect(output).not.toMatch(/sk-[a-zA-Z0-9]/);
   });
 });
