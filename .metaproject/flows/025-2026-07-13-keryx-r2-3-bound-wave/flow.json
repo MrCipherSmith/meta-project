@@ -3,9 +3,9 @@
   "id": "025",
   "slug": "keryx-r2-3-bound-wave",
   "title": "keryx Release 2 R2-3 bound-parallel-wave over registered extensions",
-  "status": "in-progress",
+  "status": "done",
   "createdAt": "2026-07-13T16:42:53.636Z",
-  "updatedAt": "2026-07-13T17:20:47.330Z",
+  "updatedAt": "2026-07-13T17:22:29.078Z",
   "source": {
     "type": "description",
     "ref": null
@@ -29,7 +29,7 @@
     }
   },
   "pr": {
-    "url": null
+    "url": "https://github.com/MrCipherSmith/keryx/pull/28"
   },
   "tasks": [
     {
@@ -226,6 +226,20 @@
       "at": "2026-07-13T17:20:47.330Z",
       "event": "ac-confirmed",
       "detail": "AC5"
+    },
+    {
+      "at": "2026-07-13T17:22:27.027Z",
+      "event": "implemented",
+      "detail": "draft PR: https://github.com/MrCipherSmith/keryx/pull/28 (warning: PR is not a draft)"
+    },
+    {
+      "at": "2026-07-13T17:22:27.106Z",
+      "event": "completing"
+    },
+    {
+      "at": "2026-07-13T17:22:29.078Z",
+      "event": "done",
+      "detail": "all gates passed"
     }
   ]
 }
