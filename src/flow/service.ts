@@ -33,6 +33,7 @@ import type {
   FlowServiceDeps,
   FlowState,
   FlowStatus,
+  FlowTask,
   FlowSummary,
   GateOutcome,
   TaskKind,
@@ -222,18 +223,24 @@ export function createFlowService(deps: FlowServiceDeps): FlowService {
       await assertAcIntact(input.cwd, dir, flow);
       const nextNumber =
         flow.tasks.reduce((acc, task) => Math.max(acc, Number(task.id.slice(1)) || 0), 0) + 1;
-      const task = {
+      const task: FlowTask = {
         id: `T${nextNumber}`,
         title: input.title,
         kind: input.kind ?? "implement",
         status: "todo" as const,
+        // v2 additive defaults (TM-01 §2 / §5.1) for a freshly created task.
+        dependsOn: input.dependsOn ?? [],
+        attempts: { count: 0, log: [] },
+        acRefs: [],
+        evidenceRefs: [],
+        budget: {},
       };
       flow.tasks.push(task);
       return save(input.cwd, dir, flow, "task-added", `${task.id}: ${task.title}`);
       });
     },
 
-    async taskDone({ cwd, id, taskId }): Promise<FlowState> {
+    async taskDone({ cwd, id, taskId, disposition, evidenceRefs, runLink }): Promise<FlowState> {
       return mutate(cwd, id, async ({ dir, flow }) => {
       await assertAcIntact(cwd, dir, flow);
       const task = flow.tasks.find((item) => item.id.toUpperCase() === taskId.toUpperCase());
@@ -241,6 +248,18 @@ export function createFlowService(deps: FlowServiceDeps): FlowService {
         throw new Error(`Task not found: ${taskId}. Known: ${flow.tasks.map((t) => t.id).join(", ")}`);
       }
       task.status = "done";
+      // Disposition is distinct from status (TM-01 §6). Honor an explicit
+      // disposition; otherwise default a completed task to "completed".
+      task.disposition = disposition ?? task.disposition ?? "completed";
+      // v2 additive (backward-compatible): when the caller supplies mapped
+      // evidence refs / run link (e.g. the harness ManagedFlowPort), record them
+      // on the task. Omitted args leave existing behavior untouched.
+      if (evidenceRefs !== undefined) {
+        task.evidenceRefs = evidenceRefs;
+      }
+      if (runLink !== undefined) {
+        task.runLink = runLink;
+      }
       return save(cwd, dir, flow, "task-done", `${task.id}: ${task.title}`);
       });
     },
@@ -463,7 +482,7 @@ export function createFlowService(deps: FlowServiceDeps): FlowService {
           });
           continue;
         }
-        if (flow.schemaVersion !== 1) {
+        if (flow.schemaVersion !== 1 && flow.schemaVersion !== 2) {
           issues.push({ flow: dir, kind: "schema", message: `unknown schemaVersion ${flow.schemaVersion}` });
         }
         for (const file of ["description.md", "context.md", "plan.md", "tasks.md", "acceptance-criteria.md", "journal.md"]) {

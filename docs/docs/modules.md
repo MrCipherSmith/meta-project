@@ -22,7 +22,7 @@ capability is enabled in the manifest, its optional dependency imports lazily, a
 its asset resolves; otherwise it returns `null` and the caller runs its
 deterministic fallback), the **Asset Resolver** (`src/assets/` — resolves + sha256-
 verifies an opt-in asset from a config path / cache, never networking implicitly),
-and the **fixture harness** (`src/harness/` — runs a block's detector over a committed
+and the **fixture harness** (`src/eval/` — runs a block's detector over a committed
 labeled corpus and computes a reproducible precision/recall report). The invariant
 across every module is the same: **the deterministic path is the default and the
 fallback; each model/asset feature is opt-in and degrades gracefully to that path.**

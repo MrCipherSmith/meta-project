@@ -1,0 +1,291 @@
+{
+  "schemaVersion": 2,
+  "id": "007",
+  "slug": "keryx-harness-w5-ports",
+  "title": "W5 ports: provider-neutral port (P-01) + tool definition/registry/call ports (P-02)",
+  "status": "in-progress",
+  "createdAt": "2026-07-12T16:55:18.547Z",
+  "updatedAt": "2026-07-12T17:52:37.863Z",
+  "source": {
+    "type": "description",
+    "ref": null
+  },
+  "acChecksum": "sha256:d5a86e46181735d31f560c7976fb4e991ca213ca10b00360ce438bcb0d07ae4d",
+  "acConfirmed": {
+    "AC1": {
+      "at": "2026-07-12T17:52:37.640Z",
+      "note": "src/harness/provider: neutral ProviderPort, 8 events/9 errors/4 attempt-outcomes/9 caps, sequence-numbered+attempt-scoped, unknownExtensions preserved; 0 provider-SDK imports (T9 boundary proof a)."
+    },
+    "AC2": {
+      "at": "2026-07-12T17:52:37.697Z",
+      "note": "toolCallExecutable true ONLY for tool_call_end with parseable JSON input; false for partial/delta and non-end kinds (traced by T9)."
+    },
+    "AC3": {
+      "at": "2026-07-12T17:52:37.751Z",
+      "note": "src/harness/tool: ToolDefinition/Registry(+snapshot/registryHash)/ExecutorPort(only invoke); validateToolCall 3-stage (envelope+registration+inline inputSchema); ToolExecutionState; no fs/shell surface; unregistered/invalid rejected (T9 boundary proof b)."
+    },
+    "AC4": {
+      "at": "2026-07-12T17:52:37.808Z",
+      "note": "reuse W4 validateAgainstSchema (file) + additive validateAgainstSchemaObject (inline, reuses validateNode); src/contracts diff additive-only, contracts 79/0; deps={} (no new dep)."
+    },
+    "AC5": {
+      "at": "2026-07-12T17:52:37.863Z",
+      "note": "tsc --noEmit clean; full bun test 677/0 (633 baseline + new); new code under src/harness/ + 1 additive src/contracts export; frozen requirements pkg + src/eval + ADRs untouched (git empty)."
+    }
+  },
+  "pr": {
+    "url": null
+  },
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Collect remaining context",
+      "kind": "context",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T2",
+      "title": "Implement per plan",
+      "kind": "implement",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T3",
+      "title": "Add/adjust tests and make them pass",
+      "kind": "test",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T4",
+      "title": "Self-review and prepare draft PR",
+      "kind": "review",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T5",
+      "title": "P-01 RED: provider-port contract tests (normalized events/errors, attempt-scope, unknown-ext, no-SDK)",
+      "kind": "test",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T6",
+      "title": "P-01 impl: src/harness/provider ProviderPort + normalized types + contracts validation (GREEN)",
+      "kind": "implement",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T7",
+      "title": "P-02 RED: tool-port contract tests (schema-validate input, budget/cancel/provenance/replay, registry, no fs/shell)",
+      "kind": "test",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T8",
+      "title": "P-02 impl: src/harness/tool ToolDefinition/Registry/ExecutorPort + contracts validation (GREEN)",
+      "kind": "implement",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T9",
+      "title": "W5 verification: code-verifier (tsc + bun test >=633) + boundaries (0 SDK import, no direct fs/shell) + no-new-dep + frozen untouched",
+      "kind": "review",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    }
+  ],
+  "history": [
+    {
+      "at": "2026-07-12T16:55:18.547Z",
+      "event": "created"
+    },
+    {
+      "at": "2026-07-12T16:55:18.614Z",
+      "event": "task-added",
+      "detail": "T5: P-01 RED: provider-port contract tests (normalized events/errors, attempt-scope, unknown-ext, no-SDK)"
+    },
+    {
+      "at": "2026-07-12T16:55:18.671Z",
+      "event": "task-added",
+      "detail": "T6: P-01 impl: src/harness/provider ProviderPort + normalized types + contracts validation (GREEN)"
+    },
+    {
+      "at": "2026-07-12T16:55:18.722Z",
+      "event": "task-added",
+      "detail": "T7: P-02 RED: tool-port contract tests (schema-validate input, budget/cancel/provenance/replay, registry, no fs/shell)"
+    },
+    {
+      "at": "2026-07-12T16:55:18.776Z",
+      "event": "task-added",
+      "detail": "T8: P-02 impl: src/harness/tool ToolDefinition/Registry/ExecutorPort + contracts validation (GREEN)"
+    },
+    {
+      "at": "2026-07-12T16:55:18.831Z",
+      "event": "task-added",
+      "detail": "T9: W5 verification: code-verifier (tsc + bun test >=633) + boundaries (0 SDK import, no direct fs/shell) + no-new-dep + frozen untouched"
+    },
+    {
+      "at": "2026-07-12T16:57:40.261Z",
+      "event": "frozen",
+      "detail": "5 criteria; checksum recorded"
+    },
+    {
+      "at": "2026-07-12T16:57:40.319Z",
+      "event": "started"
+    },
+    {
+      "at": "2026-07-12T16:57:40.374Z",
+      "event": "task-done",
+      "detail": "T1: Collect remaining context"
+    },
+    {
+      "at": "2026-07-12T17:03:44.343Z",
+      "event": "task-done",
+      "detail": "T5: P-01 RED: provider-port contract tests (normalized events/errors, attempt-scope, unknown-ext, no-SDK)"
+    },
+    {
+      "at": "2026-07-12T17:10:03.628Z",
+      "event": "task-done",
+      "detail": "T6: P-01 impl: src/harness/provider ProviderPort + normalized types + contracts validation (GREEN)"
+    },
+    {
+      "at": "2026-07-12T17:12:07.543Z",
+      "event": "ac-updated",
+      "detail": "P-02 must validate tool-call input against the tool's INLINE inputSchema; the W4 validator only exposed file-based validateAgainstSchema. Amend AC4/AC5 to permit a minimal additive inline-schema export (validateAgainstSchemaObject) reusing the existing validateNode core in src/contracts — reuse, not a new validator engine; no behavior change to existing exports, no new dependency."
+    },
+    {
+      "at": "2026-07-12T17:20:13.236Z",
+      "event": "task-done",
+      "detail": "T7: P-02 RED: tool-port contract tests (schema-validate input, budget/cancel/provenance/replay, registry, no fs/shell)"
+    },
+    {
+      "at": "2026-07-12T17:24:34.749Z",
+      "event": "task-done",
+      "detail": "T8: P-02 impl: src/harness/tool ToolDefinition/Registry/ExecutorPort + contracts validation (GREEN)"
+    },
+    {
+      "at": "2026-07-12T17:28:27.038Z",
+      "event": "task-done",
+      "detail": "T9: W5 verification: code-verifier (tsc + bun test >=633) + boundaries (0 SDK import, no direct fs/shell) + no-new-dep + frozen untouched"
+    },
+    {
+      "at": "2026-07-12T17:28:27.090Z",
+      "event": "task-done",
+      "detail": "T2: Implement per plan"
+    },
+    {
+      "at": "2026-07-12T17:28:27.140Z",
+      "event": "task-done",
+      "detail": "T3: Add/adjust tests and make them pass"
+    },
+    {
+      "at": "2026-07-12T17:28:27.190Z",
+      "event": "task-done",
+      "detail": "T4: Self-review and prepare draft PR"
+    },
+    {
+      "at": "2026-07-12T17:52:37.641Z",
+      "event": "ac-confirmed",
+      "detail": "AC1: src/harness/provider: neutral ProviderPort, 8 events/9 errors/4 attempt-outcomes/9 caps, sequence-numbered+attempt-scoped, unknownExtensions preserved; 0 provider-SDK imports (T9 boundary proof a)."
+    },
+    {
+      "at": "2026-07-12T17:52:37.697Z",
+      "event": "ac-confirmed",
+      "detail": "AC2: toolCallExecutable true ONLY for tool_call_end with parseable JSON input; false for partial/delta and non-end kinds (traced by T9)."
+    },
+    {
+      "at": "2026-07-12T17:52:37.751Z",
+      "event": "ac-confirmed",
+      "detail": "AC3: src/harness/tool: ToolDefinition/Registry(+snapshot/registryHash)/ExecutorPort(only invoke); validateToolCall 3-stage (envelope+registration+inline inputSchema); ToolExecutionState; no fs/shell surface; unregistered/invalid rejected (T9 boundary proof b)."
+    },
+    {
+      "at": "2026-07-12T17:52:37.808Z",
+      "event": "ac-confirmed",
+      "detail": "AC4: reuse W4 validateAgainstSchema (file) + additive validateAgainstSchemaObject (inline, reuses validateNode); src/contracts diff additive-only, contracts 79/0; deps={} (no new dep)."
+    },
+    {
+      "at": "2026-07-12T17:52:37.863Z",
+      "event": "ac-confirmed",
+      "detail": "AC5: tsc --noEmit clean; full bun test 677/0 (633 baseline + new); new code under src/harness/ + 1 additive src/contracts export; frozen requirements pkg + src/eval + ADRs untouched (git empty)."
+    }
+  ]
+}

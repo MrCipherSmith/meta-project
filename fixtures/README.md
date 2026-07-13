@@ -1,7 +1,7 @@
 # Fixture Corpora
 
 Committed, deterministic labeled corpora consumed by the shared fixture-corpora
-harness (`src/harness/corpus.ts`). Each corpus lives in its own directory with a
+harness (`src/eval/corpus.ts`). Each corpus lives in its own directory with a
 `cases.json` file of labeled cases:
 
 ```json

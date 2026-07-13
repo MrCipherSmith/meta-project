@@ -28,7 +28,7 @@ src/lib/*                         Layer 4 — Shared toolkit
 ── opt-in substrate (cross-cutting, roadmap-2026) ────────────────────────
 src/capability/  the seam every opt-in layer instantiates (resolve-or-null)
 src/assets/      local-only, sha256-verified asset resolution (+ pull path)
-src/harness/     fixture-corpus precision/recall acceptance gates
+src/eval/        fixture-corpus precision/recall acceptance gates
 src/mcp/         stdio-first protocol surface over the service facades
 ```
 
@@ -66,7 +66,7 @@ Two invariants define the system and recur across every module:
 | **orientation** | `src/ctx/orient.ts`, `src/ctx/orient-runtimes.ts`, `src/commands/orient.ts` | `orient` | Build a bounded graph + wiki startup context and install/remove compatible turn-start hooks for Claude, Codex, and Cursor. |
 | **capability** | `src/capability/` | — (substrate) | The opt-in seam every feature layer instantiates: `resolveCapability(cwd, spec)` gates on manifest + optional dep + verified asset, returns an adapter or `null`. Never throws. |
 | **assets** | `src/assets/` | `assets` (per module) | Local-only, sha256-verified asset resolution (`resolveAsset`); `pullAsset` is the sole network path (verify-or-refuse); `assets.lock.json` pins provenance; `assets list\|verify\|pull`. |
-| **harness** | `src/harness/` | — (test-time) | Fixture-corpus acceptance harness: `runCorpus`/`gateCorpus` produce deterministic precision/recall/FN-rate reports used as CI gates by multiple opt-in blocks. |
+| **eval** | `src/eval/` | — (test-time) | Fixture-corpus acceptance harness: `runCorpus`/`gateCorpus` produce deterministic precision/recall/FN-rate reports used as CI gates by multiple opt-in blocks. |
 | **mcp** | `src/mcp/` | `mcp` | Thin stdio-first Model Context Protocol surface over the `createXService()` facades: SDK-free dispatch core, Tool registry, read-only `metaproject://` Resources, single redaction choke point. |
 
 The product modules are joined by cross-cutting command surfaces (`agents`,
@@ -111,7 +111,7 @@ boundary tests keep optional packages out of the deterministic startup path.
 
 `resolveAsset(registry, id)` reads **local files only** and re-verifies sha256 on **every** load, returning `null` on a missing or tampered asset (⇒ deterministic fallback); it never opens a socket. `pullAsset(id, lock)` is the **sole network path** in keryx: it fetches the pinned url, verifies the download's sha256, and **refuses on mismatch — writing nothing** before the check passes. `.metaproject/assets.lock.json` is the committed provenance record, pinning `{ version, url, sha256, size }` per asset id. A single `assets list | verify [<id>] | pull <id>` subcommand (delegated to by every opt-in module) is the only asset-management surface.
 
-### Fixture-corpus harness (`src/harness/`)
+### Fixture-corpus harness (`src/eval/`)
 
 `runCorpus(dir, detect)` runs a block's detector over a committed `fixtures/<corpus>/cases.json` of labeled cases and computes a deterministic `CorpusReport` (precision, recall, false-negative rate; cases sorted by id so re-runs diff empty). `gateCorpus(report, { maxFnRate })` turns that into a pass/fail CI gate. This generalizes "prove quality against labeled data, not prose" into a shared, per-block-code-free runner used as an acceptance gate by multiple blocks (mcp-threat, symbol-graph, temporal, paraphrase, churn-complexity, and the injection/exfil/PII corpora).
 

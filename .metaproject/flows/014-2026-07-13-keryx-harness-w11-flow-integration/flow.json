@@ -1,0 +1,266 @@
+{
+  "schemaVersion": 2,
+  "id": "014",
+  "slug": "keryx-harness-w11-flow-integration",
+  "title": "W11 flow integration (FI-01/FI-02): ManagedFlowPort consumes harness evidence via Task Manager API; single-coordinator parity",
+  "status": "in-progress",
+  "createdAt": "2026-07-13T03:12:22.995Z",
+  "updatedAt": "2026-07-13T03:38:11.984Z",
+  "source": {
+    "type": "description",
+    "ref": null
+  },
+  "acChecksum": "sha256:abd7720351a5a584d6a723ff9fc7d64b07561c12bf343291bb1d442fb3a3f2e3",
+  "acConfirmed": {
+    "AC1": {
+      "at": "2026-07-13T03:38:11.789Z"
+    },
+    "AC2": {
+      "at": "2026-07-13T03:38:11.838Z"
+    },
+    "AC3": {
+      "at": "2026-07-13T03:38:11.887Z"
+    },
+    "AC4": {
+      "at": "2026-07-13T03:38:11.935Z"
+    },
+    "AC5": {
+      "at": "2026-07-13T03:38:11.984Z"
+    }
+  },
+  "pr": {
+    "url": null
+  },
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Collect remaining context",
+      "kind": "context",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T2",
+      "title": "Implement per plan",
+      "kind": "implement",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T3",
+      "title": "Add/adjust tests and make them pass",
+      "kind": "test",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T4",
+      "title": "Self-review and prepare draft PR",
+      "kind": "review",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T5",
+      "title": "FI-01 RED: ManagedFlowPort — harness gate/evidence/runLink -> Task Manager via API; harness never writes flow.json; disposition mapping; TM-migration",
+      "kind": "test",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T6",
+      "title": "FI-01 impl: additive taskDone(evidenceRefs?/runLink?) in src/flow + src/harness/flow/managed-flow-port.ts adapter; GREEN",
+      "kind": "implement",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T7",
+      "title": "FI-02 tests: single-coordinator parity + failure-disposition + no-duplicate-coordinator + TM-migration; parity.ts helper",
+      "kind": "test",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T8",
+      "title": "W11 verification: code-verifier + D-02 (harness no flow.json write) + single-coordinator + additive-only backward-compat + determinism + frozen untouched",
+      "kind": "review",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    }
+  ],
+  "history": [
+    {
+      "at": "2026-07-13T03:12:22.995Z",
+      "event": "created"
+    },
+    {
+      "at": "2026-07-13T03:12:23.063Z",
+      "event": "task-added",
+      "detail": "T5: FI-01 RED: ManagedFlowPort — harness gate/evidence/runLink -> Task Manager via API; harness never writes flow.json; disposition mapping; TM-migration"
+    },
+    {
+      "at": "2026-07-13T03:12:23.115Z",
+      "event": "task-added",
+      "detail": "T6: FI-01 impl: additive taskDone(evidenceRefs?/runLink?) in src/flow + src/harness/flow/managed-flow-port.ts adapter; GREEN"
+    },
+    {
+      "at": "2026-07-13T03:12:23.165Z",
+      "event": "task-added",
+      "detail": "T7: FI-02 tests: single-coordinator parity + failure-disposition + no-duplicate-coordinator + TM-migration; parity.ts helper"
+    },
+    {
+      "at": "2026-07-13T03:12:23.217Z",
+      "event": "task-added",
+      "detail": "T8: W11 verification: code-verifier + D-02 (harness no flow.json write) + single-coordinator + additive-only backward-compat + determinism + frozen untouched"
+    },
+    {
+      "at": "2026-07-13T03:14:38.030Z",
+      "event": "frozen",
+      "detail": "5 criteria; checksum recorded"
+    },
+    {
+      "at": "2026-07-13T03:14:38.084Z",
+      "event": "started"
+    },
+    {
+      "at": "2026-07-13T03:14:38.138Z",
+      "event": "task-done",
+      "detail": "T1: Collect remaining context"
+    },
+    {
+      "at": "2026-07-13T03:23:33.190Z",
+      "event": "task-done",
+      "detail": "T5: FI-01 RED: ManagedFlowPort — harness gate/evidence/runLink -> Task Manager via API; harness never writes flow.json; disposition mapping; TM-migration"
+    },
+    {
+      "at": "2026-07-13T03:26:32.849Z",
+      "event": "task-done",
+      "detail": "T6: FI-01 impl: additive taskDone(evidenceRefs?/runLink?) in src/flow + src/harness/flow/managed-flow-port.ts adapter; GREEN"
+    },
+    {
+      "at": "2026-07-13T03:31:53.926Z",
+      "event": "task-done",
+      "detail": "T7: FI-02 tests: single-coordinator parity + failure-disposition + no-duplicate-coordinator + TM-migration; parity.ts helper"
+    },
+    {
+      "at": "2026-07-13T03:37:59.565Z",
+      "event": "task-done",
+      "detail": "T5: FI-01 RED: ManagedFlowPort — harness gate/evidence/runLink -> Task Manager via API; harness never writes flow.json; disposition mapping; TM-migration"
+    },
+    {
+      "at": "2026-07-13T03:37:59.616Z",
+      "event": "task-done",
+      "detail": "T6: FI-01 impl: additive taskDone(evidenceRefs?/runLink?) in src/flow + src/harness/flow/managed-flow-port.ts adapter; GREEN"
+    },
+    {
+      "at": "2026-07-13T03:37:59.666Z",
+      "event": "task-done",
+      "detail": "T8: W11 verification: code-verifier + D-02 (harness no flow.json write) + single-coordinator + additive-only backward-compat + determinism + frozen untouched"
+    },
+    {
+      "at": "2026-07-13T03:37:59.715Z",
+      "event": "task-done",
+      "detail": "T2: Implement per plan"
+    },
+    {
+      "at": "2026-07-13T03:37:59.763Z",
+      "event": "task-done",
+      "detail": "T3: Add/adjust tests and make them pass"
+    },
+    {
+      "at": "2026-07-13T03:37:59.812Z",
+      "event": "task-done",
+      "detail": "T4: Self-review and prepare draft PR"
+    },
+    {
+      "at": "2026-07-13T03:38:11.789Z",
+      "event": "ac-confirmed",
+      "detail": "AC1"
+    },
+    {
+      "at": "2026-07-13T03:38:11.838Z",
+      "event": "ac-confirmed",
+      "detail": "AC2"
+    },
+    {
+      "at": "2026-07-13T03:38:11.887Z",
+      "event": "ac-confirmed",
+      "detail": "AC3"
+    },
+    {
+      "at": "2026-07-13T03:38:11.935Z",
+      "event": "ac-confirmed",
+      "detail": "AC4"
+    },
+    {
+      "at": "2026-07-13T03:38:11.984Z",
+      "event": "ac-confirmed",
+      "detail": "AC5"
+    }
+  ]
+}
