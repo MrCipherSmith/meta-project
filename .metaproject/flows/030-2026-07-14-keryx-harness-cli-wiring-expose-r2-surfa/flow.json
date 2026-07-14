@@ -1,0 +1,245 @@
+{
+  "schemaVersion": 2,
+  "id": "030",
+  "slug": "keryx-harness-cli-wiring-expose-r2-surfa",
+  "title": "keryx harness CLI wiring — expose R2 surfaces live: harness exec (R2-5 subprocess) + extension (R2-1) + wave (R2-3)",
+  "status": "done",
+  "createdAt": "2026-07-14T09:27:51.450Z",
+  "updatedAt": "2026-07-14T10:05:23.950Z",
+  "source": {
+    "type": "description",
+    "ref": null
+  },
+  "acChecksum": "sha256:b00d3955f7b839e1df85cad310b5c86edfd6fb110abc2482c4acf2408507ed6b",
+  "acConfirmed": {
+    "AC1": {
+      "at": "2026-07-14T10:03:40.968Z"
+    },
+    "AC2": {
+      "at": "2026-07-14T10:03:41.024Z"
+    },
+    "AC3": {
+      "at": "2026-07-14T10:03:41.075Z"
+    },
+    "AC4": {
+      "at": "2026-07-14T10:03:41.127Z"
+    },
+    "AC5": {
+      "at": "2026-07-14T10:03:41.179Z"
+    }
+  },
+  "pr": {
+    "url": "https://github.com/MrCipherSmith/keryx/pull/33"
+  },
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Collect remaining context",
+      "kind": "context",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T2",
+      "title": "Implement per plan",
+      "kind": "implement",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T3",
+      "title": "Add/adjust tests and make them pass",
+      "kind": "test",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T4",
+      "title": "Self-review and prepare draft PR",
+      "kind": "review",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T5",
+      "title": "RED CLI tests: exec (fail-closed no-flag + fake-adapter completed/bound-hits/blocked) + extension (register→dispatch canonical, denied) + wave (bounded, denied) + flag-gated smoke",
+      "kind": "test",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T6",
+      "title": "impl: 3 subcommands harness exec/extension/wave in src/commands + cli.ts routing; compose runContainedProcess/dispatchExtension/planExtensionWave/registerExtension; injectable deps; fail-closed; never flow.json; GREEN",
+      "kind": "implement",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T7",
+      "title": "review (security): exec no-spawn-without-flag + extension/wave fail-closed + D-02 (no flow.json) + secrets-not-logged + reuse-only + deps {} + determinism + frozen untouched",
+      "kind": "review",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    }
+  ],
+  "history": [
+    {
+      "at": "2026-07-14T09:27:51.450Z",
+      "event": "created"
+    },
+    {
+      "at": "2026-07-14T09:31:25.604Z",
+      "event": "task-added",
+      "detail": "T5: RED CLI tests: exec (fail-closed no-flag + fake-adapter completed/bound-hits/blocked) + extension (register→dispatch canonical, denied) + wave (bounded, denied) + flag-gated smoke"
+    },
+    {
+      "at": "2026-07-14T09:31:25.663Z",
+      "event": "task-added",
+      "detail": "T6: impl: 3 subcommands harness exec/extension/wave in src/commands + cli.ts routing; compose runContainedProcess/dispatchExtension/planExtensionWave/registerExtension; injectable deps; fail-closed; never flow.json; GREEN"
+    },
+    {
+      "at": "2026-07-14T09:31:25.714Z",
+      "event": "task-added",
+      "detail": "T7: review (security): exec no-spawn-without-flag + extension/wave fail-closed + D-02 (no flow.json) + secrets-not-logged + reuse-only + deps {} + determinism + frozen untouched"
+    },
+    {
+      "at": "2026-07-14T09:31:25.770Z",
+      "event": "frozen",
+      "detail": "5 criteria; checksum recorded"
+    },
+    {
+      "at": "2026-07-14T09:31:25.821Z",
+      "event": "started"
+    },
+    {
+      "at": "2026-07-14T09:31:25.872Z",
+      "event": "task-done",
+      "detail": "T1: Collect remaining context"
+    },
+    {
+      "at": "2026-07-14T09:57:02.870Z",
+      "event": "task-done",
+      "detail": "T5: RED CLI tests: exec (fail-closed no-flag + fake-adapter completed/bound-hits/blocked) + extension (register→dispatch canonical, denied) + wave (bounded, denied) + flag-gated smoke"
+    },
+    {
+      "at": "2026-07-14T09:57:02.926Z",
+      "event": "task-done",
+      "detail": "T3: Add/adjust tests and make them pass"
+    },
+    {
+      "at": "2026-07-14T09:57:02.978Z",
+      "event": "task-done",
+      "detail": "T6: impl: 3 subcommands harness exec/extension/wave in src/commands + cli.ts routing; compose runContainedProcess/dispatchExtension/planExtensionWave/registerExtension; injectable deps; fail-closed; never flow.json; GREEN"
+    },
+    {
+      "at": "2026-07-14T09:57:03.029Z",
+      "event": "task-done",
+      "detail": "T2: Implement per plan"
+    },
+    {
+      "at": "2026-07-14T10:02:40.706Z",
+      "event": "task-done",
+      "detail": "T7: review (security): exec no-spawn-without-flag + extension/wave fail-closed + D-02 (no flow.json) + secrets-not-logged + reuse-only + deps {} + determinism + frozen untouched"
+    },
+    {
+      "at": "2026-07-14T10:02:40.762Z",
+      "event": "task-done",
+      "detail": "T4: Self-review and prepare draft PR"
+    },
+    {
+      "at": "2026-07-14T10:03:40.968Z",
+      "event": "ac-confirmed",
+      "detail": "AC1"
+    },
+    {
+      "at": "2026-07-14T10:03:41.024Z",
+      "event": "ac-confirmed",
+      "detail": "AC2"
+    },
+    {
+      "at": "2026-07-14T10:03:41.075Z",
+      "event": "ac-confirmed",
+      "detail": "AC3"
+    },
+    {
+      "at": "2026-07-14T10:03:41.127Z",
+      "event": "ac-confirmed",
+      "detail": "AC4"
+    },
+    {
+      "at": "2026-07-14T10:03:41.179Z",
+      "event": "ac-confirmed",
+      "detail": "AC5"
+    },
+    {
+      "at": "2026-07-14T10:04:51.919Z",
+      "event": "implemented",
+      "detail": "draft PR: https://github.com/MrCipherSmith/keryx/pull/33 (warning: PR is not a draft)"
+    },
+    {
+      "at": "2026-07-14T10:05:21.864Z",
+      "event": "completing"
+    },
+    {
+      "at": "2026-07-14T10:05:23.950Z",
+      "event": "done",
+      "detail": "all gates passed"
+    }
+  ]
+}
