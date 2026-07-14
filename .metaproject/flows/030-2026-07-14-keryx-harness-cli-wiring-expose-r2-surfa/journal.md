@@ -1,0 +1,20 @@
+# Flow Journal
+
+- 2026-07-14T09:27:51.450Z - flow created
+- 2026-07-14T09:31:25.604Z - task-added: T5: RED CLI tests: exec (fail-closed no-flag + fake-adapter completed/bound-hits/blocked) + extension (register→dispatch canonical, denied) + wave (bounded, denied) + flag-gated smoke
+- 2026-07-14T09:31:25.663Z - task-added: T6: impl: 3 subcommands harness exec/extension/wave in src/commands + cli.ts routing; compose runContainedProcess/dispatchExtension/planExtensionWave/registerExtension; injectable deps; fail-closed; never flow.json; GREEN
+- 2026-07-14T09:31:25.714Z - task-added: T7: review (security): exec no-spawn-without-flag + extension/wave fail-closed + D-02 (no flow.json) + secrets-not-logged + reuse-only + deps {} + determinism + frozen untouched
+- 2026-07-14T09:31:25.770Z - frozen: 5 criteria; checksum recorded
+- 2026-07-14T09:31:25.821Z - started
+- 2026-07-14T09:31:25.872Z - task-done: T1: Collect remaining context
+- 2026-07-14T09:57:02.870Z - task-done: T5: RED CLI tests: exec (fail-closed no-flag + fake-adapter completed/bound-hits/blocked) + extension (register→dispatch canonical, denied) + wave (bounded, denied) + flag-gated smoke
+- 2026-07-14T09:57:02.926Z - task-done: T3: Add/adjust tests and make them pass
+- 2026-07-14T09:57:02.978Z - task-done: T6: impl: 3 subcommands harness exec/extension/wave in src/commands + cli.ts routing; compose runContainedProcess/dispatchExtension/planExtensionWave/registerExtension; injectable deps; fail-closed; never flow.json; GREEN
+- 2026-07-14T09:57:03.029Z - task-done: T2: Implement per plan
+- 2026-07-14T10:02:40.706Z - task-done: T7: review (security): exec no-spawn-without-flag + extension/wave fail-closed + D-02 (no flow.json) + secrets-not-logged + reuse-only + deps {} + determinism + frozen untouched
+- 2026-07-14T10:02:40.762Z - task-done: T4: Self-review and prepare draft PR
+- 2026-07-14T10:03:40.968Z - ac-confirmed: AC1
+- 2026-07-14T10:03:41.024Z - ac-confirmed: AC2
+- 2026-07-14T10:03:41.075Z - ac-confirmed: AC3
+- 2026-07-14T10:03:41.127Z - ac-confirmed: AC4
+- 2026-07-14T10:03:41.179Z - ac-confirmed: AC5

@@ -198,6 +198,9 @@ Usage:
   keryx                                        Start the interactive shell (REPL)
   keryx shell [--provider <p>] [--model <m>] [--base-url <url>]
   keryx harness run --provider <fake|anthropic|ollama> --model <m> [--base-url <url>] "<prompt>"
+  keryx harness exec [--allow-env KEY]... [--max-runtime-ms N] [--allow-real-subprocess] -- <path> [args...]
+  keryx harness extension --spec <path>
+  keryx harness wave --spec <path>
   keryx init [--yes] [--no-gdgraph] [--no-gdctx] [--no-gdwiki] [--no-gdskills] [--gdskills-profile recommended] [--no-health] [--no-testing] [--no-memory] [--no-gdgraph-hook] [--no-gdskills-hook] [--no-health-hook] [--no-testing-post-commit-hook] [--no-testing-pre-push-hook]
   keryx status
   keryx modules [status | enable <name> | disable <name>]

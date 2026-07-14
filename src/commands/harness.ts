@@ -16,6 +16,8 @@
 // invocation stays fully offline; a real CLI invocation supplies none and falls
 // back to `globalThis.fetch` / wall-clock / a uuid sequence / `process.env`.
 
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import type { HarnessConfig } from "../harness/config";
 import { makeProvider } from "../harness/provider/make-provider";
@@ -25,6 +27,91 @@ import { type RunDeps, type RunResult, runOffline } from "../harness/run/run";
 import { ToolRegistry } from "../harness/tool/registry";
 import type { ToolExecutorPort, ToolInvocation, ToolResult } from "../harness/tool/types";
 import type { HarnessRunInput } from "../harness/types";
+// R2 library modules the exec/extension/wave subcommands COMPOSE (reuse-only).
+import { runContainedProcess } from "../harness/process/executor";
+import type {
+  ContainedCommand,
+  ProcessAdapter,
+  RunContainedProcessInput,
+} from "../harness/process/executor";
+import { RealProcessAdapter } from "../harness/process/real-process-adapter";
+import type { BudgetReservation, ParentRemainingBudget } from "../harness/child/isolation";
+import type { ToolRisk } from "../harness/tool/types";
+import { registerExtension } from "../harness/extension/registry";
+import type { CapabilityGrant, ExtensionManifest } from "../harness/extension/registry";
+import { dispatchExtension, evaluateExtensionGrant } from "../harness/extension/execute";
+import type { DispatchArtifactRef, DispatchExtensionInput } from "../harness/extension/execute";
+import { planExtensionWave } from "../harness/extension/bound-wave";
+import type { ExtensionWaveTask, PlanExtensionWaveInput } from "../harness/extension/bound-wave";
+import { checkApproval } from "../harness/mutation/approval";
+import type { ApprovalCheckInput } from "../harness/mutation/approval";
+import type { ParsedChildResult } from "../harness/child/contract";
+import type { Provenance } from "../harness/session/types";
+
+/**
+ * Spec injected into `keryx harness extension` (a test injects it; a real CLI
+ * invocation reads it from `--spec <path>` via `readFileSync`). Carries the
+ * registry inputs, the optional escalation-grant inputs (fed to
+ * `evaluateExtensionGrant` ONLY when `requestedCapabilities` is present), and
+ * every field `dispatchExtension` needs, plus an optional `rawChildResult`.
+ */
+export interface ExtensionCliSpec {
+  // Injected spec: an index signature keeps the frozen tests' `Record<string,
+  // unknown>` spec objects assignable via their `as HarnessCommandDeps` cast.
+  [key: string]: unknown;
+  extensionId: string;
+  manifest?: ExtensionManifest;
+  capabilityGrant?: CapabilityGrant;
+  requestedCapabilities?: string[];
+  policyDecision?: "allow" | "ask" | "deny";
+  provenance?: Provenance;
+  approval?: ApprovalCheckInput;
+  reservedBudget: BudgetReservation;
+  parentRunId: string;
+  sessionId: string;
+  attempt: { attemptId: string; number: number };
+  branchId: string;
+  contextManifestHash: string;
+  policyFingerprint: string;
+  canonicalContractVersion: string;
+  task: { title: string; description: string };
+  acceptanceCriteria: string[];
+  dispatchArtifact: DispatchArtifactRef;
+  resultArtifact: DispatchArtifactRef;
+  rawChildResult?: string | ParsedChildResult;
+}
+
+/** One task inside a {@link WaveCliSpec}: registry inputs + `ExtensionWaveTask` fields. */
+export interface WaveCliTaskSpec {
+  // Injected spec: an index signature keeps the frozen tests' `Record<string,
+  // unknown>` task objects assignable via their `as HarnessCommandDeps` cast.
+  [key: string]: unknown;
+  taskId: string;
+  dependsOn: string[];
+  extensionId: string;
+  manifest?: ExtensionManifest;
+  capabilityGrant?: CapabilityGrant;
+  budgetRequest: BudgetReservation;
+  cancelled?: boolean;
+  sessionId: string;
+  attempt: { attemptId: string; number: number };
+  branchId: string;
+  contextManifestHash: string;
+  policyFingerprint: string;
+  task: { title: string; description: string };
+  acceptanceCriteria: string[];
+  dispatchArtifact: DispatchArtifactRef;
+  resultArtifact: DispatchArtifactRef;
+}
+
+/** Spec injected into `keryx harness wave` (or read from `--spec <path>`). */
+export interface WaveCliSpec {
+  tasks: WaveCliTaskSpec[];
+  maxConcurrency: number;
+  parentRemaining: ParentRemainingBudget;
+  parentRunId: string;
+  canonicalContractVersion: string;
+}
 
 /** Injected, all-optional dependencies keeping a test run offline + deterministic. */
 export interface HarnessCommandDeps {
@@ -32,6 +119,43 @@ export interface HarnessCommandDeps {
   clock?: () => string;
   idSeq?: () => string;
   env?: Record<string, string | undefined>;
+  /** Injected FAKE process adapter — keeps `exec` offline (never a real spawn). */
+  processAdapter?: ProcessAdapter;
+  /** Injected extension spec — keeps `extension` off the filesystem. */
+  extensionSpec?: ExtensionCliSpec;
+  /** Injected wave spec — keeps `wave` off the filesystem. */
+  waveSpec?: WaveCliSpec;
+}
+
+/** Resolve the shared runtime deps (env/clock/idSeq) with the run-path fallback. */
+function resolveRuntime(deps?: HarnessCommandDeps): {
+  env: Record<string, string | undefined>;
+  clock: () => string;
+  idSeq: () => string;
+} {
+  const env = deps?.env ?? process.env;
+  const clock = deps?.clock ?? (() => new Date().toISOString());
+  let idCounter = 0;
+  const idSeq = deps?.idSeq ?? (() => `${randomUUID()}-${idCounter++}`);
+  return { env, clock, idSeq };
+}
+
+/**
+ * A `trusted-local` profile with `defaults.shell: "allow"` — the deterministic
+ * "approved argv and environment allowlist" posture the frozen
+ * SC_R04_SHELL_CONTAINMENT scenario describes (mirrors the shell-allow fixture
+ * in `executor.test.ts`). Only reached behind the `exec` opt-in gate.
+ */
+function shellAllowProfile(): PolicyProfile {
+  return {
+    schemaVersion: 1,
+    profileId: "monitored-trusted-local",
+    profileVersion: "1.0.0-shell-contained",
+    fingerprint: sha256Hex("monitored-trusted-local:1.0.0-shell-contained"),
+    trustMode: "trusted-local",
+    defaults: { read: "allow", write: "ask", shell: "allow", network: "ask", delegate: "ask" },
+    requiredControls: { isolation: "not-required", redactionFailure: "deny", networkBrokerFailure: "deny" },
+  };
 }
 
 /** The structured result the command prints as its final JSON blob. */
@@ -49,9 +173,13 @@ interface ParsedArgs {
   prompt: string;
 }
 
-/** The single usage line, printed on an unknown subcommand or invalid args. */
-const USAGE =
-  'Usage: keryx harness run --provider <fake|anthropic|ollama> --model <m> [--base-url <url>] "<prompt>"';
+/** The usage text, printed on an unknown subcommand or invalid args. */
+const USAGE = [
+  'Usage: keryx harness run --provider <fake|anthropic|ollama> --model <m> [--base-url <url>] "<prompt>"',
+  "       keryx harness exec [--allow-env KEY]... [--max-runtime-ms N] [--allow-real-subprocess] -- <path> [args...]",
+  "       keryx harness extension --spec <path>",
+  "       keryx harness wave --spec <path>",
+].join("\n");
 
 function sha256Hex(input: string): string {
   // Small stable fingerprint for the read-only profile — node built-in only.
@@ -124,6 +252,18 @@ function toStructured(result: RunResult): StructuredResult {
 
 export async function harnessCommand(args: string[], deps?: HarnessCommandDeps): Promise<void> {
   const subcommand = args[0];
+  if (subcommand === "exec") {
+    harnessExec(args, deps);
+    return;
+  }
+  if (subcommand === "extension") {
+    harnessExtension(args, deps);
+    return;
+  }
+  if (subcommand === "wave") {
+    harnessWave(args, deps);
+    return;
+  }
   if (subcommand !== "run") {
     console.log(USAGE);
     return;
@@ -218,4 +358,301 @@ export async function harnessCommand(args: string[], deps?: HarnessCommandDeps):
   }
 
   console.log(JSON.stringify(structured));
+}
+
+// ---------------------------------------------------------------------------
+// exec — a contained real subprocess, fail-closed and opt-in.
+// ---------------------------------------------------------------------------
+
+/** The fixed parent runtime ceiling (ms) a `--max-runtime-ms` request is bounded by. */
+const EXEC_PARENT_REMAINING_MS = 60_000;
+/** The default per-command runtime reservation (ms) when `--max-runtime-ms` is omitted. */
+const EXEC_DEFAULT_RUNTIME_MS = 30_000;
+/** A sensible default output byte cap the contained run is measured against. */
+const EXEC_OUTPUT_LIMIT_BYTES = 1_000_000;
+
+interface ParsedExecArgs {
+  allowEnvKeys: string[];
+  maxRuntimeMs?: number;
+  allowRealSubprocess: boolean;
+  commandPath: string;
+  commandArgs: string[];
+}
+
+/** Parse `exec [--allow-env KEY]... [--max-runtime-ms N] [--allow-real-subprocess] -- <path> [args...]`. */
+function parseExecArgs(args: string[]): ParsedExecArgs {
+  const allowEnvKeys: string[] = [];
+  let maxRuntimeMs: number | undefined;
+  let allowRealSubprocess = false;
+  let commandPath = "";
+  let commandArgs: string[] = [];
+
+  // args[0] is the "exec" subcommand; scan flags until the `--` terminator.
+  for (let i = 1; i < args.length; i++) {
+    const arg = args[i];
+    if (arg === "--") {
+      commandPath = args[i + 1] ?? "";
+      commandArgs = args.slice(i + 2);
+      break;
+    }
+    if (arg === "--allow-env") {
+      const key = args[++i];
+      if (key !== undefined) allowEnvKeys.push(key);
+    } else if (arg === "--max-runtime-ms") {
+      const raw = args[++i];
+      const parsed = raw === undefined ? Number.NaN : Number.parseInt(raw, 10);
+      if (Number.isFinite(parsed)) maxRuntimeMs = parsed;
+    } else if (arg === "--allow-real-subprocess") {
+      allowRealSubprocess = true;
+    }
+  }
+
+  const parsed: ParsedExecArgs = { allowEnvKeys, allowRealSubprocess, commandPath, commandArgs };
+  if (maxRuntimeMs !== undefined) parsed.maxRuntimeMs = maxRuntimeMs;
+  return parsed;
+}
+
+/**
+ * `keryx harness exec` — run one command through the reused, fail-closed
+ * `runContainedProcess` decision core. Offline+deterministic when a
+ * `processAdapter` is injected; fail-closed refusal when neither an injected
+ * adapter nor the `--allow-real-subprocess` (or `KERYX_ALLOW_REAL_SUBPROCESS=1`)
+ * opt-in is present — no adapter is constructed and nothing is spawned. Prints
+ * ONE JSON blob as its last `console.log`; NEVER persists flow state (D-02) and
+ * never logs env values.
+ */
+function harnessExec(args: string[], deps?: HarnessCommandDeps): void {
+  const { env, clock, idSeq } = resolveRuntime(deps);
+  const { allowEnvKeys, maxRuntimeMs, allowRealSubprocess, commandPath, commandArgs } =
+    parseExecArgs(args);
+
+  // Fail-closed opt-in gate: with no injected adapter and no explicit real-
+  // subprocess authority, refuse BEFORE constructing any adapter or spawning.
+  const allowReal = allowRealSubprocess || env.KERYX_ALLOW_REAL_SUBPROCESS === "1";
+  if (deps?.processAdapter === undefined && !allowReal) {
+    console.log(
+      "keryx harness exec refuses to spawn a real subprocess without --allow-real-subprocess " +
+        "(or KERYX_ALLOW_REAL_SUBPROCESS=1); no process was started.",
+    );
+    return;
+  }
+
+  const cwd = process.cwd();
+  // Only the explicitly allowlisted env KEYS are forwarded, and only when they
+  // resolve to a value; env VALUES are never logged (secret-safety).
+  const commandEnv: Record<string, string> = {};
+  for (const key of allowEnvKeys) {
+    const value = env[key];
+    if (value !== undefined) commandEnv[key] = value;
+  }
+
+  const command: ContainedCommand = {
+    path: commandPath,
+    argv: [commandPath, ...commandArgs],
+    env: commandEnv,
+    cwd,
+  };
+
+  // The guard's traversal check is rooted at the command path's filesystem root
+  // so an approved absolute system binary (e.g. /bin/echo) is in-root; the shell-
+  // metachar / credential / env-allowlist gates remain the real containment.
+  const worktreeRoot = path.parse(path.resolve(cwd, commandPath)).root || cwd;
+
+  const budget: BudgetReservation = {
+    reservationId: idSeq(),
+    maxRuntimeMs: maxRuntimeMs ?? EXEC_DEFAULT_RUNTIME_MS,
+  };
+  const parentRemaining: ParentRemainingBudget = { maxRuntimeMs: EXEC_PARENT_REMAINING_MS };
+
+  const adapter: ProcessAdapter =
+    deps?.processAdapter ?? new RealProcessAdapter({ allowRealSubprocess: true });
+
+  const runInput: RunContainedProcessInput = {
+    command,
+    allowlist: {
+      worktreeRoot,
+      envAllowlist: allowEnvKeys,
+      profile: shellAllowProfile(),
+      interactive: true,
+      scanAvailable: true,
+      risk: "shell" satisfies ToolRisk,
+    },
+    budget,
+    parentRemaining,
+    outputLimitBytes: EXEC_OUTPUT_LIMIT_BYTES,
+    adapter,
+  };
+
+  const outcome = runContainedProcess(runInput, { clock, idSeq });
+
+  let output: Record<string, unknown>;
+  if (outcome.kind === "completed") {
+    output = {
+      outcome: {
+        kind: "completed",
+        ...(outcome.exitCode !== undefined ? { exitCode: outcome.exitCode } : {}),
+      },
+      receipt: outcome.receipt,
+      evidenceRefs: outcome.evidenceRefs,
+    };
+  } else if (outcome.kind === "blocked") {
+    output = { outcome: { kind: "blocked", reason: outcome.reason } };
+  } else {
+    output = { outcome: { kind: outcome.kind }, receipt: outcome.receipt };
+  }
+  console.log(JSON.stringify(output));
+}
+
+// ---------------------------------------------------------------------------
+// extension — a single registered+granted extension dispatch, spec-driven.
+// ---------------------------------------------------------------------------
+
+/** Read a spec from `--spec <path>` (real CLI path only; tests inject the spec). */
+function readSpecArg<T>(args: string[]): T {
+  let specPath: string | undefined;
+  for (let i = 1; i < args.length; i++) {
+    if (args[i] === "--spec") {
+      specPath = args[i + 1];
+      break;
+    }
+  }
+  if (specPath === undefined) {
+    throw new Error("keryx harness: a --spec <path> argument is required when no spec is injected.");
+  }
+  return JSON.parse(readFileSync(specPath, "utf8")) as T;
+}
+
+/** The default STATUS-first child reply parsed when the spec supplies none. */
+const DEFAULT_CHILD_RESULT = "STATUS: DONE\nExtension completed within its granted capabilities.";
+
+/**
+ * `keryx harness extension` — register, (optionally) evaluate an escalation
+ * grant, then dispatch a single extension, all via the reused R2 library.
+ * Fail-closed: an unregistered spec prints `{registration}` with NO dispatch; a
+ * denied escalation prints `{registration, grantEvaluation}` with NO dispatch.
+ * Prints ONE JSON blob; NEVER persists flow state (D-02).
+ */
+function harnessExtension(args: string[], deps?: HarnessCommandDeps): void {
+  const { clock, idSeq } = resolveRuntime(deps);
+  const spec = deps?.extensionSpec ?? readSpecArg<ExtensionCliSpec>(args);
+
+  const registration = registerExtension({
+    extensionId: spec.extensionId,
+    ...(spec.manifest !== undefined ? { manifest: spec.manifest } : {}),
+    ...(spec.capabilityGrant !== undefined ? { capabilityGrant: spec.capabilityGrant } : {}),
+  });
+  if (!registration.ok) {
+    console.log(JSON.stringify({ registration }));
+    return;
+  }
+
+  // Only when the spec REQUESTS capabilities do we run the escalation gate; a
+  // denial is fail-closed BEFORE any dispatch is built.
+  if (spec.requestedCapabilities !== undefined) {
+    const grantEvaluation = evaluateExtensionGrant(
+      {
+        grantedCapabilities: spec.capabilityGrant?.capabilities ?? [],
+        requestedCapabilities: spec.requestedCapabilities,
+        ...(spec.policyDecision !== undefined ? { policyDecision: spec.policyDecision } : {}),
+        ...(spec.provenance !== undefined ? { provenance: spec.provenance } : {}),
+        ...(spec.approval !== undefined ? { approval: spec.approval } : {}),
+      },
+      { checkApproval },
+    );
+    if (!grantEvaluation.ok) {
+      console.log(JSON.stringify({ registration, grantEvaluation }));
+      return;
+    }
+  }
+
+  // capabilityGrant is present here (registration.ok proved it non-empty).
+  const capabilityGrant = spec.capabilityGrant as CapabilityGrant;
+  const dispatchInput: DispatchExtensionInput = {
+    registration,
+    capabilityGrant,
+    reservedBudget: spec.reservedBudget,
+    parentRunId: spec.parentRunId,
+    sessionId: spec.sessionId,
+    attempt: spec.attempt,
+    branchId: spec.branchId,
+    contextManifestHash: spec.contextManifestHash,
+    policyFingerprint: spec.policyFingerprint,
+    canonicalContractVersion: spec.canonicalContractVersion,
+    task: spec.task,
+    acceptanceCriteria: spec.acceptanceCriteria,
+    dispatchArtifact: spec.dispatchArtifact,
+    resultArtifact: spec.resultArtifact,
+  };
+  const dispatch = dispatchExtension(dispatchInput, { idSeq, clock });
+  if (!dispatch.ok) {
+    console.log(JSON.stringify({ registration, dispatch }));
+    return;
+  }
+
+  const parsed = dispatch.parseResult(spec.rawChildResult ?? DEFAULT_CHILD_RESULT);
+  console.log(
+    JSON.stringify({
+      registration,
+      dispatch: dispatch.dispatch,
+      result: parsed.canonical,
+      evidenceRefs: [spec.resultArtifact.hash],
+    }),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// wave — a bounded parallel wave of registered extensions, spec-driven.
+// ---------------------------------------------------------------------------
+
+/**
+ * `keryx harness wave` — register each task, assemble `ExtensionWaveTask[]`, and
+ * plan bounded parallel waves via the reused `planExtensionWave`. Prints
+ * `{ok:true, waves}` or `{ok:false, reason}` (propagated verbatim from the
+ * planner). NEVER persists flow state (D-02).
+ */
+function harnessWave(args: string[], deps?: HarnessCommandDeps): void {
+  const { clock, idSeq } = resolveRuntime(deps);
+  const spec = deps?.waveSpec ?? readSpecArg<WaveCliSpec>(args);
+
+  const tasks: ExtensionWaveTask[] = spec.tasks.map((task) => {
+    const registration = registerExtension({
+      extensionId: task.extensionId,
+      ...(task.manifest !== undefined ? { manifest: task.manifest } : {}),
+      ...(task.capabilityGrant !== undefined ? { capabilityGrant: task.capabilityGrant } : {}),
+    });
+    // A placeholder grant only ever survives for an UNREGISTERED task, which
+    // `planExtensionWave` denies (fail-closed) before it is ever dispatched.
+    const capabilityGrant: CapabilityGrant =
+      task.capabilityGrant ?? { grantId: "", capabilities: [] };
+    return {
+      taskId: task.taskId,
+      dependsOn: task.dependsOn,
+      registration,
+      capabilityGrant,
+      budgetRequest: task.budgetRequest,
+      ...(task.cancelled !== undefined ? { cancelled: task.cancelled } : {}),
+      sessionId: task.sessionId,
+      attempt: task.attempt,
+      branchId: task.branchId,
+      contextManifestHash: task.contextManifestHash,
+      policyFingerprint: task.policyFingerprint,
+      task: task.task,
+      acceptanceCriteria: task.acceptanceCriteria,
+      dispatchArtifact: task.dispatchArtifact,
+      resultArtifact: task.resultArtifact,
+    };
+  });
+
+  const planInput: PlanExtensionWaveInput = {
+    tasks,
+    config: { maxConcurrency: spec.maxConcurrency, parentRemaining: spec.parentRemaining },
+    parentRunId: spec.parentRunId,
+    canonicalContractVersion: spec.canonicalContractVersion,
+  };
+  const plan = planExtensionWave(planInput, { idSeq, clock });
+  if (plan.ok) {
+    console.log(JSON.stringify({ ok: true, waves: plan.waves }));
+  } else {
+    console.log(JSON.stringify({ ok: false, reason: plan.reason }));
+  }
 }
