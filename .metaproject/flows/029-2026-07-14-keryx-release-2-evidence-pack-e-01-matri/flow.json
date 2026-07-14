@@ -3,9 +3,9 @@
   "id": "029",
   "slug": "keryx-release-2-evidence-pack-e-01-matri",
   "title": "keryx Release 2 evidence pack — E-01 matrix + E-02 review-package + E-03 handoff (mirror R0/R1)",
-  "status": "in-progress",
+  "status": "done",
   "createdAt": "2026-07-14T08:30:06.844Z",
-  "updatedAt": "2026-07-14T08:52:44.766Z",
+  "updatedAt": "2026-07-14T08:54:26.749Z",
   "source": {
     "type": "description",
     "ref": null
@@ -29,7 +29,7 @@
     }
   },
   "pr": {
-    "url": null
+    "url": "https://github.com/MrCipherSmith/keryx/pull/32"
   },
   "tasks": [
     {
@@ -251,6 +251,20 @@
       "at": "2026-07-14T08:52:44.766Z",
       "event": "ac-confirmed",
       "detail": "AC5"
+    },
+    {
+      "at": "2026-07-14T08:53:54.701Z",
+      "event": "implemented",
+      "detail": "draft PR: https://github.com/MrCipherSmith/keryx/pull/32 (warning: PR is not a draft)"
+    },
+    {
+      "at": "2026-07-14T08:54:24.412Z",
+      "event": "completing"
+    },
+    {
+      "at": "2026-07-14T08:54:26.749Z",
+      "event": "done",
+      "detail": "all gates passed"
     }
   ]
 }
