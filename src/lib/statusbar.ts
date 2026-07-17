@@ -81,7 +81,10 @@ export interface ScrollRegion {
 export function scrollRegion(rows: number): ScrollRegion {
   const bottom = Math.max(1, rows - 1);
   return {
-    enter: `${CSI}1;${bottom}r${CSI}${bottom};1H`,
+    // Reserve the bottom row (region 1..rows-1) WITHOUT moving the cursor to the
+    // bottom: save (DECSC) → set region → restore (DECRC) keeps the cursor just
+    // below the header, so the prompt/content flows there (no large blank gap).
+    enter: `${ESC}7${CSI}1;${bottom}r${ESC}8`,
     drawAt: (row, text) => `${ESC}7${CSI}${row};1H${CSI}2K${text}${ESC}8`,
     exit: `${CSI}r${CSI}?25h`,
   };

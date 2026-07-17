@@ -55,3 +55,6 @@
 - 2026-07-17T13:05:37.841Z - ac-confirmed: AC4: --agent flag + runAgentRepl; chat runShell tests unchanged/green; deps still {}; startup smoke shows agent mode + /help + /exit
 - 2026-07-17T13:07:07.915Z - implemented: draft PR: https://github.com/MrCipherSmith/keryx/pull/40
 - 2026-07-17T13:07:08.025Z - task-done: T4: Self-review and prepare draft PR
+- 2026-07-17T19:06:29.183Z - ac-confirmed: AC5: automated no-regression green: tsc clean, bun test 1381 pass/0 fail (baseline 1369), offline/deterministic, chat-core unchanged, deps {}. Live tool-calling proof deferred (needs tool-capable model); merge+continue authorized by user.
+- 2026-07-17T19:06:29.609Z - completing
+- 2026-07-17T19:06:29.777Z - done: all gates passed
