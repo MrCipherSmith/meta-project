@@ -1,7 +1,9 @@
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { pathExists, writeFileAtomic, withFileLock } from "../lib/fs";
+import { validateAgainstSchemaObject } from "../contracts/validator";
 import { assertTransition } from "./machine";
+import { flowStateSchema } from "./schema";
 import { collectContext } from "./context";
 import {
   acChecksum,
@@ -484,6 +486,21 @@ export function createFlowService(deps: FlowServiceDeps): FlowService {
         }
         if (flow.schemaVersion !== 1 && flow.schemaVersion !== 2) {
           issues.push({ flow: dir, kind: "schema", message: `unknown schemaVersion ${flow.schemaVersion}` });
+        }
+        // Validate the RAW on-disk flow.json against the published schema
+        // (read-only; never writes flow.json — D-02 preserved).
+        try {
+          const raw: unknown = JSON.parse(await Bun.file(path.join(flowsRoot(cwd), dir, "flow.json")).text());
+          const validation = validateAgainstSchemaObject(flowStateSchema(), raw);
+          if (!validation.valid) {
+            issues.push({
+              flow: dir,
+              kind: "schema",
+              message: `schema: ${validation.errors.map((e) => `${e.path} ${e.message}`).join("; ")}`,
+            });
+          }
+        } catch {
+          // A parse failure was already reported by readFlow above.
         }
         for (const file of ["description.md", "context.md", "plan.md", "tasks.md", "acceptance-criteria.md", "journal.md"]) {
           if (!(await pathExists(path.join(flowsRoot(cwd), dir, file)))) {

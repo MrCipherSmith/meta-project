@@ -151,6 +151,27 @@ describe("gateToDisposition — maps a CompletionGateResult status to a Task Man
     expect(gate.status).toBe("blocked");
     expect(gateToDisposition(gate)).toBe("blocked");
   });
+
+  test("any other status (e.g. 'unknown') maps to disposition 'failed' — never a false completion", () => {
+    // A gate whose status is neither pass/blocked/fail (here the real
+    // "unknown" variant) must fall through to the safe terminal "failed".
+    const gate = { ...passGate("run-map-4"), status: "unknown" } as CompletionGateResult;
+    expect(gate.status).toBe("unknown");
+    expect(gateToDisposition(gate)).toBe("failed");
+  });
+
+  test("decision table: pass->completed, blocked->blocked, fail->failed, other->failed", () => {
+    const cases: Array<[CompletionGateResult["status"], "completed" | "blocked" | "failed"]> = [
+      ["pass", "completed"],
+      ["blocked", "blocked"],
+      ["fail", "failed"],
+      ["unknown", "failed"],
+    ];
+    for (const [status, expected] of cases) {
+      const gate = { ...passGate(`run-table-${status}`), status } as CompletionGateResult;
+      expect(gateToDisposition(gate)).toBe(expected);
+    }
+  });
 });
 
 // --- 6. gate/evidence artifacts are schema-valid (consumed by the port) ----
