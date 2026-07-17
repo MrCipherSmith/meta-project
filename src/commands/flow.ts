@@ -1,5 +1,8 @@
+import path from "node:path";
 import { optionValue } from "../lib/args";
+import { writeFileAtomic } from "../lib/fs";
 import { createFlowService } from "../flow/service";
+import { flowStateSchema } from "../flow/schema";
 import { githubAdapter } from "../flow/tracker/github";
 import { createCodeHealthService } from "../health/service";
 import { securityFlowGate } from "../security/guard";
@@ -80,6 +83,8 @@ export async function flowCommand(args: string[]): Promise<void> {
         return await runSimple(args.slice(1), "unblock");
       case "check":
         return await runCheck();
+      case "schema":
+        return await runSchema(args.slice(1));
       default:
         console.error(`Unknown flow command: ${command}`);
         printHelp();
@@ -297,6 +302,18 @@ async function runBlock(args: string[]): Promise<void> {
   console.log(`  ${style.yellow(symbols.cross)} Flow ${flow.id} ${style.cyan(symbols.arrow)} ${flowStatusLabel(flow.status)}`);
 }
 
+async function runSchema(args: string[]): Promise<void> {
+  const json = `${JSON.stringify(flowStateSchema(), null, 2)}\n`;
+  const out = optionValue(args, "--out");
+  if (out) {
+    const target = path.isAbsolute(out) ? out : path.join(process.cwd(), out);
+    await writeFileAtomic(target, json);
+    console.log(`  ${style.green(symbols.ok)} Wrote flow-state schema ${style.cyan(symbols.arrow)} ${out}`);
+    return;
+  }
+  process.stdout.write(json);
+}
+
 async function runCheck(): Promise<void> {
   const result = await getService().check({ cwd: process.cwd() });
   if (result.ok) {
@@ -334,5 +351,6 @@ function printHelp(): void {
     "keryx flow complete <id> [--comment] [--merged <commit>]",
     'keryx flow block <id> --reason "<why>"   /   flow unblock <id>',
     "keryx flow check",
+    "keryx flow schema [--out <path>]",
   ]);
 }
