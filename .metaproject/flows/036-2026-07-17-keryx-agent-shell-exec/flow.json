@@ -3,9 +3,9 @@
   "id": "036",
   "slug": "keryx-agent-shell-exec",
   "title": "keryx agent shell_exec + inline approval (Flow C / SA-01) — approval-gated command execution, default-deny",
-  "status": "in-progress",
+  "status": "done",
   "createdAt": "2026-07-17T19:32:00.998Z",
-  "updatedAt": "2026-07-17T19:58:03.647Z",
+  "updatedAt": "2026-07-17T19:59:05.307Z",
   "source": {
     "type": "description",
     "ref": null
@@ -82,7 +82,7 @@
       "id": "T4",
       "title": "Self-review and prepare draft PR",
       "kind": "review",
-      "status": "todo",
+      "status": "done",
       "dependsOn": [],
       "attempts": {
         "count": 0,
@@ -90,7 +90,8 @@
       },
       "acRefs": [],
       "evidenceRefs": [],
-      "budget": {}
+      "budget": {},
+      "disposition": "completed"
     }
   ],
   "history": [
@@ -141,6 +142,26 @@
       "at": "2026-07-17T19:58:03.647Z",
       "event": "ac-confirmed",
       "detail": "AC4: tsc clean; bun test 1394 pass/0 fail (baseline 1387); default-deny tested; deps {}. Live [y/N] smoke pending tool-capable model; merge authorized by user"
+    },
+    {
+      "at": "2026-07-17T19:58:31.690Z",
+      "event": "task-done",
+      "detail": "T4: Self-review and prepare draft PR"
+    },
+    {
+      "at": "2026-07-17T19:59:05.173Z",
+      "event": "completing",
+      "detail": "merged commit: 5662be5"
+    },
+    {
+      "at": "2026-07-17T19:59:05.307Z",
+      "event": "done",
+      "detail": "all gates passed"
     }
-  ]
+  ],
+  "merged": {
+    "commit": "5662be5",
+    "ref": "origin/main",
+    "at": "2026-07-17T19:59:05.303Z"
+  }
 }
