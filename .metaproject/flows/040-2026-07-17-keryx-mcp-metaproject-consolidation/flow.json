@@ -3,17 +3,34 @@
   "id": "040",
   "slug": "keryx-mcp-metaproject-consolidation",
   "title": "keryx MCP metaproject consolidation (MP-3 completion) — src/mcp sources metaproject tools from the single METAPROJECT_OPERATIONS source",
-  "status": "in-progress",
+  "status": "done",
   "createdAt": "2026-07-17T22:55:33.218Z",
-  "updatedAt": "2026-07-17T23:00:33.039Z",
+  "updatedAt": "2026-07-17T23:01:26.011Z",
   "source": {
     "type": "description",
     "ref": null
   },
   "acChecksum": "sha256:18c6c096a063be75cb91f597f6ba308acb4ba87cc489b9a7c45b8003bfda2fc0",
-  "acConfirmed": {},
+  "acConfirmed": {
+    "AC1": {
+      "at": "2026-07-17T23:01:16.891Z",
+      "note": "toMcpTools projection (metaproject-tools.ts): MCP ToolEntry per op, read-only, injectable adapterFor, structured port result; tested in boundary.test.ts"
+    },
+    "AC2": {
+      "at": "2026-07-17T23:01:17.008Z",
+      "note": "tools.ts sources metaproject tools via ...toMcpTools() from single METAPROJECT_OPERATIONS; additive (dotted-name adapters kept for safety, no collision)"
+    },
+    "AC3": {
+      "at": "2026-07-17T23:01:17.085Z",
+      "note": "M-10 read-only preserved (mutating:false); metaproject:// resources + all MCP tests unchanged (40 pass)"
+    },
+    "AC4": {
+      "at": "2026-07-17T23:01:17.183Z",
+      "note": "independent verify: tsc clean, bun test 1418 pass/0 fail, deps {}, flow-038 agent/harness projections + chat core unchanged"
+    }
+  },
   "pr": {
-    "url": null
+    "url": "https://github.com/MrCipherSmith/keryx/pull/54"
   },
   "tasks": [
     {
@@ -110,6 +127,45 @@
       "at": "2026-07-17T23:00:33.039Z",
       "event": "task-done",
       "detail": "T4: Self-review and prepare draft PR"
+    },
+    {
+      "at": "2026-07-17T23:00:59.000Z",
+      "event": "implemented",
+      "detail": "draft PR: https://github.com/MrCipherSmith/keryx/pull/54"
+    },
+    {
+      "at": "2026-07-17T23:01:16.891Z",
+      "event": "ac-confirmed",
+      "detail": "AC1: toMcpTools projection (metaproject-tools.ts): MCP ToolEntry per op, read-only, injectable adapterFor, structured port result; tested in boundary.test.ts"
+    },
+    {
+      "at": "2026-07-17T23:01:17.008Z",
+      "event": "ac-confirmed",
+      "detail": "AC2: tools.ts sources metaproject tools via ...toMcpTools() from single METAPROJECT_OPERATIONS; additive (dotted-name adapters kept for safety, no collision)"
+    },
+    {
+      "at": "2026-07-17T23:01:17.085Z",
+      "event": "ac-confirmed",
+      "detail": "AC3: M-10 read-only preserved (mutating:false); metaproject:// resources + all MCP tests unchanged (40 pass)"
+    },
+    {
+      "at": "2026-07-17T23:01:17.183Z",
+      "event": "ac-confirmed",
+      "detail": "AC4: independent verify: tsc clean, bun test 1418 pass/0 fail, deps {}, flow-038 agent/harness projections + chat core unchanged"
+    },
+    {
+      "at": "2026-07-17T23:01:25.980Z",
+      "event": "completing"
+    },
+    {
+      "at": "2026-07-17T23:01:26.011Z",
+      "event": "done",
+      "detail": "all gates passed"
     }
-  ]
+  ],
+  "merged": {
+    "commit": "a7090cf7d3d824562df976771084af04d2dafe4a",
+    "ref": "origin/main",
+    "at": "2026-07-17T23:01:26.011Z"
+  }
 }

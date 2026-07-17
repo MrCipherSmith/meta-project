@@ -14,3 +14,10 @@
 - 2026-07-17T23:00:32.645Z - task-done: T2: Implement per plan
 - 2026-07-17T23:00:32.916Z - task-done: T3: Add/adjust tests and make them pass
 - 2026-07-17T23:00:33.039Z - task-done: T4: Self-review and prepare draft PR
+- 2026-07-17T23:00:59.000Z - implemented: draft PR: https://github.com/MrCipherSmith/keryx/pull/54
+- 2026-07-17T23:01:16.891Z - ac-confirmed: AC1: toMcpTools projection (metaproject-tools.ts): MCP ToolEntry per op, read-only, injectable adapterFor, structured port result; tested in boundary.test.ts
+- 2026-07-17T23:01:17.008Z - ac-confirmed: AC2: tools.ts sources metaproject tools via ...toMcpTools() from single METAPROJECT_OPERATIONS; additive (dotted-name adapters kept for safety, no collision)
+- 2026-07-17T23:01:17.085Z - ac-confirmed: AC3: M-10 read-only preserved (mutating:false); metaproject:// resources + all MCP tests unchanged (40 pass)
+- 2026-07-17T23:01:17.183Z - ac-confirmed: AC4: independent verify: tsc clean, bun test 1418 pass/0 fail, deps {}, flow-038 agent/harness projections + chat core unchanged
+- 2026-07-17T23:01:25.980Z - completing
+- 2026-07-17T23:01:26.011Z - done: all gates passed
