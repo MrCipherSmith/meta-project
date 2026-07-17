@@ -29,6 +29,7 @@ import type {
 import { buildOrientation } from "../ctx/orient";
 import { builtinReadOnlyTools } from "../harness/tool/builtin/interactive-tools";
 import { builtinMetaprojectTools } from "../harness/tool/builtin/metaproject-tools";
+import { shellExecTool } from "../harness/tool/builtin/shell-exec-tool";
 import { formatStatusBar, scrollRegion } from "../lib/statusbar";
 import { banner, colorEnabled, note, renderMarkdown, roleLabel, style } from "../lib/ui";
 import { type AgentDeps, type AgentIO, buildAgentSystemInstruction, runAgentTurn } from "./agent";
@@ -557,12 +558,37 @@ async function runAgentRepl(
     }
   };
 
+  // A SINGLE line consumer shared by the main loop and the approval prompt, so an
+  // approval read (mid-turn, while the main loop is suspended) never races it.
+  const iterator = lines[Symbol.asyncIterator]();
+  const readLine = async (): Promise<string | undefined> => {
+    const next = await iterator.next();
+    return next.done ? undefined : next.value;
+  };
+
   const agentIo: AgentIO = {
     write: (s) => {
       if (s.length > 0) {
         stopSpinner(); // first token of a round: drop the spinner
       }
       out(s);
+    },
+    requestApproval: async (_tool, input) => {
+      stopSpinner();
+      let command = input;
+      try {
+        const parsed: unknown = JSON.parse(input);
+        if (parsed !== null && typeof parsed === "object" && typeof (parsed as { command?: unknown }).command === "string") {
+          command = (parsed as { command: string }).command;
+        }
+      } catch {
+        // show the raw input if it is not JSON
+      }
+      out(`\n${style.yellow(`Run: ${command}`)} ${style.dim("[y/N] ")}`);
+      const answer = (await readLine()) ?? "";
+      const approved = /^y(es)?$/i.test(answer.trim());
+      out(approved ? style.green("approved\n") : style.red("denied\n"));
+      return approved;
     },
     onToolCall: (name, input) => {
       stopSpinner();
@@ -582,7 +608,11 @@ async function runAgentRepl(
 
   const history: NormalizedMessage[] = [];
   rich.printPrompt();
-  for await (const line of lines) {
+  for (;;) {
+    const line = await readLine();
+    if (line === undefined) {
+      return; // end of input
+    }
     if (line.startsWith("/")) {
       const command = line.trim().split(/\s+/)[0] ?? "";
       if (command === "/exit" || command === "/quit") {
@@ -590,7 +620,7 @@ async function runAgentRepl(
       }
       if (command === "/help") {
         agentIo.onSystem?.(
-          "Agent mode — describe a task; the agent uses read-only tools (get_cwd, list_dir, read_file, search_code, graph_affected, memory_search) on the real project. /exit to leave.\n",
+          "Agent mode — describe a task; the agent uses read-only tools (get_cwd, list_dir, read_file, search_code, graph_affected, memory_search) and shell_exec (asks approval) on the real project. /exit to leave.\n",
         );
       } else {
         agentIo.onSystem?.(`Unknown command: ${command}. Type /help.\n`);
@@ -728,7 +758,11 @@ export async function shellCommand(args: string[]): Promise<void> {
         provider: agentProvider,
         providerId: provider,
         modelId: model,
-        tools: [...builtinReadOnlyTools(process.cwd()), ...builtinMetaprojectTools(process.cwd())],
+        tools: [
+          ...builtinReadOnlyTools(process.cwd()),
+          ...builtinMetaprojectTools(process.cwd()),
+          shellExecTool(process.cwd()),
+        ],
         systemInstruction: buildAgentSystemInstruction(orient),
         idSeq: () => randomUUID(),
       };

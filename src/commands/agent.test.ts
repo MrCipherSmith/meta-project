@@ -163,6 +163,67 @@ test("runAgentTurn reports an unknown tool without throwing", async () => {
   expect(toolResults).toContain("definitely_not_a_tool:err");
 });
 
+/** A fake risk-`shell` tool that records whether its runner was invoked. */
+function fakeShellTool(): { tool: import("../harness/tool/builtin/interactive-tools").InteractiveTool; ran: () => boolean } {
+  let invoked = false;
+  return {
+    ran: () => invoked,
+    tool: {
+      definition: {
+        name: "shell_exec",
+        description: "run a command",
+        inputSchema: { type: "object", properties: { command: { type: "string" } }, required: ["command"], additionalProperties: false },
+        risk: "shell",
+      },
+      invoke: async () => {
+        invoked = true;
+        return { output: "ran", isError: false };
+      },
+    },
+  };
+}
+
+function shellCallScript(): Partial<NormalizedEvent>[][] {
+  return [
+    [
+      { kind: "tool_call_start", toolCallId: "s1", toolName: "shell_exec" },
+      { kind: "tool_call_end", toolCallId: "s1", input: '{"command":"git status"}' },
+      { kind: "model_end" },
+    ],
+    [{ kind: "text_delta", text: "done" }, { kind: "model_end" }],
+  ];
+}
+
+test("shell tool runs only when approval resolves true; the result is fed back", async () => {
+  const { provider } = scriptedProvider(shellCallScript());
+  const { tool, ran } = fakeShellTool();
+  const history: NormalizedMessage[] = [];
+  const io: AgentIO = { write: () => {}, requestApproval: async () => true };
+  await runAgentTurn(io, { provider, providerId: "s", modelId: "m", tools: [tool], systemInstruction: "sys", idSeq: fixedIdSeq() }, history, "run it");
+  expect(ran()).toBe(true);
+  expect(history.find((m) => m.role === "tool")?.content).toBe("ran");
+});
+
+test("shell tool is DENIED when approval resolves false (not executed)", async () => {
+  const { provider } = scriptedProvider(shellCallScript());
+  const { tool, ran } = fakeShellTool();
+  const history: NormalizedMessage[] = [];
+  const io: AgentIO = { write: () => {}, requestApproval: async () => false };
+  await runAgentTurn(io, { provider, providerId: "s", modelId: "m", tools: [tool], systemInstruction: "sys", idSeq: fixedIdSeq() }, history, "run it");
+  expect(ran()).toBe(false);
+  expect(history.find((m) => m.role === "tool")?.content).toMatch(/not approved/);
+});
+
+test("shell tool is DEFAULT-DENIED when no approval callback is present", async () => {
+  const { provider } = scriptedProvider(shellCallScript());
+  const { tool, ran } = fakeShellTool();
+  const history: NormalizedMessage[] = [];
+  const io: AgentIO = { write: () => {} }; // no requestApproval
+  await runAgentTurn(io, { provider, providerId: "s", modelId: "m", tools: [tool], systemInstruction: "sys", idSeq: fixedIdSeq() }, history, "run it");
+  expect(ran()).toBe(false);
+  expect(history.find((m) => m.role === "tool")?.content).toMatch(/not approved/);
+});
+
 test("buildAgentSystemInstruction embeds an orient block when present, falls back when absent", () => {
   const withOrient = buildAgentSystemInstruction("MODULE MAP: a→b");
   expect(withOrient).toContain("MODULE MAP: a→b");
