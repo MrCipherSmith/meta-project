@@ -14,3 +14,10 @@
 - 2026-07-17T22:23:49.254Z - task-done: T2: Implement per plan
 - 2026-07-17T22:23:49.373Z - task-done: T3: Add/adjust tests and make them pass
 - 2026-07-17T22:23:49.504Z - task-done: T4: Self-review and prepare draft PR
+- 2026-07-17T22:24:23.816Z - implemented: draft PR: https://github.com/MrCipherSmith/keryx/pull/50
+- 2026-07-17T22:24:47.799Z - ac-confirmed: AC1: metaproject-operations.ts: METAPROJECT_OPERATIONS 5 descriptors; operations.test.ts validates each against metaproject-operation.schema.json
+- 2026-07-17T22:24:47.945Z - ac-confirmed: AC2: toInteractiveTools + toToolDefinitions pure projections; tested one-tool-per-descriptor, risk read, schemas, fake-port delegation
+- 2026-07-17T22:24:48.118Z - ac-confirmed: AC3: builtinMetaprojectTools delegates to toInteractiveTools(METAPROJECT_OPERATIONS, port) when port present; subprocess fallback unchanged; tests green
+- 2026-07-17T22:24:48.244Z - ac-confirmed: AC4: independent verify: tsc clean, bun test 1411 pass/0 fail (baseline 1403), offline/deterministic, deps {}, MCP untouched
+- 2026-07-17T22:24:55.872Z - completing
+- 2026-07-17T22:24:55.931Z - done: all gates passed

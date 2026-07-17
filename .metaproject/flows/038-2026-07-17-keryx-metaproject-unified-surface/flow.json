@@ -3,17 +3,34 @@
   "id": "038",
   "slug": "keryx-metaproject-unified-surface",
   "title": "keryx unified metaproject tool surface (Phase 2 / MP-3) — single operation-descriptor source projected to agent + harness ToolRegistry",
-  "status": "in-progress",
+  "status": "done",
   "createdAt": "2026-07-17T22:04:56.736Z",
-  "updatedAt": "2026-07-17T22:23:49.504Z",
+  "updatedAt": "2026-07-17T22:24:55.931Z",
   "source": {
     "type": "description",
     "ref": null
   },
   "acChecksum": "sha256:a8273008ce9f2ebb94eadbdd2ada9bcdbfea1376c2c81d712feee4ecf99d066c",
-  "acConfirmed": {},
+  "acConfirmed": {
+    "AC1": {
+      "at": "2026-07-17T22:24:47.798Z",
+      "note": "metaproject-operations.ts: METAPROJECT_OPERATIONS 5 descriptors; operations.test.ts validates each against metaproject-operation.schema.json"
+    },
+    "AC2": {
+      "at": "2026-07-17T22:24:47.945Z",
+      "note": "toInteractiveTools + toToolDefinitions pure projections; tested one-tool-per-descriptor, risk read, schemas, fake-port delegation"
+    },
+    "AC3": {
+      "at": "2026-07-17T22:24:48.118Z",
+      "note": "builtinMetaprojectTools delegates to toInteractiveTools(METAPROJECT_OPERATIONS, port) when port present; subprocess fallback unchanged; tests green"
+    },
+    "AC4": {
+      "at": "2026-07-17T22:24:48.244Z",
+      "note": "independent verify: tsc clean, bun test 1411 pass/0 fail (baseline 1403), offline/deterministic, deps {}, MCP untouched"
+    }
+  },
   "pr": {
-    "url": null
+    "url": "https://github.com/MrCipherSmith/keryx/pull/50"
   },
   "tasks": [
     {
@@ -110,6 +127,45 @@
       "at": "2026-07-17T22:23:49.504Z",
       "event": "task-done",
       "detail": "T4: Self-review and prepare draft PR"
+    },
+    {
+      "at": "2026-07-17T22:24:23.816Z",
+      "event": "implemented",
+      "detail": "draft PR: https://github.com/MrCipherSmith/keryx/pull/50"
+    },
+    {
+      "at": "2026-07-17T22:24:47.799Z",
+      "event": "ac-confirmed",
+      "detail": "AC1: metaproject-operations.ts: METAPROJECT_OPERATIONS 5 descriptors; operations.test.ts validates each against metaproject-operation.schema.json"
+    },
+    {
+      "at": "2026-07-17T22:24:47.945Z",
+      "event": "ac-confirmed",
+      "detail": "AC2: toInteractiveTools + toToolDefinitions pure projections; tested one-tool-per-descriptor, risk read, schemas, fake-port delegation"
+    },
+    {
+      "at": "2026-07-17T22:24:48.118Z",
+      "event": "ac-confirmed",
+      "detail": "AC3: builtinMetaprojectTools delegates to toInteractiveTools(METAPROJECT_OPERATIONS, port) when port present; subprocess fallback unchanged; tests green"
+    },
+    {
+      "at": "2026-07-17T22:24:48.244Z",
+      "event": "ac-confirmed",
+      "detail": "AC4: independent verify: tsc clean, bun test 1411 pass/0 fail (baseline 1403), offline/deterministic, deps {}, MCP untouched"
+    },
+    {
+      "at": "2026-07-17T22:24:55.872Z",
+      "event": "completing"
+    },
+    {
+      "at": "2026-07-17T22:24:55.931Z",
+      "event": "done",
+      "detail": "all gates passed"
     }
-  ]
+  ],
+  "merged": {
+    "commit": "a5aabc3ae01109e5c5d1bdb1e23dcb450d52c9d0",
+    "ref": "origin/main",
+    "at": "2026-07-17T22:24:55.931Z"
+  }
 }
