@@ -25,6 +25,12 @@ export interface AgentIO {
   onToolResult?: (name: string, result: InteractiveToolResult) => void;
   /** Non-token system/error text. */
   onSystem?: (text: string) => void;
+  /**
+   * Approve a mutating (risk `shell`) tool call before it runs. DEFAULT-DENY:
+   * when this is absent the driver denies the call and never executes it. `input`
+   * is the raw JSON input string the model proposed.
+   */
+  requestApproval?: (tool: string, input: string) => Promise<boolean>;
 }
 
 /** Injected dependencies keeping `runAgentTurn` deterministic + offline. */
@@ -52,8 +58,10 @@ export function buildAgentSystemInstruction(orient?: string): string {
     "You are the keryx interactive agent. You have read-only tools to inspect the " +
     "real project: get_cwd, list_dir, read_file (filesystem), and search_code, " +
     "graph_affected, memory_search (keryx metaproject: compact code search, code-graph " +
-    "blast radius, and project memory). ALWAYS use a tool to obtain facts instead of " +
-    "guessing; never fabricate paths, file contents, or search results. Answer concisely.";
+    "blast radius, and project memory). You may also propose shell_exec to run a command, " +
+    "which requires the user's explicit approval before it executes. ALWAYS use a tool to " +
+    "obtain facts instead of guessing; never fabricate paths, file contents, or results. " +
+    "Answer concisely.";
   const trimmed = orient?.trim() ?? "";
   if (trimmed.length === 0) {
     return base;
@@ -170,7 +178,7 @@ export async function runAgentTurn(
     // Execute each tool call and append its result, then loop to re-request.
     for (const call of calls) {
       io.onToolCall?.(call.name, call.input);
-      const result = await executeCall(call, toolByName, () => toolCallsUsed++, {
+      const result = await executeCall(call, toolByName, io.requestApproval, () => toolCallsUsed++, {
         used: () => toolCallsUsed,
         max: maxToolCalls,
       });
@@ -180,10 +188,11 @@ export async function runAgentTurn(
   }
 }
 
-/** Resolve, gate, validate, and invoke a single tool call → a content result. */
+/** Resolve, gate (risk + approval), validate, and invoke a call → a content result. */
 async function executeCall(
   call: PendingCall,
   toolByName: Map<string, InteractiveTool>,
+  requestApproval: AgentIO["requestApproval"],
   countCall: () => void,
   budget: { used: () => number; max: number },
 ): Promise<InteractiveToolResult> {
@@ -196,18 +205,25 @@ async function executeCall(
   if (tool === undefined) {
     return { output: `unknown tool: ${call.name}`, isError: true };
   }
-  // Read-only risk gate (Flow A): only `read` tools may run.
-  if (tool.definition.risk !== "read") {
-    return {
-      output: `tool "${call.name}" (risk ${tool.definition.risk}) is not permitted in read-only agent mode`,
-      isError: true,
-    };
-  }
+
   const input = parseToolInput(call.input);
   const validation = validateAgainstSchemaObject(tool.definition.inputSchema, input);
   if (!validation.valid) {
     const detail = validation.errors.map((e) => `${e.path}: ${e.message}`).join("; ");
     return { output: `invalid input for ${call.name}: ${detail}`, isError: true };
   }
+
+  // Risk gate: `read` auto-allows; `shell` requires approval (DEFAULT-DENY — no
+  // approver means no execution); anything else is denied.
+  const risk = tool.definition.risk;
+  if (risk === "shell") {
+    const approved = requestApproval !== undefined && (await requestApproval(call.name, call.input));
+    if (!approved) {
+      return { output: `command not approved by the user; not executed`, isError: true };
+    }
+  } else if (risk !== "read") {
+    return { output: `tool "${call.name}" (risk ${risk}) is not permitted`, isError: true };
+  }
+
   return tool.invoke(input);
 }

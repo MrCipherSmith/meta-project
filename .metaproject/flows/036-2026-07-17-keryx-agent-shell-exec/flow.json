@@ -1,0 +1,146 @@
+{
+  "schemaVersion": 2,
+  "id": "036",
+  "slug": "keryx-agent-shell-exec",
+  "title": "keryx agent shell_exec + inline approval (Flow C / SA-01) — approval-gated command execution, default-deny",
+  "status": "in-progress",
+  "createdAt": "2026-07-17T19:32:00.998Z",
+  "updatedAt": "2026-07-17T19:58:03.647Z",
+  "source": {
+    "type": "description",
+    "ref": null
+  },
+  "acChecksum": "sha256:5a0130cfc941d2792e688874662e0e58e605e507f19b49378d791d2d14c8dc1e",
+  "acConfirmed": {
+    "AC1": {
+      "at": "2026-07-17T19:58:02.890Z",
+      "note": "shell-exec-tool.test.ts: risk shell + schema; command passthrough; missing→error no-run; failure propagated"
+    },
+    "AC2": {
+      "at": "2026-07-17T19:58:03.074Z",
+      "note": "agent.test.ts: approve→runs+fed back; deny→not run; NO callback→default-denied (runner never invoked)"
+    },
+    "AC3": {
+      "at": "2026-07-17T19:58:03.437Z",
+      "note": "runAgentRepl requestApproval ([y/N], single shared iterator) + shellExecTool registered; chat core unchanged"
+    },
+    "AC4": {
+      "at": "2026-07-17T19:58:03.647Z",
+      "note": "tsc clean; bun test 1394 pass/0 fail (baseline 1387); default-deny tested; deps {}. Live [y/N] smoke pending tool-capable model; merge authorized by user"
+    }
+  },
+  "pr": {
+    "url": null
+  },
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Collect remaining context",
+      "kind": "context",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T2",
+      "title": "Implement per plan",
+      "kind": "implement",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T3",
+      "title": "Add/adjust tests and make them pass",
+      "kind": "test",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T4",
+      "title": "Self-review and prepare draft PR",
+      "kind": "review",
+      "status": "todo",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {}
+    }
+  ],
+  "history": [
+    {
+      "at": "2026-07-17T19:32:00.998Z",
+      "event": "created"
+    },
+    {
+      "at": "2026-07-17T19:32:49.853Z",
+      "event": "frozen",
+      "detail": "4 criteria; checksum recorded"
+    },
+    {
+      "at": "2026-07-17T19:32:50.016Z",
+      "event": "started"
+    },
+    {
+      "at": "2026-07-17T19:32:50.139Z",
+      "event": "task-done",
+      "detail": "T1: Collect remaining context"
+    },
+    {
+      "at": "2026-07-17T19:58:02.625Z",
+      "event": "task-done",
+      "detail": "T2: Implement per plan"
+    },
+    {
+      "at": "2026-07-17T19:58:02.759Z",
+      "event": "task-done",
+      "detail": "T3: Add/adjust tests and make them pass"
+    },
+    {
+      "at": "2026-07-17T19:58:02.890Z",
+      "event": "ac-confirmed",
+      "detail": "AC1: shell-exec-tool.test.ts: risk shell + schema; command passthrough; missing→error no-run; failure propagated"
+    },
+    {
+      "at": "2026-07-17T19:58:03.074Z",
+      "event": "ac-confirmed",
+      "detail": "AC2: agent.test.ts: approve→runs+fed back; deny→not run; NO callback→default-denied (runner never invoked)"
+    },
+    {
+      "at": "2026-07-17T19:58:03.437Z",
+      "event": "ac-confirmed",
+      "detail": "AC3: runAgentRepl requestApproval ([y/N], single shared iterator) + shellExecTool registered; chat core unchanged"
+    },
+    {
+      "at": "2026-07-17T19:58:03.647Z",
+      "event": "ac-confirmed",
+      "detail": "AC4: tsc clean; bun test 1394 pass/0 fail (baseline 1387); default-deny tested; deps {}. Live [y/N] smoke pending tool-capable model; merge authorized by user"
+    }
+  ]
+}
