@@ -3,9 +3,9 @@
   "id": "033",
   "slug": "keryx-shell-agent-tools",
   "title": "keryx shell agent mode (Flow A / SA-01) — interactive tool-using driver + read-only builtin tools + orient context",
-  "status": "implemented",
+  "status": "done",
   "createdAt": "2026-07-17T12:50:26.703Z",
-  "updatedAt": "2026-07-17T13:07:08.025Z",
+  "updatedAt": "2026-07-17T19:06:29.777Z",
   "source": {
     "type": "description",
     "ref": null
@@ -27,6 +27,10 @@
     "AC4": {
       "at": "2026-07-17T13:05:37.841Z",
       "note": "--agent flag + runAgentRepl; chat runShell tests unchanged/green; deps still {}; startup smoke shows agent mode + /help + /exit"
+    },
+    "AC5": {
+      "at": "2026-07-17T19:06:29.182Z",
+      "note": "automated no-regression green: tsc clean, bun test 1381 pass/0 fail (baseline 1369), offline/deterministic, chat-core unchanged, deps {}. Live tool-calling proof deferred (needs tool-capable model); merge+continue authorized by user."
     }
   },
   "pr": {
@@ -167,6 +171,25 @@
       "at": "2026-07-17T13:07:08.025Z",
       "event": "task-done",
       "detail": "T4: Self-review and prepare draft PR"
+    },
+    {
+      "at": "2026-07-17T19:06:29.183Z",
+      "event": "ac-confirmed",
+      "detail": "AC5: automated no-regression green: tsc clean, bun test 1381 pass/0 fail (baseline 1369), offline/deterministic, chat-core unchanged, deps {}. Live tool-calling proof deferred (needs tool-capable model); merge+continue authorized by user."
+    },
+    {
+      "at": "2026-07-17T19:06:29.609Z",
+      "event": "completing"
+    },
+    {
+      "at": "2026-07-17T19:06:29.777Z",
+      "event": "done",
+      "detail": "all gates passed"
     }
-  ]
+  ],
+  "merged": {
+    "commit": "ad107b0",
+    "ref": "origin/main",
+    "at": "2026-07-17T19:06:29.776Z"
+  }
 }
