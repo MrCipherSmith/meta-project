@@ -1,0 +1,137 @@
+{
+  "schemaVersion": 2,
+  "id": "034",
+  "slug": "keryx-shell-ui-fixes",
+  "title": "keryx shell UI fixes — remove header/prompt gap (scroll-region cursor) + breathing room",
+  "status": "in-progress",
+  "createdAt": "2026-07-17T19:07:38.321Z",
+  "updatedAt": "2026-07-17T19:11:39.448Z",
+  "source": {
+    "type": "description",
+    "ref": null
+  },
+  "acChecksum": "sha256:e8a0a4b46c93a377fdd8508b4af5a9cbefc3359c2e891777af913d047c67f9fa",
+  "acConfirmed": {
+    "AC1": {
+      "at": "2026-07-17T19:11:39.117Z",
+      "note": "statusbar.test.ts: enter has [1;23r + ESC7/ESC8, no [23;1H bottom-jump; drawAt/exit unchanged"
+    },
+    "AC2": {
+      "at": "2026-07-17T19:11:39.276Z",
+      "note": "printHeader emits a blank line before the prompt (out('\\n')); confined to the header renderer"
+    },
+    "AC3": {
+      "at": "2026-07-17T19:11:39.448Z",
+      "note": "tsc clean; bun test 1381 pass/0 fail (= baseline); chat+agent logic unchanged; deps {}. Visual no-gap is a deterministic terminal-control fix; live TTY confirmation is the smoke."
+    }
+  },
+  "pr": {
+    "url": null
+  },
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Collect remaining context",
+      "kind": "context",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T2",
+      "title": "Implement per plan",
+      "kind": "implement",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T3",
+      "title": "Add/adjust tests and make them pass",
+      "kind": "test",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T4",
+      "title": "Self-review and prepare draft PR",
+      "kind": "review",
+      "status": "todo",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {}
+    }
+  ],
+  "history": [
+    {
+      "at": "2026-07-17T19:07:38.321Z",
+      "event": "created"
+    },
+    {
+      "at": "2026-07-17T19:08:39.205Z",
+      "event": "frozen",
+      "detail": "3 criteria; checksum recorded"
+    },
+    {
+      "at": "2026-07-17T19:08:39.482Z",
+      "event": "started"
+    },
+    {
+      "at": "2026-07-17T19:08:39.645Z",
+      "event": "task-done",
+      "detail": "T1: Collect remaining context"
+    },
+    {
+      "at": "2026-07-17T19:11:38.679Z",
+      "event": "task-done",
+      "detail": "T2: Implement per plan"
+    },
+    {
+      "at": "2026-07-17T19:11:38.971Z",
+      "event": "task-done",
+      "detail": "T3: Add/adjust tests and make them pass"
+    },
+    {
+      "at": "2026-07-17T19:11:39.117Z",
+      "event": "ac-confirmed",
+      "detail": "AC1: statusbar.test.ts: enter has [1;23r + ESC7/ESC8, no [23;1H bottom-jump; drawAt/exit unchanged"
+    },
+    {
+      "at": "2026-07-17T19:11:39.276Z",
+      "event": "ac-confirmed",
+      "detail": "AC2: printHeader emits a blank line before the prompt (out('\\n')); confined to the header renderer"
+    },
+    {
+      "at": "2026-07-17T19:11:39.448Z",
+      "event": "ac-confirmed",
+      "detail": "AC3: tsc clean; bun test 1381 pass/0 fail (= baseline); chat+agent logic unchanged; deps {}. Visual no-gap is a deterministic terminal-control fix; live TTY confirmation is the smoke."
+    }
+  ]
+}

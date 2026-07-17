@@ -67,9 +67,14 @@ test("formatStatusBar (FORCE_COLOR) emits ANSI while keeping the text", () => {
 });
 
 test("scrollRegion builds DECSTBM enter / drawAt / exit control sequences", () => {
+  const esc = String.fromCharCode(27);
   const region = scrollRegion(24);
-  // Enter: reserve the bottom row → region 1..23.
+  // Enter: reserve the bottom row → region 1..23, cursor preserved via DECSC/DECRC,
+  // and NO bottom-row cursor jump (that caused the header/prompt gap).
   expect(region.enter).toContain("[1;23r");
+  expect(region.enter).toContain(`${esc}7`); // DECSC save
+  expect(region.enter).toContain(`${esc}8`); // DECRC restore
+  expect(region.enter).not.toContain("[23;1H");
   // Draw: clear the target line before writing.
   const drawn = region.drawAt(24, "BAR");
   expect(drawn).toContain("[24;1H");

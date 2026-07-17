@@ -504,6 +504,7 @@ function createRichIo(lines: AsyncIterable<string>, getStatus?: StatusSource): R
   const printHeader = (title: string, subtitle: string): void => {
     banner(title, subtitle);
     note("Type a message, or /help for commands.");
+    out("\n"); // breathing room between the header and the first prompt
     printPrompt();
   };
 
