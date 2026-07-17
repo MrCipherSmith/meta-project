@@ -34,3 +34,6 @@
 - 2026-07-17T19:58:03.074Z - ac-confirmed: AC2: agent.test.ts: approve→runs+fed back; deny→not run; NO callback→default-denied (runner never invoked)
 - 2026-07-17T19:58:03.437Z - ac-confirmed: AC3: runAgentRepl requestApproval ([y/N], single shared iterator) + shellExecTool registered; chat core unchanged
 - 2026-07-17T19:58:03.647Z - ac-confirmed: AC4: tsc clean; bun test 1394 pass/0 fail (baseline 1387); default-deny tested; deps {}. Live [y/N] smoke pending tool-capable model; merge authorized by user
+- 2026-07-17T19:58:31.690Z - task-done: T4: Self-review and prepare draft PR
+- 2026-07-17T19:59:05.173Z - completing: merged commit: 5662be5
+- 2026-07-17T19:59:05.307Z - done: all gates passed
