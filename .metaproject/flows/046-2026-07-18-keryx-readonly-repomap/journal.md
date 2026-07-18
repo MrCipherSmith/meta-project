@@ -13,3 +13,9 @@
 - 2026-07-18T11:24:38.487Z - task-done: T2: Implement per plan
 - 2026-07-18T11:24:38.581Z - task-done: T3: Add/adjust tests and make them pass
 - 2026-07-18T11:24:38.696Z - task-done: T4: Self-review and prepare draft PR
+- 2026-07-18T11:25:06.516Z - implemented: draft PR: https://github.com/MrCipherSmith/keryx/pull/66
+- 2026-07-18T11:25:06.610Z - ac-confirmed: AC1: adapter repomap uses injectable repomapCompute (default loadGraph+config+computeRepomap, no write); never writeRepomap; deterministic/never-throws
+- 2026-07-18T11:25:06.693Z - ac-confirmed: AC2: adapter test drives repomap via injected repomapCompute -> mapped RepomapResult; adapter no longer references writing gdgraph.repomap
+- 2026-07-18T11:25:06.775Z - ac-confirmed: AC3: tsc clean; bun test 1446/0 (= baseline); deps {}; repomap risk read/mutating false; other ops/port/projections unchanged
+- 2026-07-18T11:25:14.909Z - completing
+- 2026-07-18T11:25:14.936Z - done: all gates passed
