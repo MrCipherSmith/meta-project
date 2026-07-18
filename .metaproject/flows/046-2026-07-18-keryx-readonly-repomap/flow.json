@@ -3,17 +3,30 @@
   "id": "046",
   "slug": "keryx-readonly-repomap",
   "title": "keryx read-only repomap tool — adapter uses pure computeRepomap (no artifact write) so repomap is truly read-only",
-  "status": "in-progress",
+  "status": "done",
   "createdAt": "2026-07-18T11:21:52.941Z",
-  "updatedAt": "2026-07-18T11:24:38.696Z",
+  "updatedAt": "2026-07-18T11:25:14.936Z",
   "source": {
     "type": "description",
     "ref": null
   },
   "acChecksum": "sha256:343daea609ca83fed9e1c004764d7f36c2cddbef1de154489fdc1df8b0bc6995",
-  "acConfirmed": {},
+  "acConfirmed": {
+    "AC1": {
+      "at": "2026-07-18T11:25:06.610Z",
+      "note": "adapter repomap uses injectable repomapCompute (default loadGraph+config+computeRepomap, no write); never writeRepomap; deterministic/never-throws"
+    },
+    "AC2": {
+      "at": "2026-07-18T11:25:06.693Z",
+      "note": "adapter test drives repomap via injected repomapCompute -> mapped RepomapResult; adapter no longer references writing gdgraph.repomap"
+    },
+    "AC3": {
+      "at": "2026-07-18T11:25:06.774Z",
+      "note": "tsc clean; bun test 1446/0 (= baseline); deps {}; repomap risk read/mutating false; other ops/port/projections unchanged"
+    }
+  },
   "pr": {
-    "url": null
+    "url": "https://github.com/MrCipherSmith/keryx/pull/66"
   },
   "tasks": [
     {
@@ -110,6 +123,40 @@
       "at": "2026-07-18T11:24:38.696Z",
       "event": "task-done",
       "detail": "T4: Self-review and prepare draft PR"
+    },
+    {
+      "at": "2026-07-18T11:25:06.516Z",
+      "event": "implemented",
+      "detail": "draft PR: https://github.com/MrCipherSmith/keryx/pull/66"
+    },
+    {
+      "at": "2026-07-18T11:25:06.610Z",
+      "event": "ac-confirmed",
+      "detail": "AC1: adapter repomap uses injectable repomapCompute (default loadGraph+config+computeRepomap, no write); never writeRepomap; deterministic/never-throws"
+    },
+    {
+      "at": "2026-07-18T11:25:06.693Z",
+      "event": "ac-confirmed",
+      "detail": "AC2: adapter test drives repomap via injected repomapCompute -> mapped RepomapResult; adapter no longer references writing gdgraph.repomap"
+    },
+    {
+      "at": "2026-07-18T11:25:06.775Z",
+      "event": "ac-confirmed",
+      "detail": "AC3: tsc clean; bun test 1446/0 (= baseline); deps {}; repomap risk read/mutating false; other ops/port/projections unchanged"
+    },
+    {
+      "at": "2026-07-18T11:25:14.909Z",
+      "event": "completing"
+    },
+    {
+      "at": "2026-07-18T11:25:14.936Z",
+      "event": "done",
+      "detail": "all gates passed"
     }
-  ]
+  ],
+  "merged": {
+    "commit": "6fac9271a3b27fd8bd74508ad868f4880a498f87",
+    "ref": "origin/main",
+    "at": "2026-07-18T11:25:14.935Z"
+  }
 }
