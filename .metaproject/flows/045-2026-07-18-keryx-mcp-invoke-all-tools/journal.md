@@ -13,3 +13,9 @@
 - 2026-07-18T11:13:18.385Z - task-done: T2: Implement per plan
 - 2026-07-18T11:13:18.469Z - task-done: T3: Add/adjust tests and make them pass
 - 2026-07-18T11:13:18.552Z - task-done: T4: Self-review and prepare draft PR
+- 2026-07-18T11:13:50.526Z - implemented: draft PR: https://github.com/MrCipherSmith/keryx/pull/64
+- 2026-07-18T11:13:50.623Z - ac-confirmed: AC1: invokeStructured default -> op.invoke; 5 structured cases + descriptors/port/adapter unchanged
+- 2026-07-18T11:13:50.714Z - ac-confirmed: AC2: metaproject-tools.test.ts invokes all 11 toMcpTools entries; none returns 'unknown metaproject operation'
+- 2026-07-18T11:13:50.792Z - ac-confirmed: AC3: tsc clean; bun test 1446/0 (baseline 1445); mcp.test.ts+boundary.test.ts green; deps {}; M-10 mutating:false
+- 2026-07-18T11:13:59.921Z - completing
+- 2026-07-18T11:13:59.950Z - done: all gates passed

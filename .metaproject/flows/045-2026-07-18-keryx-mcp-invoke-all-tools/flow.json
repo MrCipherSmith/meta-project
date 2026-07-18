@@ -3,17 +3,30 @@
   "id": "045",
   "slug": "keryx-mcp-invoke-all-tools",
   "title": "keryx MCP invoke for all unified metaproject tools — invokeStructured falls back to op.invoke so every operation is callable via MCP",
-  "status": "in-progress",
+  "status": "done",
   "createdAt": "2026-07-18T11:10:01.765Z",
-  "updatedAt": "2026-07-18T11:13:18.552Z",
+  "updatedAt": "2026-07-18T11:13:59.950Z",
   "source": {
     "type": "description",
     "ref": null
   },
   "acChecksum": "sha256:303055272d644b0f63603f5f415b918c52e0666bd9ae8e2611d605b7cae71fe9",
-  "acConfirmed": {},
+  "acConfirmed": {
+    "AC1": {
+      "at": "2026-07-18T11:13:50.623Z",
+      "note": "invokeStructured default -> op.invoke; 5 structured cases + descriptors/port/adapter unchanged"
+    },
+    "AC2": {
+      "at": "2026-07-18T11:13:50.714Z",
+      "note": "metaproject-tools.test.ts invokes all 11 toMcpTools entries; none returns 'unknown metaproject operation'"
+    },
+    "AC3": {
+      "at": "2026-07-18T11:13:50.792Z",
+      "note": "tsc clean; bun test 1446/0 (baseline 1445); mcp.test.ts+boundary.test.ts green; deps {}; M-10 mutating:false"
+    }
+  },
   "pr": {
-    "url": null
+    "url": "https://github.com/MrCipherSmith/keryx/pull/64"
   },
   "tasks": [
     {
@@ -110,6 +123,40 @@
       "at": "2026-07-18T11:13:18.552Z",
       "event": "task-done",
       "detail": "T4: Self-review and prepare draft PR"
+    },
+    {
+      "at": "2026-07-18T11:13:50.526Z",
+      "event": "implemented",
+      "detail": "draft PR: https://github.com/MrCipherSmith/keryx/pull/64"
+    },
+    {
+      "at": "2026-07-18T11:13:50.623Z",
+      "event": "ac-confirmed",
+      "detail": "AC1: invokeStructured default -> op.invoke; 5 structured cases + descriptors/port/adapter unchanged"
+    },
+    {
+      "at": "2026-07-18T11:13:50.714Z",
+      "event": "ac-confirmed",
+      "detail": "AC2: metaproject-tools.test.ts invokes all 11 toMcpTools entries; none returns 'unknown metaproject operation'"
+    },
+    {
+      "at": "2026-07-18T11:13:50.792Z",
+      "event": "ac-confirmed",
+      "detail": "AC3: tsc clean; bun test 1446/0 (baseline 1445); mcp.test.ts+boundary.test.ts green; deps {}; M-10 mutating:false"
+    },
+    {
+      "at": "2026-07-18T11:13:59.921Z",
+      "event": "completing"
+    },
+    {
+      "at": "2026-07-18T11:13:59.950Z",
+      "event": "done",
+      "detail": "all gates passed"
     }
-  ]
+  ],
+  "merged": {
+    "commit": "d57132dbe46a90854ed1da0f872c79db335ae12f",
+    "ref": "origin/main",
+    "at": "2026-07-18T11:13:59.949Z"
+  }
 }
