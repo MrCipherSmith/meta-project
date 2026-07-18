@@ -16,3 +16,10 @@
 - 2026-07-18T00:01:39.650Z - task-done: T2: Implement per plan
 - 2026-07-18T00:01:39.796Z - task-done: T3: Add/adjust tests and make them pass
 - 2026-07-18T00:01:39.971Z - task-done: T4: Self-review and prepare draft PR
+- 2026-07-18T00:02:21.824Z - implemented: draft PR: https://github.com/MrCipherSmith/keryx/pull/60
+- 2026-07-18T00:02:43.703Z - ac-confirmed: AC1: port OPTIONAL graphPath/testRelated/healthStatus; adapter impl over gdgraph/testing/health; existing fakes compile; testRelated adapter tests (delegation/sort/no-throw); 3 delivered
+- 2026-07-18T00:02:43.808Z - ac-confirmed: AC2: 3 descriptors in METAPROJECT_OPERATIONS, risk read, schema-valid (operations schema test all 8); invoke returns 'unavailable' when port method absent
+- 2026-07-18T00:02:43.956Z - ac-confirmed: AC3: auto-surfaced via toInteractiveTools/toToolDefinitions/toMcpTools (EXPECTED_NAMES + toToolDefinitions test); M-10 read-only preserved
+- 2026-07-18T00:02:44.083Z - ac-confirmed: AC4: tsc clean; bun test 1436 pass/0 fail (baseline 1431); deps {}; existing 5 ops/projections/chat/policy unchanged
+- 2026-07-18T00:03:14.822Z - completing
+- 2026-07-18T00:03:14.885Z - done: all gates passed

@@ -3,17 +3,34 @@
   "id": "043",
   "slug": "keryx-more-metaproject-tools",
   "title": "keryx more metaproject tools — add graph_path / test_related / health_status operations (optional MetaprojectPort methods) auto-surfaced to agent + harness + MCP",
-  "status": "in-progress",
+  "status": "done",
   "createdAt": "2026-07-17T23:31:48.665Z",
-  "updatedAt": "2026-07-18T00:01:39.971Z",
+  "updatedAt": "2026-07-18T00:03:14.885Z",
   "source": {
     "type": "description",
     "ref": null
   },
   "acChecksum": "sha256:b81f9468b7632d495c5e0e230f0939b5d59b5f0feaf7cba7c481a1d026df004d",
-  "acConfirmed": {},
+  "acConfirmed": {
+    "AC1": {
+      "at": "2026-07-18T00:02:43.703Z",
+      "note": "port OPTIONAL graphPath/testRelated/healthStatus; adapter impl over gdgraph/testing/health; existing fakes compile; testRelated adapter tests (delegation/sort/no-throw); 3 delivered"
+    },
+    "AC2": {
+      "at": "2026-07-18T00:02:43.808Z",
+      "note": "3 descriptors in METAPROJECT_OPERATIONS, risk read, schema-valid (operations schema test all 8); invoke returns 'unavailable' when port method absent"
+    },
+    "AC3": {
+      "at": "2026-07-18T00:02:43.956Z",
+      "note": "auto-surfaced via toInteractiveTools/toToolDefinitions/toMcpTools (EXPECTED_NAMES + toToolDefinitions test); M-10 read-only preserved"
+    },
+    "AC4": {
+      "at": "2026-07-18T00:02:44.083Z",
+      "note": "tsc clean; bun test 1436 pass/0 fail (baseline 1431); deps {}; existing 5 ops/projections/chat/policy unchanged"
+    }
+  },
   "pr": {
-    "url": null
+    "url": "https://github.com/MrCipherSmith/keryx/pull/60"
   },
   "tasks": [
     {
@@ -110,6 +127,45 @@
       "at": "2026-07-18T00:01:39.971Z",
       "event": "task-done",
       "detail": "T4: Self-review and prepare draft PR"
+    },
+    {
+      "at": "2026-07-18T00:02:21.824Z",
+      "event": "implemented",
+      "detail": "draft PR: https://github.com/MrCipherSmith/keryx/pull/60"
+    },
+    {
+      "at": "2026-07-18T00:02:43.703Z",
+      "event": "ac-confirmed",
+      "detail": "AC1: port OPTIONAL graphPath/testRelated/healthStatus; adapter impl over gdgraph/testing/health; existing fakes compile; testRelated adapter tests (delegation/sort/no-throw); 3 delivered"
+    },
+    {
+      "at": "2026-07-18T00:02:43.808Z",
+      "event": "ac-confirmed",
+      "detail": "AC2: 3 descriptors in METAPROJECT_OPERATIONS, risk read, schema-valid (operations schema test all 8); invoke returns 'unavailable' when port method absent"
+    },
+    {
+      "at": "2026-07-18T00:02:43.956Z",
+      "event": "ac-confirmed",
+      "detail": "AC3: auto-surfaced via toInteractiveTools/toToolDefinitions/toMcpTools (EXPECTED_NAMES + toToolDefinitions test); M-10 read-only preserved"
+    },
+    {
+      "at": "2026-07-18T00:02:44.083Z",
+      "event": "ac-confirmed",
+      "detail": "AC4: tsc clean; bun test 1436 pass/0 fail (baseline 1431); deps {}; existing 5 ops/projections/chat/policy unchanged"
+    },
+    {
+      "at": "2026-07-18T00:03:14.822Z",
+      "event": "completing"
+    },
+    {
+      "at": "2026-07-18T00:03:14.885Z",
+      "event": "done",
+      "detail": "all gates passed"
     }
-  ]
+  ],
+  "merged": {
+    "commit": "21e0cd1ec5b579eac47dacab4137ed9bd6d7f74d",
+    "ref": "origin/main",
+    "at": "2026-07-18T00:03:14.884Z"
+  }
 }
