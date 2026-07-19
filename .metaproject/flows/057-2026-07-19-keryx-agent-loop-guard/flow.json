@@ -1,0 +1,190 @@
+{
+  "schemaVersion": 2,
+  "id": "057",
+  "slug": "keryx-agent-loop-guard",
+  "title": "keryx agent runaway tool-loop guard (terminate on budget/repeated-error, actionable invalid-input)",
+  "status": "in-progress",
+  "createdAt": "2026-07-19T01:51:17.778Z",
+  "updatedAt": "2026-07-19T01:53:46.475Z",
+  "source": {
+    "type": "description",
+    "ref": null
+  },
+  "acChecksum": "sha256:f9a592dfb5d31bace5ef7707cba951444038221c5f8da383b93c0faf1f65aa9f",
+  "acConfirmed": {},
+  "pr": {
+    "url": null
+  },
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Collect remaining context",
+      "kind": "context",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T2",
+      "title": "Implement per plan",
+      "kind": "implement",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T3",
+      "title": "Add/adjust tests and make them pass",
+      "kind": "test",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T4",
+      "title": "Self-review and prepare draft PR",
+      "kind": "review",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T5",
+      "title": "implement loop guards + actionable message",
+      "kind": "implement",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T6",
+      "title": "driver tests",
+      "kind": "test",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T7",
+      "title": "verify",
+      "kind": "review",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    }
+  ],
+  "history": [
+    {
+      "at": "2026-07-19T01:51:17.778Z",
+      "event": "created"
+    },
+    {
+      "at": "2026-07-19T01:51:17.918Z",
+      "event": "task-added",
+      "detail": "T5: implement loop guards + actionable message"
+    },
+    {
+      "at": "2026-07-19T01:51:17.997Z",
+      "event": "task-added",
+      "detail": "T6: driver tests"
+    },
+    {
+      "at": "2026-07-19T01:51:18.077Z",
+      "event": "task-added",
+      "detail": "T7: verify"
+    },
+    {
+      "at": "2026-07-19T01:51:18.159Z",
+      "event": "frozen",
+      "detail": "4 criteria; checksum recorded"
+    },
+    {
+      "at": "2026-07-19T01:51:18.251Z",
+      "event": "started"
+    },
+    {
+      "at": "2026-07-19T01:51:18.344Z",
+      "event": "task-done",
+      "detail": "T1: Collect remaining context"
+    },
+    {
+      "at": "2026-07-19T01:53:46.039Z",
+      "event": "task-done",
+      "detail": "T2: Implement per plan"
+    },
+    {
+      "at": "2026-07-19T01:53:46.127Z",
+      "event": "task-done",
+      "detail": "T3: Add/adjust tests and make them pass"
+    },
+    {
+      "at": "2026-07-19T01:53:46.209Z",
+      "event": "task-done",
+      "detail": "T4: Self-review and prepare draft PR"
+    },
+    {
+      "at": "2026-07-19T01:53:46.292Z",
+      "event": "task-done",
+      "detail": "T5: implement loop guards + actionable message"
+    },
+    {
+      "at": "2026-07-19T01:53:46.377Z",
+      "event": "task-done",
+      "detail": "T6: driver tests"
+    },
+    {
+      "at": "2026-07-19T01:53:46.475Z",
+      "event": "task-done",
+      "detail": "T7: verify"
+    }
+  ]
+}

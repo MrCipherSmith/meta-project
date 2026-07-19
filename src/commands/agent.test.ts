@@ -300,6 +300,95 @@ test("runAgentTurn forwards usage_update events to onUsage", async () => {
   expect(seen).toEqual([{ input: 12, output: 3 }]);
 });
 
+// --- flow 057: runaway tool-loop guard ---
+
+function baseDeps(provider: AgentDeps["provider"], maxToolCalls?: number): AgentDeps {
+  return {
+    provider,
+    providerId: "s",
+    modelId: "m",
+    tools: builtinReadOnlyTools(tmpdir()),
+    systemInstruction: "sys",
+    idSeq: fixedIdSeq(),
+    ...(maxToolCalls !== undefined ? { maxToolCalls } : {}),
+  };
+}
+
+test("runAgentTurn terminates when the tool-call budget is exhausted (no infinite re-request)", async () => {
+  // Every round returns a VALID get_cwd call → would loop forever without the guard.
+  const round: Partial<NormalizedEvent>[] = [
+    { kind: "tool_call_start", toolCallId: "c", toolName: "get_cwd" },
+    { kind: "tool_call_end", toolCallId: "c", input: "{}" },
+    { kind: "model_end" },
+  ];
+  const { provider } = scriptedProvider([round, round, round, round, round]);
+  const systemMsgs: string[] = [];
+  const io: AgentIO = { write: () => {}, onSystem: (t) => systemMsgs.push(t) };
+  await runAgentTurn(io, baseDeps(provider, 2), [], "loop"); // resolves = no infinite loop
+  expect(systemMsgs.join("")).toMatch(/tool-call limit reached \(2 per turn\)/);
+});
+
+test("runAgentTurn aborts after 3 consecutive identical failing calls", async () => {
+  const round: Partial<NormalizedEvent>[] = [
+    { kind: "tool_call_start", toolCallId: "c", toolName: "nonexistent_tool" },
+    { kind: "tool_call_end", toolCallId: "c", input: "{}" },
+    { kind: "model_end" },
+  ];
+  const { provider } = scriptedProvider([round, round, round, round, round]);
+  const systemMsgs: string[] = [];
+  let toolResultCount = 0;
+  const io: AgentIO = { write: () => {}, onSystem: (t) => systemMsgs.push(t), onToolResult: () => (toolResultCount += 1) };
+  await runAgentTurn(io, baseDeps(provider, 8), [], "x");
+  expect(systemMsgs.join("")).toMatch(/repeated identical tool error/);
+  expect(toolResultCount).toBe(3); // aborted after exactly 3 identical failures
+});
+
+test("a successful call resets the repeated-failure counter (fail, fail, ok, fail, fail → no abort)", async () => {
+  const bad: Partial<NormalizedEvent>[] = [
+    { kind: "tool_call_start", toolCallId: "c", toolName: "nonexistent_tool" },
+    { kind: "tool_call_end", toolCallId: "c", input: "{}" },
+    { kind: "model_end" },
+  ];
+  const good: Partial<NormalizedEvent>[] = [
+    { kind: "tool_call_start", toolCallId: "g", toolName: "get_cwd" },
+    { kind: "tool_call_end", toolCallId: "g", input: "{}" },
+    { kind: "model_end" },
+  ];
+  const done: Partial<NormalizedEvent>[] = [{ kind: "text_delta", text: "done" }, { kind: "model_end" }];
+  const { provider } = scriptedProvider([bad, bad, good, bad, bad, done]);
+  const systemMsgs: string[] = [];
+  const io: AgentIO = { write: () => {}, onSystem: (t) => systemMsgs.push(t) };
+  await runAgentTurn(io, baseDeps(provider, 8), [], "x");
+  expect(systemMsgs.join("")).not.toMatch(/repeated identical tool error/);
+});
+
+test("a validation error message lists the tool's required fields", async () => {
+  const round: Partial<NormalizedEvent>[] = [
+    { kind: "tool_call_start", toolCallId: "c", toolName: "needs_q" },
+    { kind: "tool_call_end", toolCallId: "c", input: "{}" }, // missing required `query`
+    { kind: "model_end" },
+  ];
+  const { provider } = scriptedProvider([round, [{ kind: "text_delta", text: "ok" }, { kind: "model_end" }]]);
+  const needsQ: import("../harness/tool/builtin/interactive-tools").InteractiveTool = {
+    definition: {
+      name: "needs_q",
+      description: "needs a query",
+      inputSchema: { type: "object", properties: { query: { type: "string" } }, required: ["query"], additionalProperties: false },
+      risk: "read",
+    },
+    invoke: async () => ({ output: "unused", isError: false }),
+  };
+  const outputs: string[] = [];
+  const io: AgentIO = { write: () => {}, onToolResult: (_n, r) => outputs.push(r.output) };
+  await runAgentTurn(
+    io,
+    { provider, providerId: "s", modelId: "m", tools: [needsQ], systemInstruction: "sys", idSeq: fixedIdSeq() },
+    [],
+    "x",
+  );
+  expect(outputs.join("")).toMatch(/invalid input for needs_q.*required: query/);
+});
+
 // --- flow 056: onReasoning hook ---
 
 test("runAgentTurn surfaces reasoning via onReasoning once, before onAssistantText", async () => {

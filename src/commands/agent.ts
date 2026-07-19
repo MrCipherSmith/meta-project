@@ -63,6 +63,9 @@ export interface AgentDeps {
 
 const DEFAULT_MAX_TOOL_CALLS = 8;
 
+/** Consecutive identical failing tool calls that abort a turn (runaway guard). */
+const MAX_REPEAT_FAILS = 3;
+
 /**
  * Assemble the trusted system instruction. When a `keryx orient` block is present
  * and non-empty it is embedded; otherwise a minimal static instruction is used.
@@ -122,6 +125,9 @@ export async function runAgentTurn(
   const maxToolCalls = deps.maxToolCalls ?? DEFAULT_MAX_TOOL_CALLS;
   const parentRunId = deps.idSeq();
   let toolCallsUsed = 0;
+  // Runaway guard: track consecutive identical FAILING calls across rounds.
+  let repeatFailSig: string | undefined;
+  let repeatFailCount = 0;
 
   const system = (text: string): void => {
     if (io.onSystem !== undefined) {
@@ -209,6 +215,7 @@ export async function runAgentTurn(
     }
 
     // Execute each tool call and append its result, then loop to re-request.
+    let abort: string | undefined;
     for (const call of calls) {
       io.onToolCall?.(call.name, call.input);
       const result = await executeCall(call, toolByName, io.requestApproval, () => toolCallsUsed++, {
@@ -217,6 +224,32 @@ export async function runAgentTurn(
       });
       io.onToolResult?.(call.name, result);
       history.push({ role: "tool", content: result.output, provenance: "tool" });
+
+      // Runaway guard: a model that re-issues the SAME failing call every round
+      // would otherwise spin forever. Abort after N consecutive identical errors.
+      if (result.isError) {
+        const sig = `${call.name}:${call.input}`;
+        repeatFailCount = sig === repeatFailSig ? repeatFailCount + 1 : 1;
+        repeatFailSig = sig;
+        if (repeatFailCount >= MAX_REPEAT_FAILS) {
+          abort = `repeated identical tool error — ${call.name} failed ${repeatFailCount}× with the same input`;
+          break;
+        }
+      } else {
+        repeatFailSig = undefined;
+        repeatFailCount = 0;
+      }
+    }
+
+    if (abort !== undefined) {
+      system(`\n[stopped] ${abort}\n`);
+      return;
+    }
+    // Terminate the turn once the tool-call budget is spent instead of
+    // re-requesting forever (every further call would just return "exhausted").
+    if (toolCallsUsed >= maxToolCalls) {
+      system(`\n[stopped] tool-call limit reached (${maxToolCalls} per turn)\n`);
+      return;
     }
   }
 }
@@ -243,7 +276,10 @@ async function executeCall(
   const validation = validateAgainstSchemaObject(tool.definition.inputSchema, input);
   if (!validation.valid) {
     const detail = validation.errors.map((e) => `${e.path}: ${e.message}`).join("; ");
-    return { output: `invalid input for ${call.name}: ${detail}`, isError: true };
+    const requiredRaw = (tool.definition.inputSchema as { required?: unknown }).required;
+    const required = Array.isArray(requiredRaw) ? requiredRaw.filter((r): r is string => typeof r === "string") : [];
+    const hint = required.length > 0 ? ` (required: ${required.join(", ")})` : "";
+    return { output: `invalid input for ${call.name}: ${detail}${hint}`, isError: true };
   }
 
   // Risk gate: `read` auto-allows; `shell` requires approval (DEFAULT-DENY — no
