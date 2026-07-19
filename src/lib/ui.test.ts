@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
-import { colorEnabled, indentBlock, renderMarkdown, roleLabel, style, summarizeToolArgs, symbols } from "./ui";
+import { collapseToolOutput, colorEnabled, indentBlock, renderMarkdown, roleLabel, style, summarizeToolArgs, symbols } from "./ui";
 
 const savedNoColor = process.env.NO_COLOR;
 const savedForceColor = process.env.FORCE_COLOR;
@@ -93,6 +93,37 @@ test("renderMarkdown (FORCE_COLOR) dims fenced code block lines and drops the fe
   expect(rendered).toContain("const x = 1;");
   expect(rendered).not.toContain("```");
   expect(rendered).toContain("[90m"); // gray/dim code line
+});
+
+// --- flow 055: collapseToolOutput (pure) ---
+
+test("collapseToolOutput: single line → no hidden lines", () => {
+  expect(collapseToolOutput("only line")).toEqual({ summary: "only line", lineCount: 1, hidden: 0 });
+});
+
+test("collapseToolOutput: multi-line → first line summary + hidden count", () => {
+  const r = collapseToolOutput("first\nsecond\nthird");
+  expect(r.summary).toBe("first");
+  expect(r.lineCount).toBe(3);
+  expect(r.hidden).toBe(2);
+});
+
+test("collapseToolOutput: trailing blank lines are ignored", () => {
+  expect(collapseToolOutput("a\n\n\n")).toEqual({ summary: "a", lineCount: 1, hidden: 0 });
+});
+
+test("collapseToolOutput: skips leading empty lines for the summary", () => {
+  const r = collapseToolOutput("\n\nreal first\nmore");
+  expect(r.summary).toBe("real first");
+  expect(r.hidden).toBe(3); // lines: "", "", "real first", "more"
+});
+
+test("collapseToolOutput: clips the summary to maxWidth", () => {
+  expect(collapseToolOutput("x".repeat(50), 10).summary).toBe(`${"x".repeat(10)}…`);
+});
+
+test("collapseToolOutput: empty input", () => {
+  expect(collapseToolOutput("")).toEqual({ summary: "", lineCount: 0, hidden: 0 });
 });
 
 // --- flow 054: indentBlock (pure left gutter) ---

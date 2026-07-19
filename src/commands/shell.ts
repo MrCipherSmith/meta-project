@@ -36,7 +36,7 @@ import { buildApprovalContext } from "./agent-approval-context";
 import { shellExecTool } from "../harness/tool/builtin/shell-exec-tool";
 import { collapseHome } from "../lib/statusbar";
 import { LiveMarkdownBlock } from "../lib/live-render";
-import { colorEnabled, indentBlock, renderMarkdown, style, summarizeToolArgs } from "../lib/ui";
+import { collapseToolOutput, colorEnabled, indentBlock, renderMarkdown, style, summarizeToolArgs } from "../lib/ui";
 import { type AgentDeps, type AgentIO, buildAgentSystemInstruction, runAgentTurn } from "./agent";
 import { detectProviders, pickAgentMode, pickProviderModel } from "./select";
 
@@ -467,13 +467,6 @@ function createRichIo(lines: AsyncIterable<string>): RichIo {
   return { io, emitSystem, printHeader, printPrompt };
 }
 
-/** One-line summary of a tool result for the agent-mode transcript. */
-function summarizeToolOutput(text: string): string {
-  const firstLine = text.split("\n")[0] ?? "";
-  const clipped = firstLine.length > 100 ? `${firstLine.slice(0, 100)}…` : firstLine;
-  return text.includes("\n") ? `${clipped} …` : clipped;
-}
-
 /** A dim, terminal-width-agnostic separator between agent turns. */
 function turnSeparator(): string {
   return style.dim("─".repeat(24));
@@ -548,6 +541,10 @@ async function runAgentRepl(
   // Per-turn token usage (last `usage_update` the provider reported), printed
   // once when the turn ends.
   let lastUsage: NormalizedUsage | undefined;
+  // Full output of the most recent tool call, retained for `/expand` (the
+  // transcript shows only a collapsed one-line summary — flow 055).
+  let lastToolOutput: string | undefined;
+  let lastToolName: string | undefined;
 
   // Live differential markdown rendering (flow 051): stream + repaint in place on
   // a TTY with color; otherwise fall back to the flow-050 render-once behavior so
@@ -641,7 +638,11 @@ async function runAgentRepl(
     },
     onToolResult: (name, result) => {
       const marker = result.isError ? style.red("✗ ") : style.gray("↳ ");
-      out(`${GUTTER}${marker}${style.dim(summarizeToolOutput(result.output))}\n`);
+      const { summary, hidden } = collapseToolOutput(result.output);
+      const more = hidden > 0 ? style.dim(` · +${hidden} more (/expand)`) : "";
+      out(`${GUTTER}${marker}${style.dim(summary)}${more}\n`);
+      lastToolName = name;
+      lastToolOutput = result.output;
       startSpinner(); // a tool finished; wait for the model's next round
     },
     onSystem: (text) => {
@@ -667,8 +668,22 @@ async function runAgentRepl(
       }
       if (command === "/help") {
         agentIo.onSystem?.(
-          "Agent mode — describe a task; the agent uses read-only tools (get_cwd, list_dir, read_file, search_code, graph_affected, memory_search) and shell_exec (asks approval) on the real project. /exit to leave.\n",
+          "Agent mode — describe a task; the agent uses read-only tools (get_cwd, list_dir, read_file, search_code, graph_affected, memory_search) and shell_exec (asks approval) on the real project. /expand shows the last tool's full output. /exit to leave.\n",
         );
+      } else if (command === "/expand") {
+        if (lastToolOutput !== undefined && lastToolOutput.trim().length > 0) {
+          stopSpinner();
+          const MAX_LINES = 200;
+          const allLines = lastToolOutput.replace(/\n+$/, "").split("\n");
+          const shown = allLines.slice(0, MAX_LINES).join("\n");
+          out(`\n${GUTTER}${style.dim(`${lastToolName ?? "tool"} output:`)}\n`);
+          out(`${indentBlock(style.dim(shown), GUTTER)}\n`);
+          if (allLines.length > MAX_LINES) {
+            out(`${GUTTER}${style.dim(`… (${allLines.length - MAX_LINES} more lines truncated)`)}\n`);
+          }
+        } else {
+          agentIo.onSystem?.("Nothing to expand — no tool output yet.\n");
+        }
       } else {
         agentIo.onSystem?.(`Unknown command: ${command}. Type /help.\n`);
       }
