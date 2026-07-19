@@ -552,3 +552,26 @@ test("sends NO Authorization header for a keyless (local ollama) grant", async (
   const headers = calls[0]?.init?.headers as Record<string, string> | undefined;
   expect(headers?.authorization).toBeUndefined();
 });
+
+// --- flow 049: OpenAI-compatible tool-message serialization -------------------
+
+test("serializes a normalized role:tool message as a framed user message (no bare tool role)", async () => {
+  const { fetch: fetchMock, calls } = makeTextFetchMock();
+  const provider = new OllamaProvider({ fetch: fetchMock, grant: validGrant() });
+  const request: NormalizedRequest = {
+    ...buildRequest("request-tool-msg"),
+    messages: [
+      { role: "user", content: "check health" },
+      { role: "tool", content: "gate: warn" },
+    ],
+  };
+  await collectEvents(provider.stream(request, { attemptId: "attempt-tool-msg" }));
+
+  const body = JSON.parse((calls[0]?.init?.body as string) ?? "{}") as {
+    messages: Array<{ role: string; content: string }>;
+  };
+  expect(body.messages.map((m) => m.role)).not.toContain("tool");
+  const framed = body.messages.find((m) => m.content.includes("gate: warn"));
+  expect(framed?.role).toBe("user");
+  expect(framed?.content).toContain("Tool result:");
+});
