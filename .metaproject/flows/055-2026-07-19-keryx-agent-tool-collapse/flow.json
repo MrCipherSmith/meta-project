@@ -1,0 +1,190 @@
+{
+  "schemaVersion": 2,
+  "id": "055",
+  "slug": "keryx-agent-tool-collapse",
+  "title": "keryx agent collapsible tool output (collapsed summary + /expand)",
+  "status": "in-progress",
+  "createdAt": "2026-07-19T01:31:07.757Z",
+  "updatedAt": "2026-07-19T01:33:47.617Z",
+  "source": {
+    "type": "description",
+    "ref": null
+  },
+  "acChecksum": "sha256:ad6a1bc692a50d6b85d3a97093feaf56f3224581f8bed0874df13612976213ae",
+  "acConfirmed": {},
+  "pr": {
+    "url": null
+  },
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Collect remaining context",
+      "kind": "context",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T2",
+      "title": "Implement per plan",
+      "kind": "implement",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T3",
+      "title": "Add/adjust tests and make them pass",
+      "kind": "test",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T4",
+      "title": "Self-review and prepare draft PR",
+      "kind": "review",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T5",
+      "title": "implement collapse + /expand",
+      "kind": "implement",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T6",
+      "title": "collapseToolOutput tests",
+      "kind": "test",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T7",
+      "title": "verify",
+      "kind": "review",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    }
+  ],
+  "history": [
+    {
+      "at": "2026-07-19T01:31:07.757Z",
+      "event": "created"
+    },
+    {
+      "at": "2026-07-19T01:31:07.919Z",
+      "event": "task-added",
+      "detail": "T5: implement collapse + /expand"
+    },
+    {
+      "at": "2026-07-19T01:31:08.036Z",
+      "event": "task-added",
+      "detail": "T6: collapseToolOutput tests"
+    },
+    {
+      "at": "2026-07-19T01:31:08.133Z",
+      "event": "task-added",
+      "detail": "T7: verify"
+    },
+    {
+      "at": "2026-07-19T01:31:08.226Z",
+      "event": "frozen",
+      "detail": "4 criteria; checksum recorded"
+    },
+    {
+      "at": "2026-07-19T01:31:08.312Z",
+      "event": "started"
+    },
+    {
+      "at": "2026-07-19T01:31:08.424Z",
+      "event": "task-done",
+      "detail": "T1: Collect remaining context"
+    },
+    {
+      "at": "2026-07-19T01:33:47.115Z",
+      "event": "task-done",
+      "detail": "T2: Implement per plan"
+    },
+    {
+      "at": "2026-07-19T01:33:47.207Z",
+      "event": "task-done",
+      "detail": "T3: Add/adjust tests and make them pass"
+    },
+    {
+      "at": "2026-07-19T01:33:47.301Z",
+      "event": "task-done",
+      "detail": "T4: Self-review and prepare draft PR"
+    },
+    {
+      "at": "2026-07-19T01:33:47.426Z",
+      "event": "task-done",
+      "detail": "T5: implement collapse + /expand"
+    },
+    {
+      "at": "2026-07-19T01:33:47.528Z",
+      "event": "task-done",
+      "detail": "T6: collapseToolOutput tests"
+    },
+    {
+      "at": "2026-07-19T01:33:47.617Z",
+      "event": "task-done",
+      "detail": "T7: verify"
+    }
+  ]
+}

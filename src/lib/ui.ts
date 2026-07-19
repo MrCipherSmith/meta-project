@@ -117,6 +117,19 @@ export function renderMarkdown(md: string): string {
   return out.join("\n");
 }
 
+// Collapse multi-line tool output to a one-line summary plus a hidden-line count
+// (for a line-based "collapsible panel"): `summary` is the first NON-empty line
+// clipped to `maxWidth`; `lineCount` is the total lines (trailing blank lines
+// ignored); `hidden` is the count of lines beyond the first. Pure + deterministic.
+export function collapseToolOutput(text: string, maxWidth = 100): { summary: string; lineCount: number; hidden: number } {
+  const trimmed = text.replace(/\n+$/, "");
+  const lines = trimmed.length === 0 ? [] : trimmed.split("\n");
+  const firstNonEmpty = lines.find((line) => line.trim().length > 0) ?? "";
+  const summary = firstNonEmpty.length > maxWidth ? `${firstNonEmpty.slice(0, maxWidth)}…` : firstNonEmpty;
+  const lineCount = lines.length;
+  return { summary, lineCount, hidden: Math.max(0, lineCount - 1) };
+}
+
 // Prefix every NON-empty line of `text` with `pad` (a left gutter), leaving
 // empty lines untouched so no trailing whitespace is introduced. Pure — used to
 // give agent-mode output a consistent left margin (OpenCode/codex aesthetic).
