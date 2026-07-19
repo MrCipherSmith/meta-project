@@ -245,10 +245,16 @@ export class OllamaProvider implements ProviderPort {
       messages.push({ role: "system", content: request.systemInstruction });
     }
     for (const message of request.messages) {
-      messages.push({
-        role: message.role === "assistant" ? "assistant" : message.role === "tool" ? "tool" : message.role,
-        content: message.content,
-      });
+      if (message.role === "tool") {
+        // OpenAI/OpenRouter require a `role:"tool"` message to carry a
+        // `tool_call_id` referencing a preceding assistant `tool_calls` — which the
+        // normalized layer does NOT track. Degrade to a framed `user` message so the
+        // tool result stays legible and the request is valid across OpenAI-compatible
+        // providers (a bare `role:"tool"` is rejected by OpenRouter/OpenAI).
+        messages.push({ role: "user", content: `Tool result:\n${message.content}` });
+        continue;
+      }
+      messages.push({ role: message.role, content: message.content });
     }
     const payload: Record<string, unknown> = {
       model: request.modelId,
