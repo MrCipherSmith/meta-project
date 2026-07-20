@@ -14,6 +14,7 @@ import path from "node:path";
 import { defaultModelFor, hasCredential, runModelTurn } from "../harness/provider/single-turn";
 import type { ProviderFactory } from "../harness/provider/single-turn";
 import { pathExists } from "../lib/fs";
+import { envWithSavedApiKeys } from "../lib/shell-config";
 import { collectPages } from "./service";
 import type { WikiPage } from "./types";
 
@@ -108,7 +109,9 @@ async function selectPages(input: WikiEnrichInput): Promise<WikiPage[]> {
 export async function wikiEnrich(input: WikiEnrichInput): Promise<WikiEnrichResult> {
   const provider = input.provider ?? DEFAULT_PROVIDER;
   const model = input.model ?? defaultModelFor(provider);
-  const env = input.env ?? process.env;
+  // `runModelTurn` also merges auth.json; we mirror that here so the early
+  // fail-closed skip message matches what the turn will actually use.
+  const env = envWithSavedApiKeys(input.env ?? process.env);
   const credentialAvailable = hasCredential(provider, env);
   const result: WikiEnrichResult = {
     provider,

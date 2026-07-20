@@ -15,6 +15,7 @@
 import { makeProvider } from "./make-provider";
 import type { NormalizedError, NormalizedRequest, ProviderPort } from "./types";
 import { providerByName } from "../../commands/providers";
+import { envWithSavedApiKeys } from "../../lib/shell-config";
 
 /** Provider factory matching `makeProvider`'s shape (injectable for tests). */
 export type ProviderFactory = (
@@ -92,7 +93,9 @@ export interface ModelTurnResult {
 export async function runModelTurn(input: ModelTurnInput): Promise<ModelTurnResult> {
   const provider = input.provider ?? DEFAULT_PROVIDER;
   const model = input.model ?? defaultModelFor(provider);
-  const env = input.env ?? process.env;
+  // Merge keys from `~/.local/share/keryx/auth.json` so model-backed CLI commands
+  // (wiki enrich, …) see keys the user already entered in `keryx shell`.
+  const env = envWithSavedApiKeys(input.env ?? process.env);
   const credentialAvailable = hasCredential(provider, env);
 
   if (!credentialAvailable && input.providerFactory === undefined) {

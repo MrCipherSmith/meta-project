@@ -87,6 +87,39 @@ export function saveApiKey(envKey: string, value: string, dir?: string): void {
 }
 
 /**
+ * Merge persisted shell API keys (auth.json) into an env map without overwriting
+ * non-empty existing entries. Pure relative to `process.env` mutation — returns
+ * a new object. Used by model-backed CLI commands (`wiki enrich`, etc.) so a key
+ * entered once in `keryx shell` is visible to a subsequent `keryx wiki enrich`
+ * subprocess, not only to the long-lived shell process.
+ */
+export function envWithSavedApiKeys(
+  env: Record<string, string | undefined> = process.env,
+  dir?: string,
+): Record<string, string | undefined> {
+  const merged: Record<string, string | undefined> = { ...env };
+  try {
+    const cfg = loadShellConfig(dir);
+    const keys: Record<string, string> = { ...(cfg.apiKeys ?? {}) };
+    if (typeof cfg.openrouterKey === "string" && cfg.openrouterKey.length > 0 && keys.OPENROUTER_API_KEY === undefined) {
+      keys.OPENROUTER_API_KEY = cfg.openrouterKey;
+    }
+    for (const [envKey, value] of Object.entries(keys)) {
+      if (typeof value !== "string" || value.length === 0) {
+        continue;
+      }
+      const current = merged[envKey];
+      if (current === undefined || current.length === 0) {
+        merged[envKey] = value;
+      }
+    }
+  } catch {
+    // best-effort
+  }
+  return merged;
+}
+
+/**
  * Load every persisted API key into `process.env` WITHOUT overwriting a var the
  * user already set in their environment (env wins). Migrates the legacy
  * `openrouterKey` into `apiKeys.OPENROUTER_API_KEY`. Returns the env var names
@@ -95,16 +128,22 @@ export function saveApiKey(envKey: string, value: string, dir?: string): void {
 export function applySavedApiKeys(dir?: string): string[] {
   const applied: string[] = [];
   try {
-    const cfg = loadShellConfig(dir);
-    const keys: Record<string, string> = { ...(cfg.apiKeys ?? {}) };
-    if (typeof cfg.openrouterKey === "string" && cfg.openrouterKey.length > 0 && keys.OPENROUTER_API_KEY === undefined) {
-      keys.OPENROUTER_API_KEY = cfg.openrouterKey;
-    }
-    for (const [envKey, value] of Object.entries(keys)) {
+    const before = new Set(
+      Object.entries(process.env)
+        .filter(([, v]) => typeof v === "string" && v.length > 0)
+        .map(([k]) => k),
+    );
+    const merged = envWithSavedApiKeys(process.env, dir);
+    for (const [envKey, value] of Object.entries(merged)) {
+      if (typeof value !== "string" || value.length === 0) {
+        continue;
+      }
       const current = process.env[envKey];
-      if (typeof value === "string" && value.length > 0 && (current === undefined || current.length === 0)) {
+      if (current === undefined || current.length === 0) {
         process.env[envKey] = value;
-        applied.push(envKey);
+        if (!before.has(envKey)) {
+          applied.push(envKey);
+        }
       }
     }
   } catch {

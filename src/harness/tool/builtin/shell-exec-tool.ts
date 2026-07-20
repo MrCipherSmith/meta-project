@@ -22,7 +22,23 @@ const MAX_OUTPUT_BYTES = 20_000;
 export function makeCommandRunner(root: string): CommandRunner {
   return async (command) => {
     try {
-      const proc = Bun.spawn(["sh", "-c", command], { cwd: root, stdout: "pipe", stderr: "pipe" });
+      // Ensure keys entered in `keryx shell` (auth.json) are on process.env, then
+      // pass env explicitly so the child always sees them (some hosts inherit
+      // inconsistently when only cwd/stdout are set).
+      const { applySavedApiKeys } = await import("../../../lib/shell-config");
+      applySavedApiKeys();
+      const env: Record<string, string> = {};
+      for (const [k, v] of Object.entries(process.env)) {
+        if (typeof v === "string") {
+          env[k] = v;
+        }
+      }
+      const proc = Bun.spawn(["sh", "-c", command], {
+        cwd: root,
+        stdout: "pipe",
+        stderr: "pipe",
+        env,
+      });
       const [stdout, stderr] = await Promise.all([
         new Response(proc.stdout).text(),
         new Response(proc.stderr).text(),

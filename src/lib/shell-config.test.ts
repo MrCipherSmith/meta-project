@@ -2,7 +2,14 @@ import { expect, test } from "bun:test";
 import { mkdtempSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { applySavedApiKeys, loadShellConfig, saveApiKey, saveShellConfig, shellConfigPath } from "./shell-config";
+import {
+  applySavedApiKeys,
+  envWithSavedApiKeys,
+  loadShellConfig,
+  saveApiKey,
+  saveShellConfig,
+  shellConfigPath,
+} from "./shell-config";
 
 function tempDir(): string {
   return mkdtempSync(path.join(tmpdir(), "keryx-cfg-"));
@@ -75,6 +82,22 @@ test("applySavedApiKeys sets env for saved keys without overwriting an existing 
     else process.env.DEEPSEEK_API_KEY = prevD;
     if (prevG === undefined) delete process.env.GROQ_API_KEY;
     else process.env.GROQ_API_KEY = prevG;
+  }
+});
+
+test("envWithSavedApiKeys merges auth.json keys into a snapshot without mutating process.env", () => {
+  const dir = tempDir();
+  saveApiKey("DEEPSEEK_API_KEY", "sk-from-auth", dir);
+  const prevD = process.env.DEEPSEEK_API_KEY;
+  delete process.env.DEEPSEEK_API_KEY;
+  try {
+    const merged = envWithSavedApiKeys({ PATH: "/bin", GROQ_API_KEY: "gsk-live" }, dir);
+    expect(merged.DEEPSEEK_API_KEY).toBe("sk-from-auth");
+    expect(merged.GROQ_API_KEY).toBe("gsk-live");
+    expect(process.env.DEEPSEEK_API_KEY).toBeUndefined(); // no side effect
+  } finally {
+    if (prevD === undefined) delete process.env.DEEPSEEK_API_KEY;
+    else process.env.DEEPSEEK_API_KEY = prevD;
   }
 });
 
