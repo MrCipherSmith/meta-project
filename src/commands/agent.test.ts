@@ -502,4 +502,6 @@ test("buildAgentSystemInstruction routes wiki enrich intents to keryx wiki enric
   expect(instr).toContain("keryx wiki enrich --all --provider zai-coding --model glm-5.2");
   expect(instr).toMatch(/required field|pattern|Never call a tool with an empty object/i);
   expect(instr).toMatch(/shell_exec/);
+  expect(instr).toMatch(/ask_user/);
+  expect(instr).toMatch(/recommended/);
 });

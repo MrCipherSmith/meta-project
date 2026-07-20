@@ -30,6 +30,8 @@ import {
   suggestShellPatterns,
 } from "../lib/shell-permissions";
 import { isWikiEnrichIntent, planWikiEnrich, wikiEnrich } from "../wiki/enrich";
+import { setAskUserHost } from "./ask-user-bridge";
+import { showComposerChoice, type ChoiceOption } from "./composer-choice";
 import { formatFleetSidebar, MAIN_AGENT_ID, shortWorkerLabel, WorkerFleet } from "./worker-fleet";
 
 /** A resolved provider/model selection. */
@@ -190,149 +192,83 @@ export type ShellApprovalChoice = "once" | "always-exact" | "always-prefix" | "d
 export type WikiEnrichChoice = "drafts" | "force" | "cancel";
 
 /**
- * Ask how to run wiki enrich after listing draft/accepted counts.
+ * Ask how to run wiki enrich (composer-dock menu, above the input).
  * drafts = batch drafts only; force = all statuses; cancel = do nothing.
  */
-function pickWikiEnrichMode(
+async function pickWikiEnrichMode(
   otui: OpenTui,
   r: Renderer,
+  dock: Box,
   plan: { draftCount: number; acceptedCount: number; total: number },
 ): Promise<WikiEnrichChoice> {
-  return new Promise((resolve) => {
-    const options: Array<{ name: string; description: string; choice: WikiEnrichChoice }> = [
+  const id = await showComposerChoice(otui, r, dock, {
+    title: "Wiki enrich",
+    subtitle: `drafts: ${plan.draftCount} · accepted: ${plan.acceptedCount} · total: ${plan.total}`,
+    cancelId: "cancel",
+    options: [
       {
-        name: `Enrich ${plan.draftCount} draft page(s)`,
+        id: "drafts",
+        label: `Enrich ${plan.draftCount} draft page(s)`,
         description: "Default batch — Status: draft only",
-        choice: "drafts",
+        recommended: true,
       },
       {
-        name: `Force enrich all ${plan.total} page(s)`,
+        id: "force",
+        label: `Force enrich all ${plan.total} page(s)`,
         description: `Includes ${plan.acceptedCount} accepted (+ other statuses)`,
-        choice: "force",
       },
       {
-        name: "Skip / cancel",
+        id: "cancel",
+        label: "Skip / cancel",
         description: "Do not run enrich",
-        choice: "cancel",
       },
-    ];
-    const box = overlayBox(otui, r, "wiki-enrich-plan");
-    r.root.add(box);
-    box.add(
-      new otui.TextRenderable(r, {
-        id: "we-title",
-        content: otui.t`${otui.bold("Wiki enrich")} ${otui.dim("↑/↓ Enter · Esc cancel")}`,
-      }),
-    );
-    box.add(
-      new otui.TextRenderable(r, {
-        id: "we-sum",
-        content: otui.t`${otui.dim(`drafts: ${plan.draftCount} · accepted: ${plan.acceptedCount} · total: ${plan.total}`)}`,
-      }),
-    );
-    const sel = new otui.SelectRenderable(r, {
-      id: "we-sel",
-      width: 72,
-      height: selectBoxHeight(options.length, true),
-      showScrollIndicator: false,
-      showDescription: true,
-      options: options.map((o) => ({ name: o.name, description: o.description })),
-      selectedTextColor: "#ffd166",
-    });
-    box.add(sel);
-    sel.focus();
-    const cleanup = (): void => {
-      unsub();
-      r.root.remove(box);
-    };
-    const onKey = (key: { name: string; preventDefault: () => void; stopPropagation: () => void }): void => {
-      if (key.name === "escape") {
-        cleanup();
-        resolve("cancel");
-        key.preventDefault();
-        key.stopPropagation();
-      }
-    };
-    const unsub = onKeypress(r, onKey);
-    sel.on(otui.SelectRenderableEvents.ITEM_SELECTED, () => {
-      const chosen = sel.getSelectedOption();
-      cleanup();
-      const match = options.find((o) => o.name === chosen?.name);
-      resolve(match?.choice ?? "cancel");
-    });
+    ],
   });
+  return id === "drafts" || id === "force" || id === "cancel" ? id : "cancel";
 }
 
 /**
- * Interactive approval menu (↑/↓ · Enter · Esc = deny), same interaction model as
- * the provider/model pickers and `/` command dropdown. Pure wiring over OpenTUI.
+ * Shell permission menu (composer-dock, above input — same band as `/` commands).
  */
-function pickShellApproval(
+async function pickShellApproval(
   otui: OpenTui,
   r: Renderer,
+  dock: Box,
   command: string,
 ): Promise<ShellApprovalChoice> {
-  return new Promise((resolve) => {
-    const { exact, prefix } = suggestShellPatterns(command);
-    const options: Array<{ name: string; description: string; choice: ShellApprovalChoice }> = [
-      { name: "Allow once", description: "Run only this time", choice: "once" },
+  const { exact, prefix } = suggestShellPatterns(command);
+  const id = await showComposerChoice(otui, r, dock, {
+    title: "Allow shell command?",
+    subtitle: command.length > 120 ? `${command.slice(0, 117)}…` : command,
+    cancelId: "deny",
+    options: [
       {
-        name: `Always allow “${exact.length > 48 ? `${exact.slice(0, 45)}…` : exact}”`,
-        description: "Remember exact command (saved to permissions.json)",
-        choice: "always-exact",
+        id: "once",
+        label: "Allow once",
+        description: "Run only this time",
+        recommended: true,
       },
       {
-        name: `Always allow “${prefix}”`,
-        description: "Remember this prefix (saved)",
-        choice: "always-prefix",
+        id: "always-exact",
+        label: `Always allow “${exact.length > 40 ? `${exact.slice(0, 37)}…` : exact}”`,
+        description: "Remember exact command (permissions.json)",
       },
-      { name: "Deny", description: "Do not run (default)", choice: "deny" },
-    ];
-    const box = overlayBox(otui, r, "shell-approval");
-    r.root.add(box);
-    box.add(
-      new otui.TextRenderable(r, {
-        id: "sa-title",
-        content: otui.t`${otui.bold("Allow shell command?")} ${otui.dim("↑/↓ Enter · Esc deny")}`,
-      }),
-    );
-    box.add(
-      new otui.TextRenderable(r, {
-        id: "sa-cmd",
-        content: otui.t`${otui.yellow(command)}`,
-      }),
-    );
-    const sel = new otui.SelectRenderable(r, {
-      id: "sa-sel",
-      width: 72,
-      height: selectBoxHeight(options.length, true),
-      showScrollIndicator: false,
-      showDescription: true,
-      options: options.map((o) => ({ name: o.name, description: o.description })),
-      selectedTextColor: "#ffd166",
-    });
-    box.add(sel);
-    sel.focus();
-    const cleanup = (): void => {
-      unsub();
-      r.root.remove(box);
-    };
-    const onKey = (key: { name: string; preventDefault: () => void; stopPropagation: () => void }): void => {
-      if (key.name === "escape") {
-        cleanup();
-        resolve("deny");
-        key.preventDefault();
-        key.stopPropagation();
-      }
-    };
-    const unsub = onKeypress(r, onKey);
-    sel.on(otui.SelectRenderableEvents.ITEM_SELECTED, () => {
-      const chosen = sel.getSelectedOption();
-      cleanup();
-      const match = options.find((o) => o.name === chosen?.name);
-      resolve(match?.choice ?? "deny");
-    });
+      {
+        id: "always-prefix",
+        label: `Always allow “${prefix}”`,
+        description: "Remember this prefix (permissions.json)",
+      },
+      {
+        id: "deny",
+        label: "Deny",
+        description: "Do not run",
+      },
+    ],
   });
+  if (id === "once" || id === "always-exact" || id === "always-prefix" || id === "deny") {
+    return id;
+  }
+  return "deny";
 }
 
 /** Compact token count for the header counter: 1234 → "1.2K", else the number. */
@@ -695,6 +631,7 @@ export async function launchTuiAgentShell(opts: {
         pendingApproval?.(false); // deny any in-flight approval on exit
         pendingApproval = undefined;
         clearBusyTimer?.(); // stop live spinner if a turn is mid-flight
+        setAskUserHost(undefined);
         resolveDone();
       },
     }));
@@ -906,9 +843,63 @@ export async function launchTuiAgentShell(opts: {
       }
       baseOnSystem?.(text);
     };
-    // `shell_exec` approval: OpenCode/Claude-style interactive picker
-    // (once / always-exact / always-prefix / deny). Remembered allow patterns
-    // live in permissions.json + this session's set. Default-deny on cancel.
+
+    // Bottom chrome (above footer): choice dock + slash menu + composer.
+    // Layout order = visual bottom stack: dock/menu open *upward* into transcript.
+    // Declared before requestApproval / ask_user so closures capture real bindings.
+    const choiceDock = new otui.BoxRenderable(r, {
+      id: "choice-dock",
+      flexShrink: 0,
+      flexDirection: "column",
+      visible: false,
+      backgroundColor: "#0f1b1b",
+      borderStyle: "rounded",
+      border: true,
+      borderColor: "#3a4a4a",
+      paddingLeft: 1,
+      paddingRight: 1,
+      paddingTop: 0,
+      paddingBottom: 0,
+    });
+    main.add(choiceDock);
+
+    // Live `/` command dropdown (Pi/grok-style): Select filtered as composer changes.
+    const menu = new otui.SelectRenderable(r, {
+      id: "menu",
+      flexShrink: 0,
+      height: 10,
+      visible: false,
+      options: [...AGENT_SLASH_COMMANDS],
+      showScrollIndicator: true,
+      wrapSelection: true,
+      backgroundColor: "#0f1b1b",
+      focusedBackgroundColor: "#0f1b1b",
+      selectedBackgroundColor: "#22333b",
+      textColor: "#c8d0d0",
+      focusedTextColor: "#c8d0d0",
+      selectedTextColor: "#ffd166",
+      descriptionColor: "#6b7a7a",
+      selectedDescriptionColor: "#8b9a9a",
+    });
+    main.add(menu);
+
+    // Bordered composer (grok-style rounded input box) — compact single line.
+    const composer = new otui.BoxRenderable(r, {
+      id: "composer",
+      flexShrink: 0,
+      borderStyle: "rounded",
+      border: true,
+      paddingLeft: 1,
+      paddingRight: 1,
+    });
+    const input = new otui.InputRenderable(r, { id: "prompt", placeholder: "type a task or / for commands" });
+    composer.add(input);
+    main.add(composer);
+    input.focus();
+
+    // `shell_exec` approval: composer-dock picker (once / always-exact /
+    // always-prefix / deny). Remembered allow patterns live in permissions.json
+    // + this session's set. Default-deny on cancel.
     io.requestApproval = async (_tool, inputJson) => {
       const cmd = parseShellExecCommand(inputJson);
       // Auto-allow from session + disk (re-read disk so external edits apply).
@@ -928,11 +919,12 @@ export async function launchTuiAgentShell(opts: {
       transcript.add(
         new otui.TextRenderable(r, {
           id: `ap${uid++}`,
-          content: otui.t`${otui.yellow(`⚙ shell_exec needs approval`)}`,
+          content: otui.t`${otui.yellow(`⚙ shell_exec needs approval`)} ${otui.dim("(menu above input)")}`,
         }),
       );
       setMainAgent("blocked", "approval");
-      const choice = await pickShellApproval(otui, r, cmd);
+      menu.visible = false;
+      const choice = await pickShellApproval(otui, r, choiceDock, cmd);
       input.focus();
 
       if (choice === "deny") {
@@ -972,40 +964,55 @@ export async function launchTuiAgentShell(opts: {
       return true;
     };
 
-    // The live `/` command dropdown (Pi/grok-style): a SelectRenderable filtered
-    // as the composer changes; hidden when the value is not a slash query.
-    const menu = new otui.SelectRenderable(r, {
-      id: "menu",
-      flexShrink: 0,
-      height: 10,
-      visible: false,
-      options: [...AGENT_SLASH_COMMANDS],
-      showScrollIndicator: true,
-      wrapSelection: true,
-      backgroundColor: "#0f1b1b",
-      focusedBackgroundColor: "#0f1b1b",
-      selectedBackgroundColor: "#22333b",
-      textColor: "#c8d0d0",
-      focusedTextColor: "#c8d0d0",
-      selectedTextColor: "#ffd166",
-      descriptionColor: "#6b7a7a",
-      selectedDescriptionColor: "#8b9a9a",
-    });
-    main.add(menu);
-
-    // Bordered composer (grok-style rounded input box) — compact single line.
-    const composer = new otui.BoxRenderable(r, {
-      id: "composer",
-      flexShrink: 0,
-      borderStyle: "rounded",
-      border: true,
-      paddingLeft: 1,
-      paddingRight: 1,
-    });
-    const input = new otui.InputRenderable(r, { id: "prompt", placeholder: "type a task or / for commands" });
-    composer.add(input);
-    main.add(composer);
-    input.focus();
+    /** Host for ask_user — Claude-style options docked above the composer. */
+    const askUserInteractive = async (req: {
+      question: string;
+      options: Array<{ id: string; label: string; description: string; recommended?: boolean }>;
+    }): Promise<string> => {
+      menu.visible = false;
+      setMainAgent("blocked", "ask");
+      // Keep a short transcript breadcrumb; the interactive picker is at the input.
+      const qShort = req.question.length > 100 ? `${req.question.slice(0, 97)}…` : req.question;
+      transcript.add(
+        new otui.TextRenderable(r, {
+          id: `ask${uid++}`,
+          content: otui.t`${otui.yellow("? ")} ${otui.dim(qShort)}`,
+        }),
+      );
+      const chosen = await showComposerChoice(otui, r, choiceDock, {
+        title: req.question.length > 72 ? `${req.question.slice(0, 69)}…` : req.question,
+        subtitle: "Pick an option · Esc cancels",
+        cancelId: "__cancel__",
+        options: req.options.map(
+          (o): ChoiceOption => ({
+            id: o.id,
+            label: o.label,
+            description: o.description.length > 0 ? o.description : " ",
+            ...(o.recommended === true ? { recommended: true } : {}),
+          }),
+        ),
+      });
+      input.focus();
+      if (chosen !== "__cancel__") {
+        const picked = req.options.find((o) => o.id === chosen);
+        transcript.add(
+          new otui.TextRenderable(r, {
+            id: `aska${uid++}`,
+            content: otui.t`${otui.green("→")} ${otui.dim(picked?.label ?? chosen)}`,
+          }),
+        );
+      } else {
+        transcript.add(
+          new otui.TextRenderable(r, {
+            id: `askc${uid++}`,
+            content: otui.t`${otui.dim("→ cancelled")}`,
+          }),
+        );
+      }
+      setMainAgent("running", "waiting");
+      return chosen;
+    };
+    setAskUserHost(askUserInteractive);
 
     // Footer: live status (spinner + phase + elapsed) while busy; idle hints.
     const footer = new otui.BoxRenderable(r, {
@@ -1275,7 +1282,7 @@ export async function launchTuiAgentShell(opts: {
               return;
             }
 
-            const choice = await pickWikiEnrichMode(otui, r, {
+            const choice = await pickWikiEnrichMode(otui, r, choiceDock, {
               draftCount: plan.drafts.length,
               acceptedCount: plan.accepted.length,
               total: plan.forceTargets.length,

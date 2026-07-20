@@ -107,7 +107,10 @@ export function buildAgentSystemInstruction(orient?: string, ctx: AgentInstructi
     "`pattern`, read_wiki needs `path`, wiki_ask needs `question`). Never call a tool " +
     "with an empty object.\n" +
     "- Prefer ONE correct shell_exec over many exploratory tool calls when the user asks " +
-    "to run a known keryx workflow.\n\n" +
+    "to run a known keryx workflow.\n" +
+    "- When you need a decision, interview step, or clarification: use **ask_user** with " +
+    "2–6 options `{ id, label, description, recommended? }` (mark one recommended). " +
+    "Do not dump long prose questions without options.\n\n" +
     "Workflow routing (follow these instead of improvising):\n" +
     "- User asks to enrich / enrich wiki / «обогати вики» (TUI also pre-routes this):\n" +
     "  1) `keryx wiki enrich --list` — show drafts vs accepted.\n" +

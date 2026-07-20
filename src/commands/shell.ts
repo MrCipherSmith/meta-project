@@ -28,7 +28,9 @@ import type {
   ProviderPort,
 } from "../harness/provider/types";
 import { buildOrientation } from "../ctx/orient";
+import { createAskUserTool } from "../harness/tool/builtin/ask-user-tool";
 import { builtinReadOnlyTools } from "../harness/tool/builtin/interactive-tools";
+import { invokeAskUserHost } from "../tui/ask-user-bridge";
 import { makeKeryxRunner, builtinMetaprojectTools } from "../harness/tool/builtin/metaproject-tools";
 import { createMetaprojectAdapter } from "../harness/tool/metaproject-adapter";
 import type { MetaprojectPort } from "../harness/tool/metaproject-port";
@@ -822,6 +824,7 @@ export async function shellCommand(args: string[]): Promise<void> {
           ...builtinReadOnlyTools(cwd),
           ...builtinMetaprojectTools(cwd, makeKeryxRunner(cwd), metaprojectPort),
           shellExecTool(cwd),
+          createAskUserTool(invokeAskUserHost),
         ],
         systemInstruction: buildAgentSystemInstruction(orient, {
           providerId: sel.provider,
