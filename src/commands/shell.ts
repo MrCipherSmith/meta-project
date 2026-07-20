@@ -847,13 +847,13 @@ export async function shellCommand(args: string[]): Promise<void> {
         systemInstruction: buildAgentSystemInstruction(orient),
         idSeq: () => randomUUID(),
       };
-      // OpenTUI agent shell (flows 060-064, ADR-0005). DEFAULT on an interactive
-      // TTY; `--no-tui` forces the readline REPL. On no-TTY / absent optional dep /
-      // init failure it returns false and the readline REPL below runs instead
-      // (guaranteed fallback — readline is retained, not retired). `tuiFlag`
-      // (`--tui`) is an accepted no-op alias now that TUI is the default.
-      void tuiFlag;
-      if (!noTuiFlag && process.stdout.isTTY && (await launchTuiAgentShell(agentDeps, { onStart: () => rl.close() }))) {
+      // OpenTUI agent shell (flows 060-064, ADR-0005) — OPT-IN via `--tui` only.
+      // The default flip (flow 064) was reverted (flow 065): on a real TTY the
+      // readline-picker → OpenTUI stdin handoff leaks the terminal's capability/
+      // DA/DSR query responses as text and corrupts the terminal (see the flow-065
+      // report). Until that handoff is fixed and validated on a real terminal, the
+      // readline shell is the default; `--tui` opts in (and `--no-tui` overrides).
+      if (tuiFlag && !noTuiFlag && process.stdout.isTTY && (await launchTuiAgentShell(agentDeps, { onStart: () => rl.close() }))) {
         return;
       }
       await runAgentRepl(sharedLines, { printPrompt }, agentDeps, metaprojectPort);
