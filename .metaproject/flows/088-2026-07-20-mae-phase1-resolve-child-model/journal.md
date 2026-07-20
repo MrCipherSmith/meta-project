@@ -13,3 +13,6 @@
 - 2026-07-20T18:57:22.326Z - ac-confirmed: AC4: env override precedence + still-gated; parseEnvModel inherit/empty/malformed/inner-slash (5 tests)
 - 2026-07-20T18:57:22.419Z - ac-confirmed: AC5: providerClass over OPENAI_COMPAT_PROVIDERS+anthropic/ollama; unknown otherwise; KNOWN_PROVIDER_IDS; zero new deps (import-only)
 - 2026-07-20T18:57:22.497Z - ac-confirmed: AC6: determinism deep-equal + no parent mutation; no Date.now/Math.random; typecheck clean
+- 2026-07-20T19:06:27.603Z - implemented: draft PR: https://github.com/MrCipherSmith/keryx/pull/147 (warning: PR is not a draft)
+- 2026-07-20T19:06:27.728Z - completing
+- 2026-07-20T19:06:27.783Z - done: all gates passed

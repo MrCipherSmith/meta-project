@@ -3,9 +3,9 @@
   "id": "088",
   "slug": "mae-phase1-resolve-child-model",
   "title": "Multi-Agent Engine Phase 1: resolveChildModel resolver (explicit-or-inherit, policy-gated)",
-  "status": "in-progress",
+  "status": "done",
   "createdAt": "2026-07-20T18:43:23.095Z",
-  "updatedAt": "2026-07-20T18:57:22.497Z",
+  "updatedAt": "2026-07-20T19:06:27.783Z",
   "source": {
     "type": "description",
     "ref": null
@@ -38,7 +38,7 @@
     }
   },
   "pr": {
-    "url": null
+    "url": "https://github.com/MrCipherSmith/keryx/pull/147"
   },
   "tasks": [
     {
@@ -165,6 +165,25 @@
       "at": "2026-07-20T18:57:22.497Z",
       "event": "ac-confirmed",
       "detail": "AC6: determinism deep-equal + no parent mutation; no Date.now/Math.random; typecheck clean"
+    },
+    {
+      "at": "2026-07-20T19:06:27.603Z",
+      "event": "implemented",
+      "detail": "draft PR: https://github.com/MrCipherSmith/keryx/pull/147 (warning: PR is not a draft)"
+    },
+    {
+      "at": "2026-07-20T19:06:27.728Z",
+      "event": "completing"
+    },
+    {
+      "at": "2026-07-20T19:06:27.783Z",
+      "event": "done",
+      "detail": "all gates passed"
     }
-  ]
+  ],
+  "merged": {
+    "commit": "facd4eb",
+    "ref": "origin/main",
+    "at": "2026-07-20T19:06:27.783Z"
+  }
 }
