@@ -1,0 +1,159 @@
+{
+  "schemaVersion": 2,
+  "id": "065",
+  "slug": "opentui-default-revert",
+  "title": "Revert OpenTUI default — readline default again, TUI opt-in via --tui (stdin handoff leaks terminal query responses on real TTY)",
+  "status": "in-progress",
+  "createdAt": "2026-07-20T10:02:45.139Z",
+  "updatedAt": "2026-07-20T10:04:26.031Z",
+  "source": {
+    "type": "description",
+    "ref": null
+  },
+  "acChecksum": "sha256:0325532761537a0db8a7e20e7c137853b217716330f84fc55793d582bc17f463",
+  "acConfirmed": {},
+  "pr": {
+    "url": null
+  },
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Collect remaining context",
+      "kind": "context",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T2",
+      "title": "Implement per plan",
+      "kind": "implement",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T3",
+      "title": "Add/adjust tests and make them pass",
+      "kind": "test",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T4",
+      "title": "Self-review and prepare draft PR",
+      "kind": "review",
+      "status": "todo",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {}
+    },
+    {
+      "id": "T5",
+      "title": "revert default gate to --tui opt-in",
+      "kind": "implement",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T6",
+      "title": "verify + smokes",
+      "kind": "review",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    }
+  ],
+  "history": [
+    {
+      "at": "2026-07-20T10:02:45.139Z",
+      "event": "created"
+    },
+    {
+      "at": "2026-07-20T10:03:17.197Z",
+      "event": "task-added",
+      "detail": "T5: revert default gate to --tui opt-in"
+    },
+    {
+      "at": "2026-07-20T10:03:17.282Z",
+      "event": "task-added",
+      "detail": "T6: verify + smokes"
+    },
+    {
+      "at": "2026-07-20T10:03:17.366Z",
+      "event": "frozen",
+      "detail": "4 criteria; checksum recorded"
+    },
+    {
+      "at": "2026-07-20T10:03:17.444Z",
+      "event": "started"
+    },
+    {
+      "at": "2026-07-20T10:03:17.522Z",
+      "event": "task-done",
+      "detail": "T1: Collect remaining context"
+    },
+    {
+      "at": "2026-07-20T10:04:25.773Z",
+      "event": "task-done",
+      "detail": "T2: Implement per plan"
+    },
+    {
+      "at": "2026-07-20T10:04:25.862Z",
+      "event": "task-done",
+      "detail": "T3: Add/adjust tests and make them pass"
+    },
+    {
+      "at": "2026-07-20T10:04:25.944Z",
+      "event": "task-done",
+      "detail": "T5: revert default gate to --tui opt-in"
+    },
+    {
+      "at": "2026-07-20T10:04:26.031Z",
+      "event": "task-done",
+      "detail": "T6: verify + smokes"
+    }
+  ]
+}
