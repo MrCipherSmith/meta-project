@@ -19,3 +19,10 @@
 - 2026-07-20T08:36:09.927Z - task-done: T5: scroll + approval + resize
 - 2026-07-20T08:36:10.019Z - task-done: T6: tests
 - 2026-07-20T08:36:10.103Z - task-done: T7: verify
+- 2026-07-20T08:36:18.132Z - implemented: draft PR: https://github.com/MrCipherSmith/keryx/pull/98
+- 2026-07-20T08:36:18.243Z - ac-confirmed: AC1: ScrollBoxRenderable transcript (scrollY+sticky bottom); IO renders into .content; headless render test
+- 2026-07-20T08:36:18.337Z - ac-confirmed: AC2: io.requestApproval Run:<cmd>[y/N] resolves from next submit; default-deny on teardown; pure isShellApproved (y/yes) unit-tested
+- 2026-07-20T08:36:18.428Z - ac-confirmed: AC3: resize handled natively (headless survives-resize test); driver/readline/chat/roleLabel unchanged; --tui+fallback+/-dropdown preserved
+- 2026-07-20T08:36:18.522Z - ac-confirmed: AC4: tsc clean; bun test 1506/0 (+3: isShellApproved, scrollbox, resize); no new dep
+- 2026-07-20T08:36:44.825Z - completing
+- 2026-07-20T08:36:44.862Z - done: all gates passed

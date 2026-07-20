@@ -3,17 +3,34 @@
   "id": "063",
   "slug": "opentui-approval-scroll",
   "title": "OpenTUI shell Phase 4 (scrollable transcript, shell_exec approval default-deny, resize)",
-  "status": "in-progress",
+  "status": "done",
   "createdAt": "2026-07-20T08:33:33.340Z",
-  "updatedAt": "2026-07-20T08:36:10.103Z",
+  "updatedAt": "2026-07-20T08:36:44.862Z",
   "source": {
     "type": "description",
     "ref": null
   },
   "acChecksum": "sha256:299ff4b95094ac25d153309625abd4804123de34ca4094ce1db3161b4750f7f0",
-  "acConfirmed": {},
+  "acConfirmed": {
+    "AC1": {
+      "at": "2026-07-20T08:36:18.243Z",
+      "note": "ScrollBoxRenderable transcript (scrollY+sticky bottom); IO renders into .content; headless render test"
+    },
+    "AC2": {
+      "at": "2026-07-20T08:36:18.337Z",
+      "note": "io.requestApproval Run:<cmd>[y/N] resolves from next submit; default-deny on teardown; pure isShellApproved (y/yes) unit-tested"
+    },
+    "AC3": {
+      "at": "2026-07-20T08:36:18.428Z",
+      "note": "resize handled natively (headless survives-resize test); driver/readline/chat/roleLabel unchanged; --tui+fallback+/-dropdown preserved"
+    },
+    "AC4": {
+      "at": "2026-07-20T08:36:18.522Z",
+      "note": "tsc clean; bun test 1506/0 (+3: isShellApproved, scrollbox, resize); no new dep"
+    }
+  },
   "pr": {
-    "url": null
+    "url": "https://github.com/MrCipherSmith/keryx/pull/98"
   },
   "tasks": [
     {
@@ -185,6 +202,45 @@
       "at": "2026-07-20T08:36:10.103Z",
       "event": "task-done",
       "detail": "T7: verify"
+    },
+    {
+      "at": "2026-07-20T08:36:18.132Z",
+      "event": "implemented",
+      "detail": "draft PR: https://github.com/MrCipherSmith/keryx/pull/98"
+    },
+    {
+      "at": "2026-07-20T08:36:18.243Z",
+      "event": "ac-confirmed",
+      "detail": "AC1: ScrollBoxRenderable transcript (scrollY+sticky bottom); IO renders into .content; headless render test"
+    },
+    {
+      "at": "2026-07-20T08:36:18.337Z",
+      "event": "ac-confirmed",
+      "detail": "AC2: io.requestApproval Run:<cmd>[y/N] resolves from next submit; default-deny on teardown; pure isShellApproved (y/yes) unit-tested"
+    },
+    {
+      "at": "2026-07-20T08:36:18.428Z",
+      "event": "ac-confirmed",
+      "detail": "AC3: resize handled natively (headless survives-resize test); driver/readline/chat/roleLabel unchanged; --tui+fallback+/-dropdown preserved"
+    },
+    {
+      "at": "2026-07-20T08:36:18.522Z",
+      "event": "ac-confirmed",
+      "detail": "AC4: tsc clean; bun test 1506/0 (+3: isShellApproved, scrollbox, resize); no new dep"
+    },
+    {
+      "at": "2026-07-20T08:36:44.825Z",
+      "event": "completing"
+    },
+    {
+      "at": "2026-07-20T08:36:44.862Z",
+      "event": "done",
+      "detail": "all gates passed"
     }
-  ]
+  ],
+  "merged": {
+    "commit": "6eba7f1c11c06c602afc12056bda2bb53a218c4c",
+    "ref": "origin/main",
+    "at": "2026-07-20T08:36:44.861Z"
+  }
 }
