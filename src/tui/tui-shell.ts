@@ -1255,7 +1255,10 @@ export async function launchTuiAgentShell(opts: {
 
     // --- Per-project session (isolated by git root / cwd) --------------------
     const sessionCwd = opts.session?.cwd ?? process.cwd();
-    let liveSession: SessionHandle;
+    // Definite assignment: every control-flow path calls `applyOpened` before
+    // paint/save; `!` satisfies TS2454 (assignments inside nested closures are
+    // invisible to control-flow analysis).
+    let liveSession!: SessionHandle;
     let history: NormalizedMessage[] = [];
     let archive: NormalizedMessage[] = [];
 

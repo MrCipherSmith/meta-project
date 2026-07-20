@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   defaultModelFor,
   hasCredential,
+  resolveAutoProvider,
   runModelTurn,
   type ProviderFactory,
 } from "./single-turn";
@@ -38,6 +39,9 @@ describe("runModelTurn", () => {
     const result = await runModelTurn({
       system: "s",
       user: "u",
+      provider: "anthropic",
+      env: {}, // no keys — factory still runs when injected
+      preferSavedShell: false,
       providerFactory: factory,
       requestId: "t1",
     });
@@ -74,6 +78,9 @@ describe("runModelTurn", () => {
     const result = await runModelTurn({
       system: "s",
       user: "u",
+      provider: "anthropic",
+      env: {},
+      preferSavedShell: false,
       providerFactory: factory,
       requestId: "t3",
     });
@@ -87,5 +94,37 @@ describe("runModelTurn", () => {
     expect(hasCredential("ollama", {})).toBe(true);
     expect(hasCredential("anthropic", {})).toBe(false);
     expect(hasCredential("openrouter", { OPENROUTER_API_KEY: "k" })).toBe(true);
+  });
+
+  test("resolveAutoProvider prefers keyed credentials, not ollama-by-default", () => {
+    // No keys → legacy fallback name (fail-closed later).
+    expect(resolveAutoProvider({}, { preferSavedShell: false }).provider).toBe("anthropic");
+    // DeepSeek key wins over anthropic default.
+    expect(
+      resolveAutoProvider({ DEEPSEEK_API_KEY: "sk-ds" }, { preferSavedShell: false }).provider,
+    ).toBe("deepseek");
+    // Anthropic key when present.
+    expect(
+      resolveAutoProvider({ ANTHROPIC_API_KEY: "sk-ant" }, { preferSavedShell: false }).provider,
+    ).toBe("anthropic");
+  });
+
+  test("runModelTurn without --provider uses auto provider from env keys", async () => {
+    const seen: string[] = [];
+    const factory: ProviderFactory = (name) => {
+      seen.push(name);
+      return stubProvider(`via ${name}`);
+    };
+    const result = await runModelTurn({
+      system: "s",
+      user: "u",
+      env: { DEEPSEEK_API_KEY: "sk-test" },
+      preferSavedShell: false,
+      providerFactory: factory,
+      requestId: "t-auto",
+    });
+    expect(result.provider).toBe("deepseek");
+    expect(seen[0]).toBe("deepseek");
+    expect(result.text).toBe("via deepseek");
   });
 });

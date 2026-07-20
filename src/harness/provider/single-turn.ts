@@ -11,11 +11,16 @@
 // and empty text — never falling back to an offline FakeProvider (which has no
 // transcript) and never touching the network. Deterministic given an injected
 // factory.
+//
+// Default provider resolution (when `--provider` is omitted):
+//   1. last provider/model from shell auth.json (if that provider has a key)
+//   2. first keyed provider with a credential in env/auth.json
+//   3. legacy fallback name `anthropic` (fail-closed if no ANTHROPIC_API_KEY)
 
 import { makeProvider } from "./make-provider";
 import type { NormalizedError, NormalizedRequest, ProviderPort } from "./types";
-import { providerByName } from "../../commands/providers";
-import { envWithSavedApiKeys } from "../../lib/shell-config";
+import { OPENAI_COMPAT_PROVIDERS, providerByName } from "../../commands/providers";
+import { envWithSavedApiKeys, loadShellConfig } from "../../lib/shell-config";
 
 /** Provider factory matching `makeProvider`'s shape (injectable for tests). */
 export type ProviderFactory = (
@@ -24,6 +29,11 @@ export type ProviderFactory = (
   opts: { fetch: typeof fetch; env?: Record<string, string | undefined>; baseUrl?: string },
 ) => ProviderPort;
 
+/**
+ * Legacy fallback name when no flag, no saved shell provider, and no keyed
+ * credential is found. Not a hard requirement — only used for error messages
+ * and fail-closed empty turns.
+ */
 export const DEFAULT_PROVIDER = "anthropic";
 
 const DEFAULT_MODELS: Record<string, string> = {
@@ -57,6 +67,55 @@ export function hasCredential(provider: string, env: Record<string, string | und
   return false;
 }
 
+/**
+ * Providers that require a real API key (excludes ollama — always "available"
+ * so it must not win automatic selection unless the user asked for it).
+ */
+export function keyedProviderCandidates(): string[] {
+  return ["anthropic", ...OPENAI_COMPAT_PROVIDERS.map((p) => p.name)];
+}
+
+/**
+ * Pick a provider for narrate/single-turn when the caller omitted `--provider`.
+ *
+ * Order:
+ * 1. Shell-saved provider+model from auth.json, if that provider has a key
+ * 2. First keyed provider with a credential in `env`
+ * 3. `DEFAULT_PROVIDER` (anthropic) — typically fails closed with a clear error
+ *
+ * Ollama is never auto-selected (would always win and hit the network).
+ */
+export function resolveAutoProvider(
+  env: Record<string, string | undefined>,
+  opts?: { preferSavedShell?: boolean },
+): { provider: string; model?: string } {
+  if (opts?.preferSavedShell !== false) {
+    try {
+      const saved = loadShellConfig();
+      if (
+        typeof saved.provider === "string" &&
+        saved.provider.length > 0 &&
+        hasCredential(saved.provider, env)
+      ) {
+        return {
+          provider: saved.provider,
+          ...(typeof saved.model === "string" && saved.model.length > 0
+            ? { model: saved.model }
+            : {}),
+        };
+      }
+    } catch {
+      // ignore config read failures
+    }
+  }
+  for (const name of keyedProviderCandidates()) {
+    if (hasCredential(name, env)) {
+      return { provider: name };
+    }
+  }
+  return { provider: DEFAULT_PROVIDER };
+}
+
 export interface ModelTurnInput {
   /** Provider name (anthropic | ollama | openrouter | grok | …). */
   provider?: string;
@@ -75,6 +134,11 @@ export interface ModelTurnInput {
   fetch?: typeof fetch;
   baseUrl?: string;
   providerFactory?: ProviderFactory;
+  /**
+   * When false, skip reading shell auth.json for auto provider selection
+   * (tests). Default true.
+   */
+  preferSavedShell?: boolean;
 }
 
 export interface ModelTurnResult {
@@ -91,11 +155,25 @@ export interface ModelTurnResult {
  * present and no factory was injected — the caller decides how to surface that.
  */
 export async function runModelTurn(input: ModelTurnInput): Promise<ModelTurnResult> {
-  const provider = input.provider ?? DEFAULT_PROVIDER;
-  const model = input.model ?? defaultModelFor(provider);
   // Merge keys from `~/.local/share/keryx/auth.json` so model-backed CLI commands
-  // (wiki enrich, …) see keys the user already entered in `keryx shell`.
+  // (wiki enrich, health explain --narrate, …) see keys the user already entered
+  // in `keryx shell`.
   const env = envWithSavedApiKeys(input.env ?? process.env);
+
+  let provider: string;
+  let model: string;
+  if (input.provider !== undefined && input.provider.length > 0) {
+    provider = input.provider;
+    model = input.model ?? defaultModelFor(provider);
+  } else {
+    const auto = resolveAutoProvider(
+      env,
+      input.preferSavedShell === false ? { preferSavedShell: false } : undefined,
+    );
+    provider = auto.provider;
+    model = input.model ?? auto.model ?? defaultModelFor(provider);
+  }
+
   const credentialAvailable = hasCredential(provider, env);
 
   if (!credentialAvailable && input.providerFactory === undefined) {
