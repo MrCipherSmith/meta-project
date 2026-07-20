@@ -16,3 +16,10 @@
 - 2026-07-20T13:51:26.162Z - task-done: T3: Add/adjust tests and make them pass
 - 2026-07-20T13:51:26.246Z - task-done: T5: always-offer + key prompt
 - 2026-07-20T13:51:26.323Z - task-done: T6: verify
+- 2026-07-20T13:52:00.377Z - implemented: draft PR: https://github.com/MrCipherSmith/keryx/pull/126 (warning: PR is not a draft)
+- 2026-07-20T13:52:00.502Z - ac-confirmed: AC1: tsc clean; bun test 1511/0; select updated; key entry = user on TTY
+- 2026-07-20T13:52:00.590Z - ac-confirmed: AC2: tsc clean; bun test 1511/0; select updated; key entry = user on TTY
+- 2026-07-20T13:52:00.675Z - ac-confirmed: AC3: tsc clean; bun test 1511/0; select updated; key entry = user on TTY
+- 2026-07-20T13:52:00.765Z - ac-confirmed: AC4: tsc clean; bun test 1511/0; select updated; key entry = user on TTY
+- 2026-07-20T13:52:00.916Z - completing
+- 2026-07-20T13:52:00.978Z - done: all gates passed
