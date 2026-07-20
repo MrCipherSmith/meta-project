@@ -1,0 +1,6 @@
+# Acceptance Criteria — flow 063 (OpenTUI Phase 4: approval + scroll + resize)
+
+- AC1: The OpenTUI transcript is a `ScrollBoxRenderable` (scrollY + sticky-bottom) so long conversations scroll and auto-stick to the newest output; the AgentIO renders into its `.content`. A headless test asserts content still renders inside the scrollbox.
+- AC2: The OpenTUI agent shell provides a `requestApproval` for `shell_exec`: it renders a `Run: <command> [y/N]` prompt and resolves from the NEXT composer submit — `y`/`yes` (case-insensitive) approves, anything else denies. DEFAULT-DENY is preserved: closing the shell / Ctrl+C with a pending approval resolves it `false`, and no approval callback still means the driver denies. A pure `isShellApproved(answer)` helper is unit-tested.
+- AC3: Resize is handled (OpenTUI owns the terminal); a headless test resizes the renderer and asserts prior content survives. `runAgentTurn`, the readline shell, chat mode, and `roleLabel` are unchanged; `--tui` opt-in + fallback preserved; the flow-062 `/` dropdown still works.
+- AC4: `bunx tsc --noEmit` clean; `bun test` green with no reduction from baseline (1503); new tests (scrollbox render, isShellApproved, resize-survives) pass. No new dependency.

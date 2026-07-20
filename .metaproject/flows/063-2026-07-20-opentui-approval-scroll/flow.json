@@ -1,0 +1,190 @@
+{
+  "schemaVersion": 2,
+  "id": "063",
+  "slug": "opentui-approval-scroll",
+  "title": "OpenTUI shell Phase 4 (scrollable transcript, shell_exec approval default-deny, resize)",
+  "status": "in-progress",
+  "createdAt": "2026-07-20T08:33:33.340Z",
+  "updatedAt": "2026-07-20T08:36:10.103Z",
+  "source": {
+    "type": "description",
+    "ref": null
+  },
+  "acChecksum": "sha256:299ff4b95094ac25d153309625abd4804123de34ca4094ce1db3161b4750f7f0",
+  "acConfirmed": {},
+  "pr": {
+    "url": null
+  },
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Collect remaining context",
+      "kind": "context",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T2",
+      "title": "Implement per plan",
+      "kind": "implement",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T3",
+      "title": "Add/adjust tests and make them pass",
+      "kind": "test",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T4",
+      "title": "Self-review and prepare draft PR",
+      "kind": "review",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T5",
+      "title": "scroll + approval + resize",
+      "kind": "implement",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T6",
+      "title": "tests",
+      "kind": "test",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T7",
+      "title": "verify",
+      "kind": "review",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    }
+  ],
+  "history": [
+    {
+      "at": "2026-07-20T08:33:33.340Z",
+      "event": "created"
+    },
+    {
+      "at": "2026-07-20T08:33:33.507Z",
+      "event": "task-added",
+      "detail": "T5: scroll + approval + resize"
+    },
+    {
+      "at": "2026-07-20T08:33:33.605Z",
+      "event": "task-added",
+      "detail": "T6: tests"
+    },
+    {
+      "at": "2026-07-20T08:33:33.685Z",
+      "event": "task-added",
+      "detail": "T7: verify"
+    },
+    {
+      "at": "2026-07-20T08:33:33.769Z",
+      "event": "frozen",
+      "detail": "4 criteria; checksum recorded"
+    },
+    {
+      "at": "2026-07-20T08:33:33.842Z",
+      "event": "started"
+    },
+    {
+      "at": "2026-07-20T08:33:33.926Z",
+      "event": "task-done",
+      "detail": "T1: Collect remaining context"
+    },
+    {
+      "at": "2026-07-20T08:36:09.659Z",
+      "event": "task-done",
+      "detail": "T2: Implement per plan"
+    },
+    {
+      "at": "2026-07-20T08:36:09.752Z",
+      "event": "task-done",
+      "detail": "T3: Add/adjust tests and make them pass"
+    },
+    {
+      "at": "2026-07-20T08:36:09.843Z",
+      "event": "task-done",
+      "detail": "T4: Self-review and prepare draft PR"
+    },
+    {
+      "at": "2026-07-20T08:36:09.927Z",
+      "event": "task-done",
+      "detail": "T5: scroll + approval + resize"
+    },
+    {
+      "at": "2026-07-20T08:36:10.019Z",
+      "event": "task-done",
+      "detail": "T6: tests"
+    },
+    {
+      "at": "2026-07-20T08:36:10.103Z",
+      "event": "task-done",
+      "detail": "T7: verify"
+    }
+  ]
+}

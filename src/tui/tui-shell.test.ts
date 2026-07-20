@@ -7,7 +7,7 @@
 // via dynamic import; the tests skip when it is absent.
 import { expect, test } from "bun:test";
 import { tmpdir } from "node:os";
-import { createTuiAgentIo } from "./tui-shell";
+import { createTuiAgentIo, isShellApproved } from "./tui-shell";
 import { AGENT_SLASH_COMMANDS, filterCommands } from "../commands/agent-commands";
 import { runAgentTurn } from "../commands/agent";
 import type { AgentDeps } from "../commands/agent";
@@ -164,6 +164,55 @@ test("live /-dropdown filters commands as you type (headless reactivity)", async
   const frame = captureCharFrame();
   expect(frame).toContain("/help");
   expect(frame).not.toContain("/clear"); // filtered out by the `h` prefix
+  renderer.destroy();
+});
+
+test("isShellApproved: only explicit y/yes approves (default-deny)", () => {
+  expect(isShellApproved("y")).toBe(true);
+  expect(isShellApproved("Y")).toBe(true);
+  expect(isShellApproved("yes")).toBe(true);
+  expect(isShellApproved(" yes ")).toBe(true);
+  expect(isShellApproved("n")).toBe(false);
+  expect(isShellApproved("no")).toBe(false);
+  expect(isShellApproved("")).toBe(false);
+  expect(isShellApproved("yep")).toBe(false);
+});
+
+test("ScrollBox transcript renders appended content (headless)", async () => {
+  const otui = await loadOpenTui();
+  if (otui === undefined) {
+    return;
+  }
+  const { renderer, flush, captureCharFrame } = await otui.testing.createTestRenderer({ width: 60, height: 10 });
+  const scroll = new otui.core.ScrollBoxRenderable(renderer, {
+    id: "transcript",
+    flexGrow: 1,
+    scrollY: true,
+    stickyScroll: true,
+    stickyStart: "bottom",
+    contentOptions: { flexDirection: "column" },
+  });
+  renderer.root.add(scroll);
+  scroll.content.add(new otui.core.TextRenderable(renderer, { id: "line", content: "hello scrollbox" }));
+  await flush();
+  expect(captureCharFrame()).toContain("hello scrollbox");
+  renderer.destroy();
+});
+
+test("content survives a terminal resize (headless)", async () => {
+  const otui = await loadOpenTui();
+  if (otui === undefined) {
+    return;
+  }
+  const { renderer, flush, captureCharFrame, resize } = await otui.testing.createTestRenderer({ width: 60, height: 10 });
+  const box = new otui.core.BoxRenderable(renderer, { id: "b", flexGrow: 1, flexDirection: "column" });
+  renderer.root.add(box);
+  box.add(new otui.core.TextRenderable(renderer, { id: "t", content: "resize me" }));
+  await flush();
+  expect(captureCharFrame()).toContain("resize me");
+  resize(40, 8);
+  await flush();
+  expect(captureCharFrame()).toContain("resize me"); // survives the resize
   renderer.destroy();
 });
 
