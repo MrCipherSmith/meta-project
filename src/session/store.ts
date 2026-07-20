@@ -1,9 +1,13 @@
-// Per-project session store (MVP).
+// Per-project interactive session store (production).
 //
-// - Sessions are isolated by project root (git toplevel or cwd).
-// - transcript.jsonl is the source of truth for model history.
-// - summary.json is an atomic index row for list/continue/resume.
-// - continue/list only see the current project (hard isolation).
+// Isolation: sessions never cross project roots (git toplevel or abs cwd).
+// Dual files:
+//   context.jsonl  — model window (what resume loads for the agent)
+//   archive.jsonl  — full audit log (export; survives /compact)
+// Legacy: transcript.jsonl is still written as a copy of context for older tools.
+//
+// All writes are atomic (temp + rename). continue/list/resume only see the
+// current project.
 
 import {
   existsSync,
@@ -22,15 +26,23 @@ import {
   resolveProjectRoot,
   sessionDir as sessionDirPath,
 } from "./paths";
+import { compactMessages, type CompactOptions } from "./compact";
+
+export const SESSION_SCHEMA_VERSION = 1 as const;
 
 export interface SessionSummary {
+  schemaVersion: typeof SESSION_SCHEMA_VERSION;
   id: string;
   projectKey: string;
   projectPath: string;
   title: string;
   createdAt: string;
   updatedAt: string;
+  /** Messages in the active model context. */
   messageCount: number;
+  /** Messages in the full archive (includes pre-compact history). */
+  archiveMessageCount: number;
+  compactCount: number;
   provider?: string;
   model?: string;
   parentSessionId?: string;
@@ -43,15 +55,11 @@ export interface SessionHandle {
 
 export interface OpenSessionOptions {
   cwd: string;
-  /** Resume this id (or unique prefix) within the project. */
   resumeId?: string;
-  /** Continue the most recently updated session in the project. */
   continueLast?: boolean;
-  /** Override data root (tests). */
   dataDir?: string;
   provider?: string;
   model?: string;
-  /** Optional parent when forking (P1; accepted in summary only). */
   parentSessionId?: string;
 }
 
@@ -60,6 +68,7 @@ interface TranscriptLine {
   content: string;
   provenance?: NormalizedMessage["provenance"];
   ts: string;
+  kind?: "message" | "compaction";
 }
 
 function nowIso(): string {
@@ -70,27 +79,36 @@ function ensureDir(dir: string): void {
   mkdirSync(dir, { recursive: true });
 }
 
-function atomicWriteJson(file: string, value: unknown): void {
-  const tmp = `${file}.${process.pid}.tmp`;
-  writeFileSync(tmp, `${JSON.stringify(value, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
+function atomicWriteText(file: string, body: string): void {
+  const tmp = `${file}.${process.pid}.${Date.now()}.tmp`;
+  writeFileSync(tmp, body, { encoding: "utf8", mode: 0o600 });
   renameSync(tmp, file);
+}
+
+function atomicWriteJson(file: string, value: unknown): void {
+  atomicWriteText(file, `${JSON.stringify(value, null, 2)}\n`);
 }
 
 function readSummaryFile(file: string): SessionSummary | undefined {
   try {
     const raw = readFileSync(file, "utf8");
-    const o = JSON.parse(raw) as Partial<SessionSummary>;
+    const o = JSON.parse(raw) as Partial<SessionSummary> & { messageCount?: number };
     if (typeof o.id !== "string" || typeof o.projectPath !== "string") {
       return undefined;
     }
+    const messageCount = typeof o.messageCount === "number" ? o.messageCount : 0;
     return {
+      schemaVersion: SESSION_SCHEMA_VERSION,
       id: o.id,
       projectKey: typeof o.projectKey === "string" ? o.projectKey : "",
       projectPath: o.projectPath,
       title: typeof o.title === "string" && o.title.length > 0 ? o.title : "Untitled",
       createdAt: typeof o.createdAt === "string" ? o.createdAt : nowIso(),
       updatedAt: typeof o.updatedAt === "string" ? o.updatedAt : nowIso(),
-      messageCount: typeof o.messageCount === "number" ? o.messageCount : 0,
+      messageCount,
+      archiveMessageCount:
+        typeof o.archiveMessageCount === "number" ? o.archiveMessageCount : messageCount,
+      compactCount: typeof o.compactCount === "number" ? o.compactCount : 0,
       ...(typeof o.provider === "string" ? { provider: o.provider } : {}),
       ...(typeof o.model === "string" ? { model: o.model } : {}),
       ...(typeof o.parentSessionId === "string" ? { parentSessionId: o.parentSessionId } : {}),
@@ -115,105 +133,27 @@ export function shortSessionId(id: string): string {
   return clean.length >= 8 ? clean.slice(-8) : id.slice(0, 8);
 }
 
-export function createSession(opts: {
-  cwd: string;
-  dataDir?: string;
-  provider?: string;
-  model?: string;
-  title?: string;
-  parentSessionId?: string;
-  id?: string;
-}): SessionHandle {
-  const projectPath = resolveProjectRoot(opts.cwd);
-  const projectKey = projectKeyFromPath(projectPath);
-  const id = opts.id ?? randomUUID();
-  const dir = sessionDirPath(projectPath, id, opts.dataDir);
-  ensureDir(dir);
-  const ts = nowIso();
-  const summary: SessionSummary = {
-    id,
-    projectKey,
-    projectPath,
-    title: opts.title ?? "New session",
-    createdAt: ts,
-    updatedAt: ts,
-    messageCount: 0,
-    ...(opts.provider !== undefined ? { provider: opts.provider } : {}),
-    ...(opts.model !== undefined ? { model: opts.model } : {}),
-    ...(opts.parentSessionId !== undefined ? { parentSessionId: opts.parentSessionId } : {}),
-  };
-  atomicWriteJson(path.join(dir, "summary.json"), summary);
-  writeFileSync(path.join(dir, "transcript.jsonl"), "", { encoding: "utf8", mode: 0o600 });
-  // Project marker for humans / tooling.
-  const marker = path.join(projectSessionsDir(projectPath, opts.dataDir), ".project.json");
-  if (!existsSync(marker)) {
-    atomicWriteJson(marker, { projectPath, projectKey, createdAt: ts });
+function writeJsonl(file: string, history: readonly NormalizedMessage[], ts: string): void {
+  const lines: string[] = [];
+  for (const m of history) {
+    const row: TranscriptLine = {
+      role: m.role,
+      content: m.content,
+      ts,
+      kind: "message",
+      ...(m.provenance !== undefined ? { provenance: m.provenance } : {}),
+    };
+    lines.push(JSON.stringify(row));
   }
-  return { summary, dir };
+  atomicWriteText(file, lines.length > 0 ? `${lines.join("\n")}\n` : "");
 }
 
-/** List sessions for a project only (isolation). Newest updated first. */
-export function listSessions(cwd: string, dataDir?: string): SessionSummary[] {
-  const projectPath = resolveProjectRoot(cwd);
-  const root = projectSessionsDir(projectPath, dataDir);
-  if (!existsSync(root)) {
-    return [];
-  }
-  const out: SessionSummary[] = [];
-  for (const name of readdirSync(root)) {
-    if (name.startsWith(".")) {
-      continue;
-    }
-    const summary = readSummaryFile(path.join(root, name, "summary.json"));
-    if (summary === undefined) {
-      continue;
-    }
-    // Hard isolation: skip if recorded project path mismatches (corrupt/moved).
-    if (path.resolve(summary.projectPath) !== path.resolve(projectPath)) {
-      continue;
-    }
-    out.push(summary);
-  }
-  out.sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0));
-  return out;
-}
-
-export function latestSession(cwd: string, dataDir?: string): SessionSummary | undefined {
-  return listSessions(cwd, dataDir)[0];
-}
-
-/**
- * Find by full id or unique prefix within the project.
- * Throws if the id exists only under another project (not returned by list).
- */
-export function findSession(cwd: string, idOrPrefix: string, dataDir?: string): SessionSummary | undefined {
-  const needle = idOrPrefix.trim();
-  if (needle.length === 0) {
-    return undefined;
-  }
-  const all = listSessions(cwd, dataDir);
-  const exact = all.find((s) => s.id === needle);
-  if (exact !== undefined) {
-    return exact;
-  }
-  const matches = all.filter(
-    (s) => s.id.startsWith(needle) || shortSessionId(s.id) === needle || s.title === needle,
-  );
-  if (matches.length === 1) {
-    return matches[0];
-  }
-  return undefined;
-}
-
-export function loadTranscript(cwd: string, sessionId: string, dataDir?: string): NormalizedMessage[] {
-  const projectPath = resolveProjectRoot(cwd);
-  const file = path.join(sessionDirPath(projectPath, sessionId, dataDir), "transcript.jsonl");
+function readJsonl(file: string): NormalizedMessage[] {
   if (!existsSync(file)) {
     return [];
   }
-  const lines = readFileSync(file, "utf8").split("\n");
   const out: NormalizedMessage[] = [];
-  for (const line of lines) {
+  for (const line of readFileSync(file, "utf8").split("\n")) {
     if (line.trim().length === 0) {
       continue;
     }
@@ -241,43 +181,168 @@ export function loadTranscript(cwd: string, sessionId: string, dataDir?: string)
           : {}),
       });
     } catch {
-      // skip bad line
+      // skip corrupt line
     }
   }
   return out;
 }
 
+export function createSession(opts: {
+  cwd: string;
+  dataDir?: string;
+  provider?: string;
+  model?: string;
+  title?: string;
+  parentSessionId?: string;
+  id?: string;
+}): SessionHandle {
+  const projectPath = resolveProjectRoot(opts.cwd);
+  const projectKey = projectKeyFromPath(projectPath);
+  const id = opts.id ?? randomUUID();
+  const dir = sessionDirPath(projectPath, id, opts.dataDir);
+  ensureDir(dir);
+  const ts = nowIso();
+  const summary: SessionSummary = {
+    schemaVersion: SESSION_SCHEMA_VERSION,
+    id,
+    projectKey,
+    projectPath,
+    title: opts.title ?? "New session",
+    createdAt: ts,
+    updatedAt: ts,
+    messageCount: 0,
+    archiveMessageCount: 0,
+    compactCount: 0,
+    ...(opts.provider !== undefined ? { provider: opts.provider } : {}),
+    ...(opts.model !== undefined ? { model: opts.model } : {}),
+    ...(opts.parentSessionId !== undefined ? { parentSessionId: opts.parentSessionId } : {}),
+  };
+  atomicWriteJson(path.join(dir, "summary.json"), summary);
+  atomicWriteText(path.join(dir, "context.jsonl"), "");
+  atomicWriteText(path.join(dir, "archive.jsonl"), "");
+  atomicWriteText(path.join(dir, "transcript.jsonl"), "");
+  const marker = path.join(projectSessionsDir(projectPath, opts.dataDir), ".project.json");
+  if (!existsSync(marker)) {
+    atomicWriteJson(marker, {
+      projectPath,
+      projectKey,
+      createdAt: ts,
+      schemaVersion: SESSION_SCHEMA_VERSION,
+    });
+  }
+  return { summary, dir };
+}
+
+/** List sessions for a project only (isolation). Newest updated first. */
+export function listSessions(cwd: string, dataDir?: string): SessionSummary[] {
+  const projectPath = resolveProjectRoot(cwd);
+  const root = projectSessionsDir(projectPath, dataDir);
+  if (!existsSync(root)) {
+    return [];
+  }
+  const out: SessionSummary[] = [];
+  for (const name of readdirSync(root)) {
+    if (name.startsWith(".")) {
+      continue;
+    }
+    const summary = readSummaryFile(path.join(root, name, "summary.json"));
+    if (summary === undefined) {
+      continue;
+    }
+    if (path.resolve(summary.projectPath) !== path.resolve(projectPath)) {
+      continue;
+    }
+    out.push(summary);
+  }
+  out.sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0));
+  return out;
+}
+
+export function latestSession(cwd: string, dataDir?: string): SessionSummary | undefined {
+  return listSessions(cwd, dataDir)[0];
+}
+
+export function findSession(cwd: string, idOrPrefix: string, dataDir?: string): SessionSummary | undefined {
+  const needle = idOrPrefix.trim();
+  if (needle.length === 0) {
+    return undefined;
+  }
+  const all = listSessions(cwd, dataDir);
+  const exact = all.find((s) => s.id === needle);
+  if (exact !== undefined) {
+    return exact;
+  }
+  const matches = all.filter(
+    (s) => s.id.startsWith(needle) || shortSessionId(s.id) === needle || s.title === needle,
+  );
+  if (matches.length === 1) {
+    return matches[0];
+  }
+  return undefined;
+}
+
+/** Load the active model context (what the agent should resume with). */
+export function loadContext(cwd: string, sessionId: string, dataDir?: string): NormalizedMessage[] {
+  const dir = sessionDirPath(resolveProjectRoot(cwd), sessionId, dataDir);
+  const contextPath = path.join(dir, "context.jsonl");
+  if (existsSync(contextPath)) {
+    return readJsonl(contextPath);
+  }
+  // Legacy single-file sessions.
+  return readJsonl(path.join(dir, "transcript.jsonl"));
+}
+
+/** Full archive for export (falls back to context/transcript). */
+export function loadArchive(cwd: string, sessionId: string, dataDir?: string): NormalizedMessage[] {
+  const dir = sessionDirPath(resolveProjectRoot(cwd), sessionId, dataDir);
+  const archivePath = path.join(dir, "archive.jsonl");
+  if (existsSync(archivePath)) {
+    const archive = readJsonl(archivePath);
+    if (archive.length > 0) {
+      return archive;
+    }
+  }
+  return loadContext(cwd, sessionId, dataDir);
+}
+
+/** @deprecated use loadContext — kept for callers/tests. */
+export function loadTranscript(cwd: string, sessionId: string, dataDir?: string): NormalizedMessage[] {
+  return loadContext(cwd, sessionId, dataDir);
+}
+
+export interface PersistMeta {
+  provider?: string;
+  model?: string;
+  title?: string;
+  /**
+   * Full archive to write. When omitted, `context` is also used as the archive
+   * (first-turn sessions / non-compact path).
+   */
+  archive?: readonly NormalizedMessage[];
+}
+
 /**
- * Replace the full transcript and refresh summary (MVP: rewrite after each turn).
- * Also sets title from the first user message when still default.
+ * Persist model context (+ archive). Atomic multi-file write.
+ * Title auto-fills from the first user message while still default.
  */
 export function persistHistory(
   handle: SessionHandle,
-  history: readonly NormalizedMessage[],
-  meta?: { provider?: string; model?: string; title?: string },
+  context: readonly NormalizedMessage[],
+  meta?: PersistMeta,
 ): SessionHandle {
   const ts = nowIso();
-  const lines: string[] = [];
-  for (const m of history) {
-    const row: TranscriptLine = {
-      role: m.role,
-      content: m.content,
-      ts,
-      ...(m.provenance !== undefined ? { provenance: m.provenance } : {}),
-    };
-    lines.push(JSON.stringify(row));
-  }
-  const transcriptPath = path.join(handle.dir, "transcript.jsonl");
-  const tmp = `${transcriptPath}.${process.pid}.tmp`;
-  writeFileSync(tmp, lines.length > 0 ? `${lines.join("\n")}\n` : "", {
-    encoding: "utf8",
-    mode: 0o600,
-  });
-  renameSync(tmp, transcriptPath);
+  const archive = meta?.archive ?? context;
+
+  writeJsonl(path.join(handle.dir, "context.jsonl"), context, ts);
+  writeJsonl(path.join(handle.dir, "archive.jsonl"), archive, ts);
+  // Legacy mirror: tools/docs that still look for transcript.jsonl.
+  writeJsonl(path.join(handle.dir, "transcript.jsonl"), context, ts);
 
   let title = meta?.title ?? handle.summary.title;
   if (title === "New session" || title === "Untitled session") {
-    const firstUser = history.find((m) => m.role === "user");
+    const firstUser =
+      archive.find((m) => m.role === "user" && !m.content.startsWith("[Compacted")) ??
+      context.find((m) => m.role === "user");
     if (firstUser !== undefined) {
       title = titleFromPrompt(firstUser.content);
     }
@@ -285,14 +350,49 @@ export function persistHistory(
 
   const summary: SessionSummary = {
     ...handle.summary,
+    schemaVersion: SESSION_SCHEMA_VERSION,
     title,
     updatedAt: ts,
-    messageCount: history.length,
+    messageCount: context.length,
+    archiveMessageCount: archive.length,
     ...(meta?.provider !== undefined ? { provider: meta.provider } : {}),
     ...(meta?.model !== undefined ? { model: meta.model } : {}),
   };
   atomicWriteJson(path.join(handle.dir, "summary.json"), summary);
   return { summary, dir: handle.dir };
+}
+
+/**
+ * Compact the live model context. Archive is preserved (and grown if needed).
+ * Returns the new context array for the caller to swap into memory.
+ */
+export function compactSession(
+  handle: SessionHandle,
+  context: readonly NormalizedMessage[],
+  archive: readonly NormalizedMessage[],
+  opts?: CompactOptions & { provider?: string; model?: string },
+): { handle: SessionHandle; context: NormalizedMessage[]; result: ReturnType<typeof compactMessages> } {
+  const result = compactMessages(context, opts);
+  if (result.noop) {
+    return { handle, context: [...context], result };
+  }
+  // Archive keeps everything we had before compact + a marker line is not needed
+  // as messages — full prior context already lives in archive.
+  const nextArchive = archive.length >= context.length ? [...archive] : [...context];
+  const next = persistHistory(handle, result.context, {
+    archive: nextArchive,
+    ...(opts?.provider !== undefined ? { provider: opts.provider } : {}),
+    ...(opts?.model !== undefined ? { model: opts.model } : {}),
+  });
+  const withCount: SessionHandle = {
+    dir: next.dir,
+    summary: {
+      ...next.summary,
+      compactCount: next.summary.compactCount + 1,
+    },
+  };
+  atomicWriteJson(path.join(withCount.dir, "summary.json"), withCount.summary);
+  return { handle: withCount, context: result.context, result };
 }
 
 export function renameSession(handle: SessionHandle, title: string): SessionHandle {
@@ -306,16 +406,29 @@ export function renameSession(handle: SessionHandle, title: string): SessionHand
 }
 
 /**
- * Open or create a session according to continue/resume flags.
- * Isolation: resumeId is only resolved inside the current project.
+ * Open or create a session. resumeId is resolved only inside the current project.
  */
 export function openSession(opts: OpenSessionOptions): {
   handle: SessionHandle;
   history: NormalizedMessage[];
+  archive: NormalizedMessage[];
   resumed: boolean;
 } {
   const cwd = opts.cwd;
   const dataDir = opts.dataDir;
+
+  const loadHandle = (found: SessionSummary): {
+    handle: SessionHandle;
+    history: NormalizedMessage[];
+    archive: NormalizedMessage[];
+    resumed: true;
+  } => {
+    const dir = sessionDirPath(resolveProjectRoot(cwd), found.id, dataDir);
+    const handle: SessionHandle = { summary: found, dir };
+    const history = loadContext(cwd, found.id, dataDir);
+    const archive = loadArchive(cwd, found.id, dataDir);
+    return { handle, history, archive, resumed: true };
+  };
 
   if (opts.resumeId !== undefined && opts.resumeId.length > 0) {
     const found = findSession(cwd, opts.resumeId, dataDir);
@@ -325,19 +438,13 @@ export function openSession(opts: OpenSessionOptions): {
           `Use \`keryx sessions list\` (sessions are per-project).`,
       );
     }
-    const dir = sessionDirPath(resolveProjectRoot(cwd), found.id, dataDir);
-    const handle: SessionHandle = { summary: found, dir };
-    const history = loadTranscript(cwd, found.id, dataDir);
-    return { handle, history, resumed: true };
+    return loadHandle(found);
   }
 
   if (opts.continueLast === true) {
     const last = latestSession(cwd, dataDir);
     if (last !== undefined) {
-      const dir = sessionDirPath(resolveProjectRoot(cwd), last.id, dataDir);
-      const handle: SessionHandle = { summary: last, dir };
-      const history = loadTranscript(cwd, last.id, dataDir);
-      return { handle, history, resumed: true };
+      return loadHandle(last);
     }
   }
 
@@ -348,13 +455,14 @@ export function openSession(opts: OpenSessionOptions): {
     ...(opts.model !== undefined ? { model: opts.model } : {}),
     ...(opts.parentSessionId !== undefined ? { parentSessionId: opts.parentSessionId } : {}),
   });
-  return { handle, history: [], resumed: false };
+  return { handle, history: [], archive: [], resumed: false };
 }
 
-/** Export transcript as markdown (human). */
+/** Export archive (preferred) as markdown. */
 export function exportSessionMarkdown(cwd: string, sessionId: string, dataDir?: string): string {
   const summary = findSession(cwd, sessionId, dataDir);
-  const history = loadTranscript(cwd, summary?.id ?? sessionId, dataDir);
+  const id = summary?.id ?? sessionId;
+  const history = loadArchive(cwd, id, dataDir);
   const lines: string[] = [
     `# ${summary?.title ?? sessionId}`,
     "",
@@ -362,10 +470,13 @@ export function exportSessionMarkdown(cwd: string, sessionId: string, dataDir?: 
     `- project: \`${summary?.projectPath ?? resolveProjectRoot(cwd)}\``,
     `- updated: ${summary?.updatedAt ?? ""}`,
     summary?.model !== undefined ? `- model: ${summary.provider ?? ""}/${summary.model}` : "",
+    summary !== undefined
+      ? `- context: ${summary.messageCount} · archive: ${summary.archiveMessageCount} · compact×${summary.compactCount}`
+      : "",
     "",
     "---",
     "",
-  ].filter((l) => l !== undefined);
+  ].filter((l) => l.length > 0);
   for (const m of history) {
     lines.push(`## ${m.role}`, "", m.content, "");
   }

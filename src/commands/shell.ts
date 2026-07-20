@@ -43,6 +43,15 @@ import { applySavedApiKeys, loadShellConfig } from "../lib/shell-config";
 import { collapseToolOutput, colorEnabled, indentBlock, renderMarkdown, style, summarizeToolArgs } from "../lib/ui";
 import { type AgentDeps, type AgentIO, buildAgentSystemInstruction, runAgentTurn } from "./agent";
 import { type DetectedProvider, detectProviders, pickAgentMode, pickProviderModel } from "./select";
+import {
+  compactSession,
+  createSession,
+  latestSession,
+  openSession,
+  persistHistory,
+  shortSessionId,
+  type SessionHandle,
+} from "../session";
 
 /** Async line source + write sink; no real stdio is reached by `runShell`. */
 export interface ShellIO {
@@ -67,6 +76,15 @@ export interface ShellIO {
   onSystem?: (text: string) => void;
 }
 
+/** Optional per-project session wiring for chat/agent REPLs. */
+export interface ShellSessionOpts {
+  cwd: string;
+  continueLast?: boolean;
+  resumeId?: string;
+  /** When false, skip persistence (tests default). Default true when object set. */
+  enabled?: boolean;
+}
+
 /** Injected dependencies keeping `runShell` deterministic + offline. */
 export interface ShellDeps {
   makeProvider: (name: string, model: string, baseUrl?: string) => ProviderPort;
@@ -84,6 +102,8 @@ export interface ShellDeps {
     io: ShellIO,
     opts?: { onlyProvider?: string },
   ) => Promise<{ provider: string; model: string; baseUrl?: string }>;
+  /** When set, persist chat turns to a per-project session. */
+  session?: ShellSessionOpts;
 }
 
 /** A short, trusted system instruction assembled by the (trusted) shell itself. */
@@ -112,8 +132,12 @@ const HELP_TEXT = [
   "  /models            Pick a model for the current provider (numbered menu)",
   "  /provider [name]   Switch provider by name, or (no arg) re-run full selection",
   "  /connect           Show how to set ANTHROPIC_API_KEY for anthropic models",
-  "  /clear             Clear the conversation history",
+  "  /new               Start a new per-project session (old kept on disk)",
+  "  /clear             Alias of /new",
+  "  /compact [focus]   Compact model context (full archive kept)",
   "  /exit, /quit       Leave the shell",
+  "",
+  "Sessions are per-project. Resume: keryx shell -c | -r [id]",
   "",
 ].join("\n");
 
@@ -123,7 +147,6 @@ const HELP_TEXT = [
  * streaming turn whose request carries the FULL accumulated history.
  */
 export async function runShell(io: ShellIO, deps: ShellDeps): Promise<void> {
-  const history: NormalizedMessage[] = [];
   let providerName = deps.initial.provider;
   let modelName = deps.initial.model;
   let baseUrl = deps.initial.baseUrl;
@@ -136,6 +159,55 @@ export async function runShell(io: ShellIO, deps: ShellDeps): Promise<void> {
       io.onSystem(text);
     } else {
       io.write(text);
+    }
+  };
+
+  const sessionCwd = deps.session?.cwd ?? process.cwd();
+  const sessionsOn = deps.session !== undefined && deps.session.enabled !== false;
+  let live: SessionHandle | undefined;
+  let history: NormalizedMessage[] = [];
+  let archive: NormalizedMessage[] = [];
+  if (sessionsOn) {
+    try {
+      let resumeId = deps.session?.resumeId;
+      if (resumeId === undefined && deps.session?.continueLast !== true) {
+        // plain new session
+      }
+      const opened = openSession({
+        cwd: sessionCwd,
+        ...(deps.session?.continueLast === true ? { continueLast: true } : {}),
+        ...(resumeId !== undefined ? { resumeId } : {}),
+        provider: providerName,
+        model: modelName,
+      });
+      live = opened.handle;
+      history = opened.history;
+      archive = opened.archive.length > 0 ? [...opened.archive] : [...opened.history];
+      if (opened.resumed) {
+        system(
+          `Resumed session ${shortSessionId(live.summary.id)} · ${live.summary.title} (${history.length} context msgs)\n`,
+        );
+      }
+    } catch (cause) {
+      live = createSession({ cwd: sessionCwd, provider: providerName, model: modelName });
+      history = [];
+      archive = [];
+      system(`${cause instanceof Error ? cause.message : String(cause)}\nStarting a new session.\n`);
+    }
+  }
+
+  const save = (): void => {
+    if (live === undefined) {
+      return;
+    }
+    try {
+      live = persistHistory(live, history, {
+        archive,
+        provider: providerName,
+        model: modelName,
+      });
+    } catch {
+      // best-effort
     }
   };
 
@@ -164,7 +236,7 @@ export async function runShell(io: ShellIO, deps: ShellDeps): Promise<void> {
     if (line.startsWith("/")) {
       const parts = line.trim().split(/\s+/);
       const command = parts[0] ?? "";
-      const argument = parts[1] ?? "";
+      const argument = parts.slice(1).join(" ");
 
       if (command === "/exit" || command === "/quit") {
         return;
@@ -173,8 +245,38 @@ export async function runShell(io: ShellIO, deps: ShellDeps): Promise<void> {
         system(HELP_TEXT);
         continue;
       }
-      if (command === "/clear") {
-        history.length = 0;
+      if (command === "/clear" || command === "/new") {
+        if (sessionsOn) {
+          live = createSession({ cwd: sessionCwd, provider: providerName, model: modelName });
+          history = [];
+          archive = [];
+          system(`New session ${shortSessionId(live.summary.id)} (previous kept on disk)\n`);
+        } else {
+          history.length = 0;
+        }
+        continue;
+      }
+      if (command === "/compact") {
+        if (live === undefined) {
+          system("No persistent session in this mode.\n");
+          continue;
+        }
+        const focus = argument.trim();
+        const packed = compactSession(live, history, archive, {
+          keepLastUserTurns: 3,
+          ...(focus.length > 0 ? { focus } : {}),
+          provider: providerName,
+          model: modelName,
+        });
+        live = packed.handle;
+        history = packed.context;
+        if (packed.result.noop) {
+          system("Nothing to compact (context already small).\n");
+        } else {
+          system(
+            `Compacted: removed ${packed.result.removed} msgs from context · archive ${live.summary.archiveMessageCount} · compact×${live.summary.compactCount}\n`,
+          );
+        }
         continue;
       }
       if (command === "/model") {
@@ -271,10 +373,16 @@ export async function runShell(io: ShellIO, deps: ShellDeps): Promise<void> {
 
     if (!errored) {
       history.push({ role: "assistant", content: accumulated, provenance: "model" });
+      archive.push({ role: "user", content: line, provenance: "project" });
+      archive.push({ role: "assistant", content: accumulated, provenance: "model" });
+      save();
     } else if (accumulated.length > 0) {
       // A partial reply streamed before the error: keep it so the history stays
       // strictly alternating (user → assistant).
       history.push({ role: "assistant", content: accumulated, provenance: "model" });
+      archive.push({ role: "user", content: line, provenance: "project" });
+      archive.push({ role: "assistant", content: accumulated, provenance: "model" });
+      save();
     } else {
       // No reply at all: drop the just-pushed user message so a failed turn leaves
       // no dangling user message (two consecutive user-role messages are rejected
@@ -511,6 +619,7 @@ async function runAgentRepl(
   rich: { printPrompt: () => void },
   deps: AgentDeps,
   metaprojectPort: MetaprojectPort,
+  sessionOpts?: ShellSessionOpts,
 ): Promise<void> {
   const out = (s: string): void => {
     process.stdout.write(s);
@@ -667,7 +776,65 @@ async function runAgentRepl(
     },
   };
 
-  const history: NormalizedMessage[] = [];
+  const sessionCwd = sessionOpts?.cwd ?? process.cwd();
+  const sessionsOn = sessionOpts !== undefined && sessionOpts.enabled !== false;
+  let live: SessionHandle | undefined;
+  let history: NormalizedMessage[] = [];
+  let archive: NormalizedMessage[] = [];
+  if (sessionsOn) {
+    try {
+      let resumeId = sessionOpts?.resumeId;
+      if (resumeId === undefined && sessionOpts?.continueLast !== true && sessionOpts !== undefined) {
+        // if pick flag was mapped to continue by caller, resumeId may be set to latest
+      }
+      const opened = openSession({
+        cwd: sessionCwd,
+        ...(sessionOpts?.continueLast === true ? { continueLast: true } : {}),
+        ...(resumeId !== undefined ? { resumeId } : {}),
+        provider: deps.providerId,
+        model: deps.modelId,
+      });
+      live = opened.handle;
+      history = opened.history;
+      archive = opened.archive.length > 0 ? [...opened.archive] : [...opened.history];
+      if (opened.resumed) {
+        agentIo.onSystem?.(
+          `Resumed session ${shortSessionId(live.summary.id)} · ${live.summary.title} (${history.length} context · archive ${archive.length})\n`,
+        );
+      } else {
+        agentIo.onSystem?.(
+          `Session ${shortSessionId(live.summary.id)} · per-project (keryx shell -c to continue)\n`,
+        );
+      }
+    } catch (cause) {
+      live = createSession({
+        cwd: sessionCwd,
+        provider: deps.providerId,
+        model: deps.modelId,
+      });
+      history = [];
+      archive = [];
+      agentIo.onSystem?.(
+        `${cause instanceof Error ? cause.message : String(cause)}\nNew session ${shortSessionId(live.summary.id)}.\n`,
+      );
+    }
+  }
+
+  const save = (): void => {
+    if (live === undefined) {
+      return;
+    }
+    try {
+      live = persistHistory(live, history, {
+        archive,
+        provider: deps.providerId,
+        model: deps.modelId,
+      });
+    } catch {
+      // best-effort
+    }
+  };
+
   // `printHeader` already emitted the first prompt — do NOT print another here
   // (that produced the duplicate `❯ ❯`). Only re-prompt after turns/commands.
   for (;;) {
@@ -676,13 +843,18 @@ async function runAgentRepl(
       return; // end of input
     }
     if (line.startsWith("/")) {
-      const command = line.trim().split(/\s+/)[0] ?? "";
+      const parts = line.trim().split(/\s+/);
+      const command = parts[0] ?? "";
+      const rest = parts.slice(1).join(" ").trim();
       if (command === "/exit" || command === "/quit") {
         return;
       }
       if (command === "/help") {
         agentIo.onSystem?.(
-          "Agent mode — describe a task; the agent uses read-only tools (get_cwd, list_dir, read_file, search_code, graph_affected, memory_search) and shell_exec (asks approval) on the real project. /expand shows the last tool's full output. /exit to leave.\n",
+          "Agent mode — describe a task; tools: get_cwd, list_dir, read_file, search_code, " +
+            "graph_affected, memory_search, shell_exec (approval). " +
+            "/expand last tool output · /new|/clear new session · /compact [focus] · /exit.\n" +
+            "Sessions are per-project: keryx shell -c | -r [id] | keryx sessions list\n",
         );
       } else if (command === "/expand") {
         if (lastToolOutput !== undefined && lastToolOutput.trim().length > 0) {
@@ -698,6 +870,43 @@ async function runAgentRepl(
         } else {
           agentIo.onSystem?.("Nothing to expand — no tool output yet.\n");
         }
+      } else if (command === "/new" || command === "/clear") {
+        if (sessionsOn) {
+          live = createSession({
+            cwd: sessionCwd,
+            provider: deps.providerId,
+            model: deps.modelId,
+          });
+          history = [];
+          archive = [];
+          agentIo.onSystem?.(
+            `New session ${shortSessionId(live.summary.id)} (previous kept on disk)\n`,
+          );
+        } else {
+          history = [];
+          archive = [];
+          agentIo.onSystem?.("Conversation cleared.\n");
+        }
+      } else if (command === "/compact") {
+        if (live === undefined) {
+          agentIo.onSystem?.("No persistent session.\n");
+        } else {
+          const packed = compactSession(live, history, archive, {
+            keepLastUserTurns: 3,
+            ...(rest.length > 0 ? { focus: rest } : {}),
+            provider: deps.providerId,
+            model: deps.modelId,
+          });
+          live = packed.handle;
+          history = packed.context;
+          if (packed.result.noop) {
+            agentIo.onSystem?.("Nothing to compact (context already small).\n");
+          } else {
+            agentIo.onSystem?.(
+              `Compacted −${packed.result.removed} context msgs · archive ${live.summary.archiveMessageCount} · compact×${live.summary.compactCount}\n`,
+            );
+          }
+        }
       } else {
         agentIo.onSystem?.(`Unknown command: ${command}. Type /help.\n`);
       }
@@ -710,6 +919,7 @@ async function runAgentRepl(
     }
     out(`\n${GUTTER}${style.cyan("●")} ${style.bold("keryx")}\n`);
     lastUsage = undefined;
+    const before = history.length;
     startSpinner();
     try {
       await runAgentTurn(agentIo, deps, history, line);
@@ -717,6 +927,14 @@ async function runAgentRepl(
       endBlock(); // close any still-open live block (e.g. on a mid-turn throw)
       stopSpinner();
     }
+    // Append only newly produced messages to the full archive.
+    for (let i = before; i < history.length; i++) {
+      const m = history[i];
+      if (m !== undefined) {
+        archive.push(m);
+      }
+    }
+    save();
     const usageLine = formatUsage(lastUsage);
     if (usageLine.length > 0) {
       out(`\n${GUTTER}${usageLine}\n`);
@@ -1002,9 +1220,29 @@ export async function shellCommand(args: string[]): Promise<void> {
       // OpenTUI is handled EARLIER (default when TTY), before readline is
       // created (flow 067), so it never runs here. This is the readline agent
       // REPL — fallback for `--no-tui`, no-TTY, or TUI init failure.
-      await runAgentRepl(sharedLines, { printPrompt }, agentDeps, metaprojectPort);
+      // Resume pick without TUI → latest session in this project.
+      let resumeId = flags.resumeId;
+      if (flags.resumePick === true && resumeId === undefined) {
+        resumeId = latestSession(process.cwd())?.id;
+      }
+      await runAgentRepl(sharedLines, { printPrompt }, agentDeps, metaprojectPort, {
+        cwd: process.cwd(),
+        ...(flags.continueLast === true ? { continueLast: true } : {}),
+        ...(resumeId !== undefined ? { resumeId } : {}),
+      });
     } else {
-      await runShell(io, deps);
+      let resumeId = flags.resumeId;
+      if (flags.resumePick === true && resumeId === undefined) {
+        resumeId = latestSession(process.cwd())?.id;
+      }
+      await runShell(io, {
+        ...deps,
+        session: {
+          cwd: process.cwd(),
+          ...(flags.continueLast === true ? { continueLast: true } : {}),
+          ...(resumeId !== undefined ? { resumeId } : {}),
+        },
+      });
     }
   } finally {
     rl.close();

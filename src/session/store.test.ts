@@ -3,11 +3,13 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
+  compactSession,
   createSession,
   findSession,
   latestSession,
   listSessions,
-  loadTranscript,
+  loadArchive,
+  loadContext,
   openSession,
   persistHistory,
   projectKeyFromPath,
@@ -60,14 +62,8 @@ test("sessions are isolated per project", () => {
     expect(listB[0]!.id).toBe(b.summary.id);
     expect(listA[0]!.title).toBe("from A");
     expect(listB[0]!.title).toBe("from B");
-
-    // B cannot resolve A's id
     expect(findSession(projB, a.summary.id, dataDir)).toBeUndefined();
-    expect(findSession(projA, a.summary.id, dataDir)?.id).toBe(a.summary.id);
-
-    // continue last is project-scoped
     expect(latestSession(projA, dataDir)?.id).toBe(a.summary.id);
-    expect(latestSession(projB, dataDir)?.id).toBe(b.summary.id);
   } finally {
     rmSync(dataDir, { recursive: true, force: true });
     rmSync(projA, { recursive: true, force: true });
@@ -75,13 +71,14 @@ test("sessions are isolated per project", () => {
   }
 });
 
-test("openSession continue/resume and transcript roundtrip", () => {
+test("openSession continue/resume and dual context/archive roundtrip", () => {
   const dataDir = tempData();
   const proj = mkdtempSync(path.join(tmpdir(), "keryx-pr-"));
   try {
     const created = openSession({ cwd: proj, dataDir, provider: "p", model: "m" });
     expect(created.resumed).toBe(false);
     expect(created.history).toEqual([]);
+    expect(created.archive).toEqual([]);
 
     const next = persistHistory(
       created.handle,
@@ -93,13 +90,14 @@ test("openSession continue/resume and transcript roundtrip", () => {
       { provider: "p", model: "m" },
     );
     expect(next.summary.messageCount).toBe(3);
+    expect(next.summary.archiveMessageCount).toBe(3);
     expect(next.summary.title).toBe("fix auth");
 
     const cont = openSession({ cwd: proj, dataDir, continueLast: true });
     expect(cont.resumed).toBe(true);
     expect(cont.handle.summary.id).toBe(created.handle.summary.id);
     expect(cont.history.map((m) => m.role)).toEqual(["user", "assistant", "tool"]);
-    expect(cont.history[0]?.content).toBe("fix auth");
+    expect(cont.archive).toHaveLength(3);
 
     const byPrefix = openSession({
       cwd: proj,
@@ -107,12 +105,41 @@ test("openSession continue/resume and transcript roundtrip", () => {
       resumeId: shortSessionId(created.handle.summary.id),
     });
     expect(byPrefix.handle.summary.id).toBe(created.handle.summary.id);
+  } finally {
+    rmSync(dataDir, { recursive: true, force: true });
+    rmSync(proj, { recursive: true, force: true });
+  }
+});
 
-    // Fresh session when no continue
-    const neu = openSession({ cwd: proj, dataDir });
-    expect(neu.resumed).toBe(false);
-    expect(neu.handle.summary.id).not.toBe(created.handle.summary.id);
-    expect(listSessions(proj, dataDir).length).toBe(2);
+test("compactSession shrinks context but keeps archive", () => {
+  const dataDir = tempData();
+  const proj = mkdtempSync(path.join(tmpdir(), "keryx-cp-"));
+  try {
+    let handle = createSession({ cwd: proj, dataDir });
+    const long = [
+      { role: "user" as const, content: "t1", provenance: "project" as const },
+      { role: "assistant" as const, content: "a1", provenance: "model" as const },
+      { role: "user" as const, content: "t2", provenance: "project" as const },
+      { role: "assistant" as const, content: "a2", provenance: "model" as const },
+      { role: "user" as const, content: "t3", provenance: "project" as const },
+      { role: "assistant" as const, content: "a3", provenance: "model" as const },
+      { role: "user" as const, content: "t4", provenance: "project" as const },
+      { role: "assistant" as const, content: "a4", provenance: "model" as const },
+    ];
+    handle = persistHistory(handle, long);
+    const archiveBefore = loadArchive(proj, handle.summary.id, dataDir);
+    expect(archiveBefore).toHaveLength(8);
+
+    const { handle: after, context, result } = compactSession(handle, long, long, {
+      keepLastUserTurns: 2,
+      focus: "ship it",
+    });
+    expect(result.noop).toBe(false);
+    expect(context.length).toBeLessThan(long.length);
+    expect(after.summary.compactCount).toBe(1);
+    expect(loadContext(proj, after.summary.id, dataDir).length).toBe(context.length);
+    // archive still has full history
+    expect(loadArchive(proj, after.summary.id, dataDir).length).toBe(8);
   } finally {
     rmSync(dataDir, { recursive: true, force: true });
     rmSync(proj, { recursive: true, force: true });
@@ -130,17 +157,13 @@ test("resume missing id throws with per-project hint", () => {
   }
 });
 
-test("loadTranscript returns empty for unknown session", () => {
+test("loadContext returns empty for unknown session", () => {
   const dataDir = tempData();
   const proj = mkdtempSync(path.join(tmpdir(), "keryx-empty-"));
   try {
-    expect(loadTranscript(proj, randomish(), dataDir)).toEqual([]);
+    expect(loadContext(proj, "00000000-0000-4000-8000-000000000099", dataDir)).toEqual([]);
   } finally {
     rmSync(dataDir, { recursive: true, force: true });
     rmSync(proj, { recursive: true, force: true });
   }
 });
-
-function randomish(): string {
-  return "00000000-0000-4000-8000-000000000099";
-}

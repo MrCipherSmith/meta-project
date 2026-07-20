@@ -9,6 +9,7 @@ test("AGENT_SLASH_COMMANDS lists the expected commands", () => {
     "/think",
     "/new",
     "/resume",
+    "/compact",
     "/clear",
     "/exit",
   ]);
@@ -22,6 +23,7 @@ test("filterCommands: `/` returns all commands", () => {
     "/think",
     "/new",
     "/resume",
+    "/compact",
     "/clear",
     "/exit",
   ]);
@@ -29,10 +31,11 @@ test("filterCommands: `/` returns all commands", () => {
 
 test("filterCommands: prefix narrows the set", () => {
   expect(filterCommands("/h").map((c) => c.name)).toEqual(["/help"]);
-  expect(filterCommands("/c").map((c) => c.name)).toEqual(["/connect", "/clear"]);
+  expect(filterCommands("/c").map((c) => c.name)).toEqual(["/connect", "/compact", "/clear"]);
   expect(filterCommands("/m").map((c) => c.name)).toEqual(["/model"]);
   expect(filterCommands("/re").map((c) => c.name)).toEqual(["/resume"]);
   expect(filterCommands("/n").map((c) => c.name)).toEqual(["/new"]);
+  expect(filterCommands("/comp").map((c) => c.name)).toEqual(["/compact"]);
 });
 
 test("filterCommands: no match → empty; non-slash → empty", () => {

@@ -31,6 +31,7 @@ import {
 } from "../lib/shell-permissions";
 import { isWikiEnrichIntent, planWikiEnrich, wikiEnrich } from "../wiki/enrich";
 import {
+  compactSession,
   createSession,
   findSession,
   listSessions,
@@ -1174,17 +1175,30 @@ export async function launchTuiAgentShell(opts: {
     const sessionCwd = opts.session?.cwd ?? process.cwd();
     let liveSession: SessionHandle;
     let history: NormalizedMessage[] = [];
+    let archive: NormalizedMessage[] = [];
+
+    const applyOpened = (opened: {
+      handle: SessionHandle;
+      history: NormalizedMessage[];
+      archive: NormalizedMessage[];
+      resumed: boolean;
+    }): void => {
+      liveSession = opened.handle;
+      history = opened.history;
+      archive = opened.archive.length > 0 ? [...opened.archive] : [...opened.history];
+    };
+
     try {
       if (opts.session?.pickOnStart === true && opts.session.resumeId === undefined) {
         const rows = listSessions(sessionCwd).slice(0, 12);
         if (rows.length === 0) {
-          const opened = openSession({
-            cwd: sessionCwd,
-            provider: currentSel.provider,
-            model: currentSel.model,
-          });
-          liveSession = opened.handle;
-          history = opened.history;
+          applyOpened(
+            openSession({
+              cwd: sessionCwd,
+              provider: currentSel.provider,
+              model: currentSel.model,
+            }),
+          );
         } else {
           menu.visible = false;
           const pickId = await showComposerChoice(otui, r, choiceDock, {
@@ -1201,28 +1215,28 @@ export async function launchTuiAgentShell(opts: {
               ...rows.map((s) => ({
                 id: s.id,
                 label: s.title.length > 40 ? `${s.title.slice(0, 37)}…` : s.title,
-                description: `${shortSessionId(s.id)} · ${s.messageCount} msgs · ${s.updatedAt.slice(0, 16).replace("T", " ")}`,
+                description: `${shortSessionId(s.id)} · ctx ${s.messageCount} · ${s.updatedAt.slice(0, 16).replace("T", " ")}`,
               })),
             ],
           });
           input.focus();
           if (pickId === "__new__") {
-            const opened = openSession({
-              cwd: sessionCwd,
-              provider: currentSel.provider,
-              model: currentSel.model,
-            });
-            liveSession = opened.handle;
-            history = opened.history;
+            applyOpened(
+              openSession({
+                cwd: sessionCwd,
+                provider: currentSel.provider,
+                model: currentSel.model,
+              }),
+            );
           } else {
-            const opened = openSession({
-              cwd: sessionCwd,
-              resumeId: pickId,
-              provider: currentSel.provider,
-              model: currentSel.model,
-            });
-            liveSession = opened.handle;
-            history = opened.history;
+            applyOpened(
+              openSession({
+                cwd: sessionCwd,
+                resumeId: pickId,
+                provider: currentSel.provider,
+                model: currentSel.model,
+              }),
+            );
           }
         }
       } else {
@@ -1233,19 +1247,17 @@ export async function launchTuiAgentShell(opts: {
           provider: currentSel.provider,
           model: currentSel.model,
         });
-        liveSession = opened.handle;
-        history = opened.history;
+        applyOpened(opened);
         if (opened.resumed) {
           transcript.add(
             new otui.TextRenderable(r, {
               id: `sess${uid++}`,
               content: otui.t`${otui.dim(
-                `session ${shortSessionId(liveSession.summary.id)} · ${liveSession.summary.title} · ${history.length} messages`,
+                `session ${shortSessionId(liveSession.summary.id)} · ${liveSession.summary.title} · ctx ${history.length} · archive ${archive.length}`,
               )}`,
               marginTop: 1,
             }),
           );
-          // Brief UI breadcrumb of prior user turns (full history is in the model).
           for (const m of history.filter((x) => x.role === "user").slice(-5)) {
             const t = m.content.length > 100 ? `${m.content.slice(0, 97)}…` : m.content;
             transcript.add(
@@ -1265,27 +1277,29 @@ export async function launchTuiAgentShell(opts: {
           marginTop: 1,
         }),
       );
-      const opened = openSession({
-        cwd: sessionCwd,
-        provider: currentSel.provider,
-        model: currentSel.model,
-      });
-      liveSession = opened.handle;
-      history = opened.history;
+      applyOpened(
+        openSession({
+          cwd: sessionCwd,
+          provider: currentSel.provider,
+          model: currentSel.model,
+        }),
+      );
     }
 
     const paintSessionHeader = (): void => {
       const label = `${currentSel.provider}/${currentSel.model}`;
       const sid = shortSessionId(liveSession.summary.id);
       const title =
-        liveSession.summary.title.length > 28
-          ? `${liveSession.summary.title.slice(0, 25)}…`
+        liveSession.summary.title.length > 24
+          ? `${liveSession.summary.title.slice(0, 21)}…`
           : liveSession.summary.title;
-      headerLeft.content = otui.t`${otui.dim(`keryx · ${title} · ${sid} · ${label}`)}`;
+      const cx = liveSession.summary.compactCount > 0 ? ` · c×${liveSession.summary.compactCount}` : "";
+      headerLeft.content = otui.t`${otui.dim(`keryx · ${title} · ${sid}${cx} · ${label}`)}`;
     };
 
     const saveSession = (): void => {
       liveSession = persistHistory(liveSession, history, {
+        archive,
         provider: currentSel.provider,
         model: currentSel.model,
       });
@@ -1298,7 +1312,8 @@ export async function launchTuiAgentShell(opts: {
         provider: currentSel.provider,
         model: currentSel.model,
       });
-      history.length = 0;
+      history = [];
+      archive = [];
       paintSessionHeader();
       if (note !== undefined && note.length > 0) {
         io.onSystem?.(`${note}\n`);
@@ -1320,7 +1335,7 @@ export async function launchTuiAgentShell(opts: {
         options: rows.map((s, i) => ({
           id: s.id,
           label: s.title.length > 40 ? `${s.title.slice(0, 37)}…` : s.title,
-          description: `${shortSessionId(s.id)} · ${s.messageCount} msgs · ${s.updatedAt.slice(0, 16).replace("T", " ")}`,
+          description: `${shortSessionId(s.id)} · ctx ${s.messageCount} · arch ${s.archiveMessageCount} · ${s.updatedAt.slice(0, 16).replace("T", " ")}`,
           ...(i === 0 ? { recommended: true } : {}),
         })),
       });
@@ -1333,18 +1348,17 @@ export async function launchTuiAgentShell(opts: {
         io.onSystem?.("Session not found in this project.\n");
         return;
       }
-      const opened = openSession({
-        cwd: sessionCwd,
-        resumeId: found.id,
-        provider: currentSel.provider,
-        model: currentSel.model,
-      });
-      liveSession = opened.handle;
-      history.length = 0;
-      history.push(...opened.history);
+      applyOpened(
+        openSession({
+          cwd: sessionCwd,
+          resumeId: found.id,
+          provider: currentSel.provider,
+          model: currentSel.model,
+        }),
+      );
       paintSessionHeader();
       io.onSystem?.(
-        `Resumed ${shortSessionId(liveSession.summary.id)} · ${liveSession.summary.title} (${history.length} messages)\n`,
+        `Resumed ${shortSessionId(liveSession.summary.id)} · ${liveSession.summary.title} (ctx ${history.length} · archive ${archive.length})\n`,
       );
     };
 
@@ -1396,6 +1410,26 @@ export async function launchTuiAgentShell(opts: {
         }
         if (command.name === "/resume") {
           void resumeSessionInteractive();
+          return;
+        }
+        if (command.name === "/compact") {
+          const focus = line.trim().split(/\s+/).slice(1).join(" ").trim();
+          const packed = compactSession(liveSession, history, archive, {
+            keepLastUserTurns: 3,
+            ...(focus.length > 0 ? { focus } : {}),
+            provider: currentSel.provider,
+            model: currentSel.model,
+          });
+          liveSession = packed.handle;
+          history = packed.context;
+          paintSessionHeader();
+          if (packed.result.noop) {
+            io.onSystem?.("Nothing to compact (context already small).\n");
+          } else {
+            io.onSystem?.(
+              `Compacted −${packed.result.removed} context msgs · archive ${liveSession.summary.archiveMessageCount} · compact×${liveSession.summary.compactCount}\n`,
+            );
+          }
           return;
         }
         if (command.name === "/think") {
@@ -1640,10 +1674,17 @@ export async function launchTuiAgentShell(opts: {
         }
         prevOnSystem?.(text);
       };
+      const beforeLen = history.length;
       void runAgentTurn(io, deps, history, line).finally(() => {
         const secs = ((Date.now() - startedAt) / 1000).toFixed(1);
         stopBusy();
         setMainAgent(turnFailed ? "failed" : "done", turnFailed ? "error" : "idle");
+        for (let i = beforeLen; i < history.length; i++) {
+          const m = history[i];
+          if (m !== undefined) {
+            archive.push(m);
+          }
+        }
         try {
           saveSession();
         } catch {
