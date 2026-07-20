@@ -53,6 +53,32 @@ test("spawn_subagent runs a child turn and returns a summary", async () => {
   expect(result.output).toMatch(/MAE reservation/);
 });
 
+test("spawn_subagent inherits network LLM parent (deepseek) under tools-readonly policy", async () => {
+  let seenProvider = "";
+  const tool = createSpawnSubagentTool({
+    cwd: process.cwd(),
+    getParentModel: () => ({ providerId: "deepseek", modelId: "deepseek-v4-flash" }),
+    makeProvider: (providerId) => {
+      seenProvider = providerId;
+      return stubProvider(`ok via ${providerId}`);
+    },
+    getDetectedProviders: () => [{ name: "deepseek" }, { name: "ollama" }],
+    idSeq: (() => {
+      let n = 0;
+      return () => `ds-${n++}`;
+    })(),
+    clock: () => "2020-01-01T00:00:00.000Z",
+  });
+  const result = await tool.invoke({
+    task: "List three risks in side-worker.ts",
+    mode: "read_only",
+  });
+  expect(result.isError).toBe(false);
+  expect(result.output).not.toMatch(/model resolution denied|forbidden by child policy/);
+  expect(seenProvider).toBe("deepseek");
+  expect(result.output).toMatch(/ok via deepseek/);
+});
+
 test("spawn_subagent rejects empty task", async () => {
   const tool = createSpawnSubagentTool({
     cwd: process.cwd(),
