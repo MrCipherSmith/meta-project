@@ -75,3 +75,60 @@ describe("RemainingBudgetLedger — child count cap (AC2)", () => {
     if (!third.ok) expect(third.reason).toContain("child count cap 2 reached");
   });
 });
+
+// --- flow 101: optional cost dimension --------------------------------------
+
+function costRes(id: string, runtime: number, cost: number): BudgetReservation {
+  return { reservationId: id, maxRuntimeMs: runtime, costUnits: cost };
+}
+
+describe("RemainingBudgetLedger — cost dimension (flow 101)", () => {
+  test("with maxCostUnits, admits within cost then denies over it (AC2)", () => {
+    const ledger = new RemainingBudgetLedger({ maxRuntimeMs: 1_000_000 }, { maxCostUnits: 100 });
+    expect(ledger.admit(costRes("a", 1_000, 60)).ok).toBe(true);
+    expect(ledger.costRemaining).toBe(40);
+    const over = ledger.admit(costRes("b", 1_000, 50));
+    expect(over.ok).toBe(false);
+    if (!over.ok) expect(over.reason).toContain("cost cap exceeded");
+    // denied admit leaves cost + count unchanged (AC3)
+    expect(ledger.costRemaining).toBe(40);
+    expect(ledger.childCount).toBe(1);
+  });
+
+  test("a reservation without costUnits consumes 0 cost", () => {
+    const ledger = new RemainingBudgetLedger({ maxRuntimeMs: 1_000_000 }, { maxCostUnits: 10 });
+    expect(ledger.admit(res("a", 1_000)).ok).toBe(true);
+    expect(ledger.costRemaining).toBe(10);
+  });
+
+  test("no maxCostUnits => cost not tracked, behavior unchanged (AC4)", () => {
+    const ledger = new RemainingBudgetLedger({ maxRuntimeMs: 5_000, maxToolCalls: 3 });
+    expect(ledger.costRemaining).toBeUndefined();
+    // costUnits on the reservation is ignored when no ceiling is set
+    expect(ledger.admit(costRes("a", 1_000, 9_999)).ok).toBe(true);
+    expect(ledger.costRemaining).toBeUndefined();
+  });
+
+  test("aggregate admitted cost never exceeds maxCostUnits (AC5 property)", () => {
+    for (let cap = 10; cap <= 500; cap += 37) {
+      const ledger = new RemainingBudgetLedger({ maxRuntimeMs: 10_000_000 }, { maxCostUnits: cap });
+      let sum = 0;
+      for (let i = 0; i < 80; i++) {
+        const cost = 1 + ((i * 13) % 40);
+        const r = ledger.admit(costRes(`r${i}`, 1_000, cost));
+        if (r.ok) sum += cost;
+        expect(sum).toBeLessThanOrEqual(cap);
+      }
+    }
+  });
+
+  test("cost denial leaves budget/count unchanged (all checks before mutation, AC3)", () => {
+    const ledger = new RemainingBudgetLedger({ maxRuntimeMs: 100_000, maxToolCalls: 10 }, { maxCostUnits: 5 });
+    const before = ledger.remaining;
+    const denied = ledger.admit(costRes("big", 1_000, 9_999));
+    expect(denied.ok).toBe(false);
+    expect(ledger.remaining).toEqual(before);
+    expect(ledger.childCount).toBe(0);
+    expect(ledger.costRemaining).toBe(5);
+  });
+});
