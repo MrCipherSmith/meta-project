@@ -293,6 +293,20 @@ export function fmtTokens(n: number): string {
   return n >= 1000 ? `${(n / 1000).toFixed(1)}K` : String(n);
 }
 
+/** Composer grows 1…max rows with wrap; beyond max the textarea scrolls vertically. */
+export const COMPOSER_MIN_ROWS = 1;
+export const COMPOSER_MAX_ROWS = 6;
+
+/** Pure: clamp visual line count into the composer height band. */
+export function composerHeightForLines(
+  visualLines: number,
+  min = COMPOSER_MIN_ROWS,
+  max = COMPOSER_MAX_ROWS,
+): number {
+  const n = Number.isFinite(visualLines) ? Math.floor(visualLines) : min;
+  return Math.min(max, Math.max(min, n < 1 ? min : n));
+}
+
 /**
  * Rough token estimate of the conversation (≈ 4 chars/token) — a fallback for the
  * context counter when the provider does not report exact `usage` (e.g. local
@@ -921,7 +935,8 @@ export async function launchTuiAgentShell(opts: {
     });
     main.add(menu);
 
-    // Bordered composer (grok-style rounded input box) — compact single line.
+    // Bordered composer: multi-line wrap, grows 1→6 rows, then vertical scroll.
+    // Enter submits (Shift/Alt+Enter insert newline). Not a single-line Input.
     const composer = new otui.BoxRenderable(r, {
       id: "composer",
       flexShrink: 0,
@@ -930,10 +945,67 @@ export async function launchTuiAgentShell(opts: {
       paddingLeft: 1,
       paddingRight: 1,
     });
-    const input = new otui.InputRenderable(r, { id: "prompt", placeholder: "type a task or / for commands" });
-    composer.add(input);
+    const textarea = new otui.TextareaRenderable(r, {
+      id: "prompt",
+      placeholder: "type a task or / for commands · Enter send · Shift+Enter newline",
+      wrapMode: "word",
+      minHeight: COMPOSER_MIN_ROWS,
+      maxHeight: COMPOSER_MAX_ROWS,
+      height: COMPOSER_MIN_ROWS,
+      width: "100%",
+      // Enter = submit; Shift/Meta+Enter = newline (default Textarea is inverted).
+      keyBindings: [
+        { name: "return", action: "submit" },
+        { name: "linefeed", action: "submit" },
+        { name: "kpenter", action: "submit" },
+        { name: "return", shift: true, action: "newline" },
+        { name: "linefeed", shift: true, action: "newline" },
+        { name: "kpenter", shift: true, action: "newline" },
+        { name: "return", meta: true, action: "newline" },
+        { name: "linefeed", meta: true, action: "newline" },
+      ],
+    });
+    composer.add(textarea);
     main.add(composer);
-    input.focus();
+
+    /** Adapter so the rest of the shell can keep using `.value` / `.focus()`. */
+    const input = {
+      get value(): string {
+        return textarea.plainText;
+      },
+      set value(v: string) {
+        const next = v ?? "";
+        if (textarea.plainText !== next) {
+          textarea.setText(next);
+          try {
+            textarea.cursorOffset = next.length;
+          } catch {
+            // best-effort
+          }
+        }
+        syncComposerHeight();
+      },
+      focus(): void {
+        textarea.focus();
+      },
+    };
+
+    const syncComposerHeight = (): void => {
+      let lines = 1;
+      try {
+        // Prefer visual (wrapped) lines so long single-line text grows vertically.
+        lines = Math.max(textarea.virtualLineCount || 0, textarea.lineCount || 0, 1);
+      } catch {
+        lines = Math.max(1, (textarea.plainText.match(/\n/g)?.length ?? 0) + 1);
+      }
+      const h = composerHeightForLines(lines);
+      if (textarea.height !== h) {
+        textarea.height = h;
+      }
+    };
+    // Content-change → height + slash menu: wired after `refilter` is defined.
+    textarea.focus();
+    syncComposerHeight();
 
     // `shell_exec` approval: composer-dock picker (once / always-exact /
     // always-prefix / deny). Remembered allow patterns live in permissions.json
@@ -1173,7 +1245,10 @@ export async function launchTuiAgentShell(opts: {
         }
       }
     };
-    input.on(otui.InputRenderableEvents.INPUT, refilter);
+    textarea.onContentChange = () => {
+      syncComposerHeight();
+      refilter();
+    };
 
     const helpText = (): string =>
       ["Commands:", ...AGENT_SLASH_COMMANDS.map((c) => `  ${c.name}  ${c.description}`)].join("\n") + "\n";
@@ -1950,7 +2025,7 @@ export async function launchTuiAgentShell(opts: {
       // ↑/↓/Enter fall through → the focused SelectRenderable handles them.
     });
 
-    input.on(otui.InputRenderableEvents.ENTER, () => {
+    const submitComposer = (): void => {
       // Legacy y/N fallback if an approval is still pending on the composer
       // (interactive picker is the primary path and resolves itself).
       if (pendingApproval !== undefined) {
@@ -1971,8 +2046,12 @@ export async function launchTuiAgentShell(opts: {
       const line = input.value.trim();
       input.value = "";
       menu.visible = false;
+      syncComposerHeight();
       runLine(line);
-    });
+    };
+    textarea.onSubmit = () => {
+      submitComposer();
+    };
 
     await done;
     return true;

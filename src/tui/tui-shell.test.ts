@@ -7,7 +7,16 @@
 // via dynamic import; the tests skip when it is absent.
 import { expect, test } from "bun:test";
 import { tmpdir } from "node:os";
-import { createTuiAgentIo, estimateContextTokens, fmtTokens, isShellApproved, selectBoxHeight } from "./tui-shell";
+import {
+  composerHeightForLines,
+  COMPOSER_MAX_ROWS,
+  COMPOSER_MIN_ROWS,
+  createTuiAgentIo,
+  estimateContextTokens,
+  fmtTokens,
+  isShellApproved,
+  selectBoxHeight,
+} from "./tui-shell";
 import { AGENT_SLASH_COMMANDS, filterCommands } from "../commands/agent-commands";
 import { runAgentTurn } from "../commands/agent";
 import type { AgentDeps } from "../commands/agent";
@@ -192,6 +201,15 @@ test("fmtTokens: compact K formatting", () => {
   expect(fmtTokens(22000)).toBe("22.0K");
 });
 
+test("composerHeightForLines: grow 1..6 then clamp (vertical scroll above max)", () => {
+  expect(composerHeightForLines(0)).toBe(COMPOSER_MIN_ROWS);
+  expect(composerHeightForLines(1)).toBe(1);
+  expect(composerHeightForLines(3)).toBe(3);
+  expect(composerHeightForLines(6)).toBe(COMPOSER_MAX_ROWS);
+  expect(composerHeightForLines(20)).toBe(COMPOSER_MAX_ROWS);
+  expect(composerHeightForLines(NaN)).toBe(COMPOSER_MIN_ROWS);
+});
+
 test("selectBoxHeight: described items need 2 rows each so all stay visible (flow 084)", () => {
   // Regression: the provider picker showed descriptions (2 rows/item) but was
   // sized `= count`, so `maxVisibleItems = floor(height/2)` hid all but the first.
@@ -263,3 +281,4 @@ test("OpenTUI Input accepts typed keys (composer primitive)", async () => {
   expect(input.value).toBe("hi");
   renderer.destroy();
 });
+
