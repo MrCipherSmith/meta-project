@@ -20,6 +20,7 @@ import { mcpCommand } from "./commands/mcp";
 import { statusCommand } from "./commands/status";
 import { harnessCommand } from "./commands/harness";
 import { shellCommand } from "./commands/shell";
+import { sessionsCommand } from "./commands/sessions";
 import { modulesCommand } from "./commands/modules";
 import { updateCommand } from "./commands/update";
 import { dashboardCommand } from "./commands/dashboard";
@@ -181,6 +182,11 @@ export async function main(): Promise<void> {
     return;
   }
 
+  if (command === "sessions" || command === "session") {
+    await sessionsCommand(args.slice(1));
+    return;
+  }
+
   console.error(`Unknown command: ${command}`);
   printHelp();
   process.exitCode = 1;
@@ -191,8 +197,9 @@ function printHelp(): void {
 
 Usage:
   keryx                                        Show CLI usage
-  keryx shell [--provider <p>] [--model <m>] [--base-url <url>] [--agent|--chat] [--tui|--no-tui]
-                                               Start TUI agent shell (default UI)
+  keryx shell [-c|--continue] [-r|--resume [id]] [--provider <p>] [--model <m>] [--base-url <url>] [--agent|--chat] [--tui|--no-tui]
+                                               Start TUI agent shell (sessions are per-project)
+  keryx sessions list|export <id>|path         List / export sessions for the current project
   keryx harness run --provider <fake|anthropic|ollama> --model <m> [--base-url <url>] "<prompt>"
   keryx harness exec [--allow-env KEY]... [--max-runtime-ms N] [--allow-real-subprocess] -- <path> [args...]
   keryx harness extension --spec <path>
@@ -266,6 +273,8 @@ Usage:
 
 Commands:
   shell     Start the interactive TUI agent harness. Use --no-tui or --chat to opt out.
+            Sessions: -c continue last in this project, -r [id] resume (per-project).
+  sessions  List or export per-project shell sessions
   harness   Run a single provider turn (harness run) and print structured events
   init      Initialize .metaproject in the current project
   status    Show local Metaproject status

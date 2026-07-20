@@ -735,11 +735,18 @@ export interface ShellCliFlags {
   modeFlag?: boolean;
   /** Prefer OpenTUI when a TTY is available (default true). */
   wantTui: boolean;
+  /** Continue the most recent session in this project. */
+  continueLast?: boolean;
+  /** Resume a session id / short id / title in this project. */
+  resumeId?: string;
+  /** `-r` without id → open resume picker (TUI) or latest (non-TUI). */
+  resumePick?: boolean;
 }
 
 /**
  * Parse shell CLI flags. Defaults: TUI on, agent mode implied (modeFlag
  * undefined). `--no-tui` opts out of TUI; `--chat` selects chat mode.
+ * Session flags (`-c`/`-r`) are per-project only.
  */
 export function parseShellCliFlags(args: string[]): ShellCliFlags {
   let providerArg: string | undefined;
@@ -747,6 +754,9 @@ export function parseShellCliFlags(args: string[]): ShellCliFlags {
   let baseUrl: string | undefined;
   let modeFlag: boolean | undefined;
   let wantTui = true;
+  let continueLast: boolean | undefined;
+  let resumeId: string | undefined;
+  let resumePick: boolean | undefined;
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
     if (arg === "--provider") {
@@ -763,6 +773,16 @@ export function parseShellCliFlags(args: string[]): ShellCliFlags {
       wantTui = true;
     } else if (arg === "--no-tui") {
       wantTui = false;
+    } else if (arg === "-c" || arg === "--continue") {
+      continueLast = true;
+    } else if (arg === "-r" || arg === "--resume") {
+      const next = args[i + 1];
+      if (next !== undefined && !next.startsWith("-")) {
+        resumeId = next;
+        i += 1;
+      } else {
+        resumePick = true;
+      }
     }
   }
   return {
@@ -771,6 +791,9 @@ export function parseShellCliFlags(args: string[]): ShellCliFlags {
     ...(baseUrl !== undefined ? { baseUrl } : {}),
     ...(modeFlag !== undefined ? { modeFlag } : {}),
     wantTui,
+    ...(continueLast === true ? { continueLast: true } : {}),
+    ...(resumeId !== undefined ? { resumeId } : {}),
+    ...(resumePick === true ? { resumePick: true } : {}),
   };
 }
 
@@ -873,6 +896,12 @@ export async function shellCommand(args: string[]): Promise<void> {
             ...(baseUrl !== undefined ? { baseUrl } : {}),
           }),
         ...(tuiInitial !== undefined ? { initial: tuiInitial } : {}),
+        session: {
+          cwd,
+          ...(flags.continueLast === true ? { continueLast: true } : {}),
+          ...(flags.resumeId !== undefined ? { resumeId: flags.resumeId } : {}),
+          ...(flags.resumePick === true ? { pickOnStart: true } : {}),
+        },
       })
     ) {
       return;

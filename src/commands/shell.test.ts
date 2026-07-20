@@ -735,4 +735,13 @@ describe("parseShellCliFlags — default TUI agent shell", () => {
     expect(flags.baseUrl).toBe("http://localhost:11434");
     expect(flags.wantTui).toBe(true);
   });
+
+  test("session flags -c / -r are per-project continue/resume", () => {
+    expect(parseShellCliFlags(["-c"]).continueLast).toBe(true);
+    expect(parseShellCliFlags(["--continue"]).continueLast).toBe(true);
+    expect(parseShellCliFlags(["-r", "abc-123"]).resumeId).toBe("abc-123");
+    expect(parseShellCliFlags(["--resume", "my-title"]).resumeId).toBe("my-title");
+    expect(parseShellCliFlags(["-r"]).resumePick).toBe(true);
+    expect(parseShellCliFlags(["-r"]).resumeId).toBeUndefined();
+  });
 });

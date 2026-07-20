@@ -30,6 +30,15 @@ import {
   suggestShellPatterns,
 } from "../lib/shell-permissions";
 import { isWikiEnrichIntent, planWikiEnrich, wikiEnrich } from "../wiki/enrich";
+import {
+  createSession,
+  findSession,
+  listSessions,
+  openSession,
+  persistHistory,
+  shortSessionId,
+  type SessionHandle,
+} from "../session";
 import { setAskUserHost } from "./ask-user-bridge";
 import { showComposerChoice, type ChoiceOption } from "./composer-choice";
 import { formatFleetSidebar, MAIN_AGENT_ID, shortWorkerLabel, WorkerFleet } from "./worker-fleet";
@@ -590,6 +599,16 @@ export async function launchTuiAgentShell(opts: {
   makeAgentDeps: (sel: TuiSelection) => Promise<AgentDeps>;
   /** Re-probe providers for `/connect` and `/model` (fresh detection). */
   redetect?: () => Promise<DetectedProvider[]>;
+  /**
+   * Per-project session bootstrap. Sessions never cross git-root/cwd boundaries.
+   * `pickOnStart` opens the resume menu when `-r` is given without an id.
+   */
+  session?: {
+    cwd: string;
+    continueLast?: boolean;
+    resumeId?: string;
+    pickOnStart?: boolean;
+  };
 }): Promise<boolean> {
   if (!process.stdout.isTTY) {
     return false;
@@ -1151,12 +1170,190 @@ export async function launchTuiAgentShell(opts: {
     const helpText = (): string =>
       ["Commands:", ...AGENT_SLASH_COMMANDS.map((c) => `  ${c.name}  ${c.description}`)].join("\n") + "\n";
 
-    const history: NormalizedMessage[] = [];
+    // --- Per-project session (isolated by git root / cwd) --------------------
+    const sessionCwd = opts.session?.cwd ?? process.cwd();
+    let liveSession: SessionHandle;
+    let history: NormalizedMessage[] = [];
+    try {
+      if (opts.session?.pickOnStart === true && opts.session.resumeId === undefined) {
+        const rows = listSessions(sessionCwd).slice(0, 12);
+        if (rows.length === 0) {
+          const opened = openSession({
+            cwd: sessionCwd,
+            provider: currentSel.provider,
+            model: currentSel.model,
+          });
+          liveSession = opened.handle;
+          history = opened.history;
+        } else {
+          menu.visible = false;
+          const pickId = await showComposerChoice(otui, r, choiceDock, {
+            title: "Resume session (this project)",
+            subtitle: "Esc = new session",
+            cancelId: "__new__",
+            options: [
+              {
+                id: "__new__",
+                label: "New session",
+                description: "Start fresh (old sessions stay on disk)",
+                recommended: true,
+              },
+              ...rows.map((s) => ({
+                id: s.id,
+                label: s.title.length > 40 ? `${s.title.slice(0, 37)}…` : s.title,
+                description: `${shortSessionId(s.id)} · ${s.messageCount} msgs · ${s.updatedAt.slice(0, 16).replace("T", " ")}`,
+              })),
+            ],
+          });
+          input.focus();
+          if (pickId === "__new__") {
+            const opened = openSession({
+              cwd: sessionCwd,
+              provider: currentSel.provider,
+              model: currentSel.model,
+            });
+            liveSession = opened.handle;
+            history = opened.history;
+          } else {
+            const opened = openSession({
+              cwd: sessionCwd,
+              resumeId: pickId,
+              provider: currentSel.provider,
+              model: currentSel.model,
+            });
+            liveSession = opened.handle;
+            history = opened.history;
+          }
+        }
+      } else {
+        const opened = openSession({
+          cwd: sessionCwd,
+          ...(opts.session?.continueLast === true ? { continueLast: true } : {}),
+          ...(opts.session?.resumeId !== undefined ? { resumeId: opts.session.resumeId } : {}),
+          provider: currentSel.provider,
+          model: currentSel.model,
+        });
+        liveSession = opened.handle;
+        history = opened.history;
+        if (opened.resumed) {
+          transcript.add(
+            new otui.TextRenderable(r, {
+              id: `sess${uid++}`,
+              content: otui.t`${otui.dim(
+                `session ${shortSessionId(liveSession.summary.id)} · ${liveSession.summary.title} · ${history.length} messages`,
+              )}`,
+              marginTop: 1,
+            }),
+          );
+          // Brief UI breadcrumb of prior user turns (full history is in the model).
+          for (const m of history.filter((x) => x.role === "user").slice(-5)) {
+            const t = m.content.length > 100 ? `${m.content.slice(0, 97)}…` : m.content;
+            transcript.add(
+              new otui.TextRenderable(r, {
+                id: `sessu${uid++}`,
+                content: otui.t`${otui.dim(`  ❯ ${t}`)}`,
+              }),
+            );
+          }
+        }
+      }
+    } catch (cause) {
+      transcript.add(
+        new otui.TextRenderable(r, {
+          id: `sesserr${uid++}`,
+          content: otui.t`${otui.red(cause instanceof Error ? cause.message : String(cause))}`,
+          marginTop: 1,
+        }),
+      );
+      const opened = openSession({
+        cwd: sessionCwd,
+        provider: currentSel.provider,
+        model: currentSel.model,
+      });
+      liveSession = opened.handle;
+      history = opened.history;
+    }
+
+    const paintSessionHeader = (): void => {
+      const label = `${currentSel.provider}/${currentSel.model}`;
+      const sid = shortSessionId(liveSession.summary.id);
+      const title =
+        liveSession.summary.title.length > 28
+          ? `${liveSession.summary.title.slice(0, 25)}…`
+          : liveSession.summary.title;
+      headerLeft.content = otui.t`${otui.dim(`keryx · ${title} · ${sid} · ${label}`)}`;
+    };
+
+    const saveSession = (): void => {
+      liveSession = persistHistory(liveSession, history, {
+        provider: currentSel.provider,
+        model: currentSel.model,
+      });
+      paintSessionHeader();
+    };
+
+    const startNewSession = (note?: string): void => {
+      liveSession = createSession({
+        cwd: sessionCwd,
+        provider: currentSel.provider,
+        model: currentSel.model,
+      });
+      history.length = 0;
+      paintSessionHeader();
+      if (note !== undefined && note.length > 0) {
+        io.onSystem?.(`${note}\n`);
+      }
+    };
+
+    const resumeSessionInteractive = async (): Promise<void> => {
+      const rows = listSessions(sessionCwd).slice(0, 12);
+      if (rows.length === 0) {
+        io.onSystem?.("No saved sessions in this project.\n");
+        input.focus();
+        return;
+      }
+      menu.visible = false;
+      const pickId = await showComposerChoice(otui, r, choiceDock, {
+        title: "Resume session (this project only)",
+        subtitle: "Esc cancels",
+        cancelId: "__cancel__",
+        options: rows.map((s, i) => ({
+          id: s.id,
+          label: s.title.length > 40 ? `${s.title.slice(0, 37)}…` : s.title,
+          description: `${shortSessionId(s.id)} · ${s.messageCount} msgs · ${s.updatedAt.slice(0, 16).replace("T", " ")}`,
+          ...(i === 0 ? { recommended: true } : {}),
+        })),
+      });
+      input.focus();
+      if (pickId === "__cancel__") {
+        return;
+      }
+      const found = findSession(sessionCwd, pickId);
+      if (found === undefined) {
+        io.onSystem?.("Session not found in this project.\n");
+        return;
+      }
+      const opened = openSession({
+        cwd: sessionCwd,
+        resumeId: found.id,
+        provider: currentSel.provider,
+        model: currentSel.model,
+      });
+      liveSession = opened.handle;
+      history.length = 0;
+      history.push(...opened.history);
+      paintSessionHeader();
+      io.onSystem?.(
+        `Resumed ${shortSessionId(liveSession.summary.id)} · ${liveSession.summary.title} (${history.length} messages)\n`,
+      );
+    };
+
+    paintSessionHeader();
 
     // `/model` and `/connect` rebuild `deps` mid-session and refresh the labels.
     const updateModelLabels = (): void => {
+      paintSessionHeader();
       const label = `${currentSel.provider}/${currentSel.model}`;
-      headerLeft.content = otui.t`${otui.dim(`keryx · agent · ${label}`)}`;
       sbModelV.content = otui.t`${otui.dim(label)}`;
       footerRight.content = otui.t`${otui.dim(label)}`;
     };
@@ -1189,9 +1386,16 @@ export async function launchTuiAgentShell(opts: {
           r.destroy();
           return;
         }
-        if (command.name === "/clear") {
-          history.length = 0;
-          io.onSystem?.("Conversation cleared.\n");
+        if (command.name === "/clear" || command.name === "/new") {
+          // Creates a NEW session id; previous transcript stays on disk for /resume.
+          startNewSession();
+          io.onSystem?.(
+            `New session ${shortSessionId(liveSession.summary.id)} (previous kept on disk · /resume)\n`,
+          );
+          return;
+        }
+        if (command.name === "/resume") {
+          void resumeSessionInteractive();
           return;
         }
         if (command.name === "/think") {
@@ -1394,6 +1598,11 @@ export async function launchTuiAgentShell(opts: {
               content: lines.join("\n"),
               provenance: "model",
             });
+            try {
+              saveSession();
+            } catch {
+              // best-effort
+            }
           } catch (cause) {
             stopBusy();
             transcript.add(
@@ -1435,6 +1644,11 @@ export async function launchTuiAgentShell(opts: {
         const secs = ((Date.now() - startedAt) / 1000).toFixed(1);
         stopBusy();
         setMainAgent(turnFailed ? "failed" : "done", turnFailed ? "error" : "idle");
+        try {
+          saveSession();
+        } catch {
+          // best-effort persist
+        }
         transcript.add(
           new otui.TextRenderable(r, { id: `w${uid++}`, content: otui.t`${otui.dim(`worked for ${secs}s`)}`, marginTop: 1 }),
         );

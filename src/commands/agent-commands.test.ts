@@ -2,17 +2,37 @@ import { expect, test } from "bun:test";
 import { AGENT_SLASH_COMMANDS, filterCommands, findAgentCommand } from "./agent-commands";
 
 test("AGENT_SLASH_COMMANDS lists the expected commands", () => {
-  expect(AGENT_SLASH_COMMANDS.map((c) => c.name)).toEqual(["/help", "/model", "/connect", "/think", "/clear", "/exit"]);
+  expect(AGENT_SLASH_COMMANDS.map((c) => c.name)).toEqual([
+    "/help",
+    "/model",
+    "/connect",
+    "/think",
+    "/new",
+    "/resume",
+    "/clear",
+    "/exit",
+  ]);
 });
 
 test("filterCommands: `/` returns all commands", () => {
-  expect(filterCommands("/").map((c) => c.name)).toEqual(["/help", "/model", "/connect", "/think", "/clear", "/exit"]);
+  expect(filterCommands("/").map((c) => c.name)).toEqual([
+    "/help",
+    "/model",
+    "/connect",
+    "/think",
+    "/new",
+    "/resume",
+    "/clear",
+    "/exit",
+  ]);
 });
 
 test("filterCommands: prefix narrows the set", () => {
   expect(filterCommands("/h").map((c) => c.name)).toEqual(["/help"]);
   expect(filterCommands("/c").map((c) => c.name)).toEqual(["/connect", "/clear"]);
   expect(filterCommands("/m").map((c) => c.name)).toEqual(["/model"]);
+  expect(filterCommands("/re").map((c) => c.name)).toEqual(["/resume"]);
+  expect(filterCommands("/n").map((c) => c.name)).toEqual(["/new"]);
 });
 
 test("filterCommands: no match → empty; non-slash → empty", () => {
