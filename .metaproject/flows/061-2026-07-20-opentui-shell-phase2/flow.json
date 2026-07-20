@@ -3,17 +3,34 @@
   "id": "061",
   "slug": "opentui-shell-phase2",
   "title": "OpenTUI shell Phase 2 (chrome parity: markdown, role header, tool+collapse, reasoning, usage)",
-  "status": "in-progress",
+  "status": "done",
   "createdAt": "2026-07-20T08:21:29.655Z",
-  "updatedAt": "2026-07-20T08:22:48.927Z",
+  "updatedAt": "2026-07-20T08:23:22.802Z",
   "source": {
     "type": "description",
     "ref": null
   },
   "acChecksum": "sha256:48f34e6976d9514aa57a60892ab72e354388e22466d88b80caa3100b306ab0e7",
-  "acConfirmed": {},
+  "acConfirmed": {
+    "AC1": {
+      "at": "2026-07-20T08:22:57.626Z",
+      "note": "markdownToChunks worker-free → StyledText; headless test: bold rendered, ** stripped, • bullet"
+    },
+    "AC2": {
+      "at": "2026-07-20T08:22:57.717Z",
+      "note": "● keryx header + ❯ line; ⚙ name(args); ↳ collapsed/✗; dim ⋯ thinking + ↑↓ tokens; dim/red system; gutter=padding"
+    },
+    "AC3": {
+      "at": "2026-07-20T08:22:57.801Z",
+      "note": "reuses summarizeToolArgs/collapseToolOutput + pure markdownToChunks; runAgentTurn/readline/chat/roleLabel unchanged; --tui+fallback preserved"
+    },
+    "AC4": {
+      "at": "2026-07-20T08:22:57.903Z",
+      "note": "headless markdown+tool test; tsc clean; bun test 1497/0 (baseline 1496,+1); no new dep"
+    }
+  },
   "pr": {
-    "url": null
+    "url": "https://github.com/MrCipherSmith/keryx/pull/94"
   },
   "tasks": [
     {
@@ -185,6 +202,45 @@
       "at": "2026-07-20T08:22:48.927Z",
       "event": "task-done",
       "detail": "T7: verify"
+    },
+    {
+      "at": "2026-07-20T08:22:57.504Z",
+      "event": "implemented",
+      "detail": "draft PR: https://github.com/MrCipherSmith/keryx/pull/94"
+    },
+    {
+      "at": "2026-07-20T08:22:57.626Z",
+      "event": "ac-confirmed",
+      "detail": "AC1: markdownToChunks worker-free → StyledText; headless test: bold rendered, ** stripped, • bullet"
+    },
+    {
+      "at": "2026-07-20T08:22:57.717Z",
+      "event": "ac-confirmed",
+      "detail": "AC2: ● keryx header + ❯ line; ⚙ name(args); ↳ collapsed/✗; dim ⋯ thinking + ↑↓ tokens; dim/red system; gutter=padding"
+    },
+    {
+      "at": "2026-07-20T08:22:57.801Z",
+      "event": "ac-confirmed",
+      "detail": "AC3: reuses summarizeToolArgs/collapseToolOutput + pure markdownToChunks; runAgentTurn/readline/chat/roleLabel unchanged; --tui+fallback preserved"
+    },
+    {
+      "at": "2026-07-20T08:22:57.903Z",
+      "event": "ac-confirmed",
+      "detail": "AC4: headless markdown+tool test; tsc clean; bun test 1497/0 (baseline 1496,+1); no new dep"
+    },
+    {
+      "at": "2026-07-20T08:23:22.770Z",
+      "event": "completing"
+    },
+    {
+      "at": "2026-07-20T08:23:22.802Z",
+      "event": "done",
+      "detail": "all gates passed"
     }
-  ]
+  ],
+  "merged": {
+    "commit": "0f6c63d72904b2c2482321f129442c07930162f3",
+    "ref": "origin/main",
+    "at": "2026-07-20T08:23:22.801Z"
+  }
 }
