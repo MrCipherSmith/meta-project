@@ -21,3 +21,10 @@
 - 2026-07-20T08:11:32.284Z - task-done: T5: ADR-0005 + dependency ratification
 - 2026-07-20T08:11:32.406Z - task-done: T6: TuiShell skeleton + --tui wiring
 - 2026-07-20T08:11:32.491Z - task-done: T7: headless test + verify
+- 2026-07-20T08:11:42.263Z - implemented: draft PR: https://github.com/MrCipherSmith/keryx/pull/92
+- 2026-07-20T08:11:42.422Z - ac-confirmed: AC1: ADR-0005 ratifies @opentui/core optional native dep (dynamic-import + fallback; zero-dep floor unchanged)
+- 2026-07-20T08:11:42.503Z - ac-confirmed: AC2: optionalDependencies (deps={}); AC15 pin updated + rationale; no-top-level-import guard passes (dynamic import only)
+- 2026-07-20T08:11:42.583Z - ac-confirmed: AC3: createTuiAgentIo (AgentIO→transcript) + launchTuiAgentShell(split-footer) driving runAgentTurn; --tui opt-in; non-TTY→readline fallback verified
+- 2026-07-20T08:11:42.657Z - ac-confirmed: AC4: headless driver→render test (frame has assistant text + tool line); tsc clean; bun test 1496/0; driver+helpers+chat+roleLabel unchanged; parity deferred Phase 2
+- 2026-07-20T08:12:09.458Z - completing
+- 2026-07-20T08:12:09.541Z - done: all gates passed
