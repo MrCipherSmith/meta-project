@@ -19,14 +19,24 @@
 // 022-2026-07-13-keryx-r2-4-tui/acceptance-criteria.md` (AC1-AC2).
 
 import { isLoopbackHost, isPrivateEgressHost } from "../harness/mutation/guard";
+import { OPENAI_COMPAT_PROVIDERS, fetchOpenAiCompatModels, providerByName } from "./providers";
 import type { ShellIO } from "./shell";
 
 /** A provider detected as usable, with its selectable chat `models`. */
 export interface DetectedProvider {
-  name: "ollama" | "anthropic" | "openrouter" | "fake";
+  name: string;
   models: string[];
-  /** Present only for providers with a concrete endpoint (ollama, openrouter). */
+  /** Present only for providers with a concrete endpoint (ollama + OpenAI-compat). */
   baseUrl?: string;
+  /** OpenAI-compat registry providers: env var carrying the Bearer key. */
+  envKey?: string;
+  /** Chat path override (Z.AI GLM answers at `/chat/completions`, no `/v1`). */
+  chatPath?: string;
+  /** Models-list path override (Z.AI GLM: `/models`). */
+  modelsPath?: string;
+  /** Display label + short note for the picker chrome. */
+  label?: string;
+  note?: string;
 }
 
 /** Injected dependencies keeping `detectProviders` deterministic + offline. */
@@ -44,39 +54,14 @@ const DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434";
 const ANTHROPIC_MODELS: readonly string[] = ["claude-sonnet-5", "claude-opus-4-8", "claude-haiku-4-5"];
 
 /**
- * Static recommended cheap tool-capable model list surfaced when
- * `OPENROUTER_API_KEY` is present (OpenRouter serves 400+ models; these are a
- * curated default — any OpenRouter model id can still be passed via `--model`).
- */
-const OPENROUTER_MODELS: readonly string[] = [
-  "openai/gpt-4o-mini",
-  "google/gemini-2.0-flash-001",
-  "qwen/qwen-2.5-7b-instruct",
-  "meta-llama/llama-3.1-8b-instruct",
-];
-/** OpenRouter's OpenAI-compatible base URL (the adapter appends /v1/chat/completions). */
-const OPENROUTER_BASE_URL = "https://openrouter.ai/api";
-
-/**
  * Fetch OpenRouter's LIVE model list (`GET /api/v1/models`, public — no key) so the
- * picker offers all models (filterable by name, e.g. `:free`). Returns model ids
- * sorted alphabetically; on any failure (offline / non-2xx / malformed) falls back
- * to the curated {@link OPENROUTER_MODELS}. Never throws.
+ * picker offers all models (filterable by name, e.g. `:free`). Thin wrapper over the
+ * generic {@link fetchOpenAiCompatModels} for the `openrouter` registry entry;
+ * falls back to its curated list on any failure. Never throws.
  */
 export async function fetchOpenRouterModels(fetchFn: typeof fetch): Promise<string[]> {
-  try {
-    const res = await fetchFn(`${OPENROUTER_BASE_URL}/v1/models`);
-    if (!res.ok) {
-      return [...OPENROUTER_MODELS];
-    }
-    const body = (await res.json()) as { data?: Array<{ id?: unknown }> } | null;
-    const ids = Array.isArray(body?.data)
-      ? body.data.map((m) => (typeof m.id === "string" ? m.id : "")).filter((id) => id.length > 0)
-      : [];
-    return ids.length > 0 ? Array.from(new Set(ids)).sort() : [...OPENROUTER_MODELS];
-  } catch {
-    return [...OPENROUTER_MODELS];
-  }
+  const openrouter = providerByName("openrouter");
+  return openrouter === undefined ? [] : fetchOpenAiCompatModels(fetchFn, openrouter);
 }
 
 /** The always-available offline echo provider's model list. */
@@ -173,12 +158,23 @@ export async function detectProviders(deps: DetectProvidersDeps): Promise<Detect
     detected.push({ name: "anthropic", models: [...ANTHROPIC_MODELS] });
   }
 
-  // OpenRouter is ALWAYS offered (a major hosted gateway). The `OPENROUTER_API_KEY`
-  // is read from env at provider-construction time, or the interactive shell
-  // prompts for it when absent — so a user need not pre-set the env var just to see
-  // it in the picker. Static curated (cheap) model list; no network probe; the key
-  // is never surfaced on the returned shape / logged.
-  detected.push({ name: "openrouter", models: [...OPENROUTER_MODELS], baseUrl: OPENROUTER_BASE_URL });
+  // Hosted OpenAI-compatible providers (OpenRouter, DeepSeek, Z.AI GLM, Cerebras,
+  // Groq, Moonshot, …) are ALWAYS offered — each key is read from env at
+  // construction time, or the interactive shell prompts + persists it, so the user
+  // need not pre-set env vars just to see them. Curated `models` are a fallback; the
+  // picker fetches each provider's live `/models` list. Keys never surface here.
+  for (const p of OPENAI_COMPAT_PROVIDERS) {
+    detected.push({
+      name: p.name,
+      models: [...p.models],
+      baseUrl: p.baseUrl,
+      envKey: p.envKey,
+      label: p.label,
+      ...(p.chatPath !== undefined ? { chatPath: p.chatPath } : {}),
+      ...(p.modelsPath !== undefined ? { modelsPath: p.modelsPath } : {}),
+      ...(p.note !== undefined ? { note: p.note } : {}),
+    });
+  }
 
   detected.push({ name: "fake", models: [...FAKE_MODELS] });
   return detected;

@@ -46,6 +46,12 @@ export interface OllamaCapabilityGrant {
    * sent. Read from env by the caller; never logged or echoed here.
    */
   readonly apiKey?: string;
+  /**
+   * Chat path appended to `baseUrl`; defaults to `/v1/chat/completions`. Overridden
+   * for versioned OpenAI-compat endpoints (e.g. Z.AI GLM `…/paas/v4` answers at
+   * `/chat/completions`, no `/v1`).
+   */
+  readonly chatPath?: string;
   /** Optional extra request headers (e.g. OpenRouter `HTTP-Referer` / `X-Title`). */
   readonly headers?: Readonly<Record<string, string>>;
 }
@@ -239,7 +245,7 @@ export class OllamaProvider implements ProviderPort {
       return;
     }
 
-    const url = `${baseUrl.replace(/\/+$/, "")}/v1/chat/completions`;
+    const url = `${baseUrl.replace(/\/+$/, "")}${grant.chatPath ?? "/v1/chat/completions"}`;
     const messages: Array<{ role: string; content: string }> = [];
     if (request.systemInstruction.length > 0) {
       messages.push({ role: "system", content: request.systemInstruction });
