@@ -154,6 +154,11 @@ export function createTuiAgentIo(otui: OpenTui, renderer: Renderer, transcript: 
   };
 }
 
+/** True only for an explicit `y`/`yes` (case-insensitive). Default-deny otherwise. */
+export function isShellApproved(answer: string): boolean {
+  return /^y(es)?$/i.test(answer.trim());
+}
+
 /**
  * Attempt the OpenTUI agent shell. Returns `true` if it ran to completion (user
  * exited), `false` if it declined/failed and the caller should fall back to the
@@ -175,21 +180,33 @@ export async function launchTuiAgentShell(deps: AgentDeps): Promise<boolean> {
   const done = new Promise<void>((resolve) => {
     resolveDone = resolve;
   });
+  // Pending `shell_exec` approval resolver (default-deny on teardown).
+  let uid = 0;
+  let pendingApproval: ((ok: boolean) => void) | undefined;
   try {
     // Stable non-nullable handle for the closures below (the outer `renderer`
     // stays `Renderer | undefined` for the `finally` teardown).
     const r = (renderer = await otui.createCliRenderer({
       exitOnCtrlC: true,
       screenMode: "split-footer",
-      onDestroy: () => resolveDone(),
+      onDestroy: () => {
+        pendingApproval?.(false); // deny any in-flight approval on exit
+        pendingApproval = undefined;
+        resolveDone();
+      },
     }));
-    const transcript = new otui.BoxRenderable(r, {
+    // A scrollable, sticky-to-bottom transcript so long conversations scroll and
+    // auto-follow the newest output; the AgentIO renders into its `.content`.
+    const scroll = new otui.ScrollBoxRenderable(r, {
       id: "transcript",
       flexGrow: 1,
-      flexDirection: "column",
-      padding: 1,
+      scrollY: true,
+      stickyScroll: true,
+      stickyStart: "bottom",
+      contentOptions: { flexDirection: "column", padding: 1 },
     });
-    r.root.add(transcript);
+    r.root.add(scroll);
+    const transcript = scroll.content;
     transcript.add(
       new otui.TextRenderable(r, {
         id: "header",
@@ -198,6 +215,28 @@ export async function launchTuiAgentShell(deps: AgentDeps): Promise<boolean> {
     );
 
     const io = createTuiAgentIo(otui, r, transcript);
+    // `shell_exec` approval: render a prompt; resolve from the NEXT composer
+    // submit (handled in the ENTER listener). Keeps the default-deny gate.
+    io.requestApproval = (_tool, inputJson) => {
+      let cmd = inputJson;
+      try {
+        const parsed: unknown = JSON.parse(inputJson);
+        if (parsed !== null && typeof parsed === "object" && typeof (parsed as { command?: unknown }).command === "string") {
+          cmd = (parsed as { command: string }).command;
+        }
+      } catch {
+        // show the raw input if it is not JSON
+      }
+      transcript.add(
+        new otui.TextRenderable(r, {
+          id: `ap${uid++}`,
+          content: otui.t`${otui.yellow(`Run: ${cmd}`)} ${otui.dim("[y/N]")}`,
+        }),
+      );
+      return new Promise<boolean>((resolve) => {
+        pendingApproval = resolve;
+      });
+    };
 
     // The live `/` command dropdown (Pi/grok-style): a SelectRenderable filtered
     // as the composer changes; hidden when the value is not a slash query.
@@ -227,9 +266,24 @@ export async function launchTuiAgentShell(deps: AgentDeps): Promise<boolean> {
       ["Commands:", ...AGENT_SLASH_COMMANDS.map((c) => `  ${c.name}  ${c.description}`)].join("\n") + "\n";
 
     const history: NormalizedMessage[] = [];
-    let uid = 0;
     let busy = false;
     input.on(otui.InputRenderableEvents.ENTER, () => {
+      // A pending shell_exec approval consumes this submit (y/N), never a turn.
+      if (pendingApproval !== undefined) {
+        const ok = isShellApproved(input.value);
+        input.value = "";
+        menu.visible = false;
+        const resolve = pendingApproval;
+        pendingApproval = undefined;
+        transcript.add(
+          new otui.TextRenderable(r, {
+            id: `av${uid++}`,
+            content: ok ? otui.t`${otui.green("approved")}` : otui.t`${otui.red("denied")}`,
+          }),
+        );
+        resolve(ok);
+        return;
+      }
       if (busy) {
         return; // one turn at a time
       }
