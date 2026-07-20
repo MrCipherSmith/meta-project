@@ -26,8 +26,14 @@ export {
   type AllowlistProxy,
   type AllowlistProxyOptions,
   type ProxyDecision,
+  type CredentialMask,
 } from "./proxy";
-export { setupNetworkRun, type NetworkRunSetup } from "./network-run";
+export {
+  setupNetworkRun,
+  type NetworkRunSetup,
+  type NetworkRunOptions,
+  type MaskedCredential,
+} from "./network-run";
 export { SandboxedProcessAdapter, type SandboxedProcessAdapterOptions } from "./adapter";
 export {
   detectSandboxLauncher,

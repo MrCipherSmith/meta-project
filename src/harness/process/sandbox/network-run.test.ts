@@ -32,4 +32,31 @@ describe("setupNetworkRun", () => {
       await setup.close();
     }
   });
+
+  test("masked credential ⇒ env gets a sentinel, never the real value", async () => {
+    const setup = await setupNetworkRun(
+      { ...base, network: "restricted", allowedDomains: ["api.github.com"] },
+      { masks: [{ name: "GH_TOKEN", realValue: "ghp_realsecret", injectHosts: ["api.github.com"] }] },
+    );
+    try {
+      expect(setup.envAdditions.GH_TOKEN).toBeDefined();
+      expect(setup.envAdditions.GH_TOKEN).toStartWith("keryx-sentinel-");
+      expect(setup.envAdditions.GH_TOKEN).not.toBe("ghp_realsecret");
+      expect(JSON.stringify(setup.envAdditions)).not.toContain("ghp_realsecret");
+    } finally {
+      await setup.close();
+    }
+  });
+
+  test("empty-value masked credential is skipped", async () => {
+    const setup = await setupNetworkRun(
+      { ...base, network: "restricted", allowedDomains: ["x.com"] },
+      { masks: [{ name: "EMPTY", realValue: "", injectHosts: ["x.com"] }] },
+    );
+    try {
+      expect(setup.envAdditions.EMPTY).toBeUndefined();
+    } finally {
+      await setup.close();
+    }
+  });
 });

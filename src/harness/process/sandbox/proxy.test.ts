@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import net from "node:net";
+import http from "node:http";
 import { createAllowlistProxy, matchesAllowlist, type AllowlistProxy } from "./proxy";
 
 describe("matchesAllowlist", () => {
@@ -81,5 +82,65 @@ describe("createAllowlistProxy (live loopback)", () => {
     });
     await doConnect(proxy.host, proxy.port, "blocked.example.com:443");
     expect(decisions.some((d) => d.host === "blocked.example.com" && !d.allowed)).toBe(true);
+  });
+});
+
+describe("createAllowlistProxy credential masking (HTTP)", () => {
+  let proxy: AllowlistProxy | undefined;
+  let upstream: http.Server | undefined;
+
+  afterEach(async () => {
+    if (proxy) await proxy.close();
+    if (upstream) await new Promise<void>((r) => upstream!.close(() => r()));
+    proxy = undefined;
+    upstream = undefined;
+  });
+
+  /** Upstream that echoes the Authorization header it received. */
+  async function echoAuthUpstream(): Promise<number> {
+    upstream = http.createServer((req, res) => {
+      res.writeHead(200);
+      res.end(`AUTH=${req.headers.authorization ?? ""}`);
+    });
+    return new Promise((r) => upstream!.listen(0, "127.0.0.1", () => r((upstream!.address() as net.AddressInfo).port)));
+  }
+
+  /** Do a proxied plain-HTTP GET (absolute-URL request line) and return the body. */
+  function proxiedGet(proxyPort: number, url: string, headers: Record<string, string>): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const u = new URL(url);
+      const req = http.request(
+        { host: "127.0.0.1", port: proxyPort, method: "GET", path: url, headers: { Host: u.host, ...headers } },
+        (res) => {
+          let b = "";
+          res.on("data", (d) => (b += d));
+          res.on("end", () => resolve(b));
+        },
+      );
+      req.on("error", reject);
+      req.end();
+    });
+  }
+
+  test("sentinel in a header is unmasked to an inject host; never leaks", async () => {
+    const upPort = await echoAuthUpstream();
+    proxy = await createAllowlistProxy({
+      allowedDomains: ["localhost"],
+      masks: [{ sentinel: "SENTINEL-XYZ", realValue: "real-secret-123", injectHosts: ["localhost"] }],
+    });
+    const body = await proxiedGet(proxy.port, `http://localhost:${upPort}/`, { Authorization: "Bearer SENTINEL-XYZ" });
+    expect(body).toContain("AUTH=Bearer real-secret-123");
+    expect(body).not.toContain("SENTINEL-XYZ");
+  });
+
+  test("no substitution for a host outside injectHosts (sentinel passes through)", async () => {
+    const upPort = await echoAuthUpstream();
+    proxy = await createAllowlistProxy({
+      allowedDomains: ["localhost"],
+      masks: [{ sentinel: "SENTINEL-XYZ", realValue: "real-secret-123", injectHosts: ["api.github.com"] }],
+    });
+    const body = await proxiedGet(proxy.port, `http://localhost:${upPort}/`, { Authorization: "Bearer SENTINEL-XYZ" });
+    expect(body).toContain("AUTH=Bearer SENTINEL-XYZ");
+    expect(body).not.toContain("real-secret-123");
   });
 });
