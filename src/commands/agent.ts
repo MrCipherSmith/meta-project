@@ -79,7 +79,10 @@ export function buildAgentSystemInstruction(orient?: string): string {
     "blast radius, and project memory). You may also propose shell_exec to run a command, " +
     "which requires the user's explicit approval before it executes. ALWAYS use a tool to " +
     "obtain facts instead of guessing; never fabricate paths, file contents, or results. " +
-    "Answer concisely.";
+    "Be economical with output tokens: lead with the conclusion, give the shortest correct " +
+    "answer, prefer bullet points over prose, and omit preamble and restated context. Do NOT " +
+    "paste large tool/command output back into your reply — the compact tool result is already " +
+    "in context; reference it instead of repeating it.";
   const trimmed = orient?.trim() ?? "";
   if (trimmed.length === 0) {
     return base;

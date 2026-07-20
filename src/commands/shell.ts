@@ -85,7 +85,10 @@ export interface ShellDeps {
 }
 
 /** A short, trusted system instruction assembled by the (trusted) shell itself. */
-const SYSTEM_INSTRUCTION = "You are the keryx interactive shell assistant. Answer concisely.";
+const SYSTEM_INSTRUCTION =
+  "You are the keryx interactive shell assistant. Be economical with output tokens: " +
+  "lead with the conclusion, give the shortest correct answer, prefer bullet points over " +
+  "prose, and omit preamble and restated context.";
 
 /** Static guidance for `/connect` — never reads/echoes an actual credential. */
 const CONNECT_GUIDANCE = [
