@@ -3,17 +3,34 @@
   "id": "074",
   "slug": "opentui-sidebar",
   "title": "OpenTUI opencode-style sidebar + expandable reasoning (/think) + timestamps + always-on token counter",
-  "status": "in-progress",
+  "status": "done",
   "createdAt": "2026-07-20T13:05:24.773Z",
-  "updatedAt": "2026-07-20T13:05:25.553Z",
+  "updatedAt": "2026-07-20T13:06:05.997Z",
   "source": {
     "type": "description",
     "ref": null
   },
   "acChecksum": "sha256:58ca5d41610476d14730978ad396e1bb93548903f4ae3b1349359e629fc81e0a",
-  "acConfirmed": {},
+  "acConfirmed": {
+    "AC1": {
+      "at": "2026-07-20T13:06:05.571Z",
+      "note": "tsc clean; bun test 1507/0; user validates look on TTY"
+    },
+    "AC2": {
+      "at": "2026-07-20T13:06:05.655Z",
+      "note": "tsc clean; bun test 1507/0; user validates look on TTY"
+    },
+    "AC3": {
+      "at": "2026-07-20T13:06:05.767Z",
+      "note": "tsc clean; bun test 1507/0; user validates look on TTY"
+    },
+    "AC4": {
+      "at": "2026-07-20T13:06:05.862Z",
+      "note": "tsc clean; bun test 1507/0; user validates look on TTY"
+    }
+  },
   "pr": {
-    "url": null
+    "url": "https://github.com/MrCipherSmith/keryx/pull/118"
   },
   "tasks": [
     {
@@ -154,6 +171,45 @@
       "at": "2026-07-20T13:05:25.553Z",
       "event": "task-done",
       "detail": "T6: verify"
+    },
+    {
+      "at": "2026-07-20T13:06:05.444Z",
+      "event": "implemented",
+      "detail": "draft PR: https://github.com/MrCipherSmith/keryx/pull/118 (warning: PR is not a draft)"
+    },
+    {
+      "at": "2026-07-20T13:06:05.571Z",
+      "event": "ac-confirmed",
+      "detail": "AC1: tsc clean; bun test 1507/0; user validates look on TTY"
+    },
+    {
+      "at": "2026-07-20T13:06:05.655Z",
+      "event": "ac-confirmed",
+      "detail": "AC2: tsc clean; bun test 1507/0; user validates look on TTY"
+    },
+    {
+      "at": "2026-07-20T13:06:05.767Z",
+      "event": "ac-confirmed",
+      "detail": "AC3: tsc clean; bun test 1507/0; user validates look on TTY"
+    },
+    {
+      "at": "2026-07-20T13:06:05.862Z",
+      "event": "ac-confirmed",
+      "detail": "AC4: tsc clean; bun test 1507/0; user validates look on TTY"
+    },
+    {
+      "at": "2026-07-20T13:06:05.949Z",
+      "event": "completing"
+    },
+    {
+      "at": "2026-07-20T13:06:05.997Z",
+      "event": "done",
+      "detail": "all gates passed"
     }
-  ]
+  ],
+  "merged": {
+    "commit": "1d274ba06edc5492942209b750b5b2b1a1320089",
+    "ref": "origin/main",
+    "at": "2026-07-20T13:06:05.997Z"
+  }
 }

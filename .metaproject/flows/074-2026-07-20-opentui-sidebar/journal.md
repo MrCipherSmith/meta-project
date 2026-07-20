@@ -16,3 +16,10 @@
 - 2026-07-20T13:05:25.400Z - task-done: T3: Add/adjust tests and make them pass
 - 2026-07-20T13:05:25.476Z - task-done: T5: sidebar+reasoning+timestamps+tokens
 - 2026-07-20T13:05:25.553Z - task-done: T6: verify
+- 2026-07-20T13:06:05.444Z - implemented: draft PR: https://github.com/MrCipherSmith/keryx/pull/118 (warning: PR is not a draft)
+- 2026-07-20T13:06:05.571Z - ac-confirmed: AC1: tsc clean; bun test 1507/0; user validates look on TTY
+- 2026-07-20T13:06:05.655Z - ac-confirmed: AC2: tsc clean; bun test 1507/0; user validates look on TTY
+- 2026-07-20T13:06:05.767Z - ac-confirmed: AC3: tsc clean; bun test 1507/0; user validates look on TTY
+- 2026-07-20T13:06:05.862Z - ac-confirmed: AC4: tsc clean; bun test 1507/0; user validates look on TTY
+- 2026-07-20T13:06:05.949Z - completing
+- 2026-07-20T13:06:05.997Z - done: all gates passed
