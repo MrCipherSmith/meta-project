@@ -390,3 +390,22 @@ test("flow 078: openrouter is ALWAYS offered (key entered at use time; no networ
   const without = await detectProviders({ fetch: throwingFetch("no ollama"), env: {} });
   expect(without.find((d) => d.name === "openrouter")?.models).toContain("openai/gpt-4o-mini");
 });
+
+test("flow 085: additional OpenAI-compat providers are always offered with baseUrl + envKey", async () => {
+  const detected = await detectProviders({ fetch: throwingFetch("no ollama"), env: {} });
+  const expected: Record<string, { baseUrl: string; envKey: string }> = {
+    deepseek: { baseUrl: "https://api.deepseek.com", envKey: "DEEPSEEK_API_KEY" },
+    zai: { baseUrl: "https://api.z.ai/api/paas/v4", envKey: "ZAI_API_KEY" },
+    cerebras: { baseUrl: "https://api.cerebras.ai", envKey: "CEREBRAS_API_KEY" },
+    groq: { baseUrl: "https://api.groq.com/openai", envKey: "GROQ_API_KEY" },
+    moonshot: { baseUrl: "https://api.moonshot.ai", envKey: "MOONSHOT_API_KEY" },
+  };
+  for (const [name, want] of Object.entries(expected)) {
+    const p = detected.find((d) => d.name === name);
+    expect(p?.baseUrl).toBe(want.baseUrl);
+    expect(p?.envKey).toBe(want.envKey);
+    expect(Object.keys(p ?? {})).not.toContain("apiKey"); // key never surfaced
+  }
+  // Z.AI GLM carries the versioned-path overrides.
+  expect(detected.find((d) => d.name === "zai")?.chatPath).toBe("/chat/completions");
+});

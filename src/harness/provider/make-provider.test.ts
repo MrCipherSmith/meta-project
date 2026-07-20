@@ -125,3 +125,22 @@ test("openrouter without a key falls back to the offline FakeProvider (fail-clos
   const provider = makeProvider("openrouter", "m", makeOpts({ env: {} }));
   expect(provider.describe().descriptor.providerId).toBe("fake-provider");
 });
+
+// --- flow 085: additional OpenAI-compatible registry providers --------------
+
+test("deepseek with DEEPSEEK_API_KEY constructs the OpenAI-compatible network provider", () => {
+  const provider = makeProvider("deepseek", "deepseek-chat", makeOpts({ env: { DEEPSEEK_API_KEY: "sk-ds" } }));
+  expect(provider.describe().descriptor.providerId).toBe("ollama");
+});
+
+test("deepseek / zai / cerebras / groq / moonshot WITHOUT their key fail closed to FakeProvider", () => {
+  for (const name of ["deepseek", "zai", "cerebras", "groq", "moonshot"]) {
+    const provider = makeProvider(name, "m", makeOpts({ env: {} }));
+    expect(provider.describe().descriptor.providerId).toBe("fake-provider");
+  }
+});
+
+test("zai (GLM) constructs a network provider from ZAI_API_KEY (versioned coding endpoint via chatPath)", () => {
+  const provider = makeProvider("zai", "glm-4.6", makeOpts({ env: { ZAI_API_KEY: "sk-zai" } }));
+  expect(provider.describe().descriptor.providerId).toBe("ollama");
+});

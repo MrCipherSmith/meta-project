@@ -10,6 +10,7 @@
 // Pure construction: `makeProvider` only CONSTRUCTS a provider — it never calls
 // `opts.fetch` (no network merely by selecting a provider). Deterministic and
 // offline aside from the credential read from `opts.env ?? process.env`.
+import { providerByName } from "../../commands/providers";
 import { AnthropicProvider } from "./anthropic/anthropic-provider";
 import { FakeProvider } from "./fake-provider";
 import { OllamaProvider } from "./ollama/ollama-provider";
@@ -50,16 +51,23 @@ export function makeProvider(name: string, _model: string, opts: MakeProviderOpt
       grant: { network: true, allowLoopback: true, ...(opts.baseUrl !== undefined ? { baseUrl: opts.baseUrl } : {}) },
     });
   }
-  if (name === "openrouter") {
-    // OpenRouter is an OpenAI-compatible public gateway — reuse the OpenAI-compat
-    // adapter with a bearer credential. Fail-closed without a key (never fetches).
-    const apiKey = env.OPENROUTER_API_KEY;
+  // Any registered OpenAI-compatible provider (OpenRouter, DeepSeek, Z.AI GLM,
+  // Cerebras, Groq, Moonshot, …) — reuse the OpenAI-compat adapter with a bearer
+  // credential read from its `envKey`. Fail-closed without a key (never fetches).
+  const compat = providerByName(name);
+  if (compat !== undefined) {
+    const apiKey = env[compat.envKey];
     if (apiKey === undefined || apiKey.length === 0) {
       return new FakeProvider([]);
     }
     return new OllamaProvider({
       fetch: opts.fetch,
-      grant: { network: true, baseUrl: opts.baseUrl ?? "https://openrouter.ai/api", apiKey },
+      grant: {
+        network: true,
+        baseUrl: opts.baseUrl ?? compat.baseUrl,
+        apiKey,
+        ...(compat.chatPath !== undefined ? { chatPath: compat.chatPath } : {}),
+      },
     });
   }
   return new FakeProvider([]);

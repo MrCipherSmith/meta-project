@@ -37,7 +37,7 @@ import { shellExecTool } from "../harness/tool/builtin/shell-exec-tool";
 import { collapseHome } from "../lib/statusbar";
 import { LiveMarkdownBlock } from "../lib/live-render";
 import { launchTuiAgentShell } from "../tui/tui-shell";
-import { loadShellConfig } from "../lib/shell-config";
+import { applySavedApiKeys, loadShellConfig } from "../lib/shell-config";
 import { collapseToolOutput, colorEnabled, indentBlock, renderMarkdown, style, summarizeToolArgs } from "../lib/ui";
 import { type AgentDeps, type AgentIO, buildAgentSystemInstruction, runAgentTurn } from "./agent";
 import { type DetectedProvider, detectProviders, pickAgentMode, pickProviderModel } from "./select";
@@ -792,18 +792,12 @@ export async function shellCommand(args: string[]): Promise<void> {
         idSeq: () => randomUUID(),
       };
     };
-    // Persisted config (flow 080, opencode-style): reuse the last provider/model
-    // and OpenRouter key so the user need not re-enter them. A saved key populates
-    // the env (unless already set); saved provider+model become the default initial
-    // selection when no `--provider` flag is given.
+    // Persisted config (flow 080/085, opencode-style): reuse the last provider/model
+    // and every saved provider API key so the user need not re-enter them. Saved keys
+    // populate the env (unless already set); saved provider+model become the default
+    // initial selection when no `--provider` flag is given.
     const savedCfg = loadShellConfig();
-    if (
-      typeof savedCfg.openrouterKey === "string" &&
-      savedCfg.openrouterKey.length > 0 &&
-      (process.env.OPENROUTER_API_KEY === undefined || process.env.OPENROUTER_API_KEY.length === 0)
-    ) {
-      process.env.OPENROUTER_API_KEY = savedCfg.openrouterKey;
-    }
+    applySavedApiKeys();
     let tuiInitial: { provider: string; model: string; baseUrl?: string } | undefined;
     let tuiDetected: DetectedProvider[] = [];
     if (providerArg !== undefined && modelArg !== undefined) {

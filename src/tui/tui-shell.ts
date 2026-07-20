@@ -18,9 +18,10 @@ import type { AgentDeps, AgentIO } from "../commands/agent";
 import { runAgentTurn } from "../commands/agent";
 import type { NormalizedMessage } from "../harness/provider/types";
 import { AGENT_SLASH_COMMANDS, filterCommands, findAgentCommand } from "../commands/agent-commands";
-import { type DetectedProvider, fetchOpenRouterModels } from "../commands/select";
+import type { DetectedProvider } from "../commands/select";
+import { fetchOpenAiCompatModels, providerByName } from "../commands/providers";
 import { collapseToolOutput, summarizeToolArgs } from "../lib/ui";
-import { saveShellConfig } from "../lib/shell-config";
+import { saveApiKey, saveShellConfig } from "../lib/shell-config";
 
 /** A resolved provider/model selection. */
 export interface TuiSelection {
@@ -224,20 +225,20 @@ function overlayBox(otui: OpenTui, r: Renderer, id: string): Box {
   });
 }
 
-/** Prompt for the OpenRouter API key in an overlay; resolve the key or `undefined`. */
-function promptOpenRouterKey(otui: OpenTui, r: Renderer): Promise<string | undefined> {
+/** Prompt for a provider API key in an overlay; resolve the key or `undefined`. */
+function promptApiKey(otui: OpenTui, r: Renderer, opts: { label: string; envKey: string; placeholder?: string }): Promise<string | undefined> {
   return new Promise((resolve) => {
     const box = overlayBox(otui, r, "key-picker");
     r.root.add(box);
-    box.add(new otui.TextRenderable(r, { id: "kp-title", content: otui.t`${otui.bold("Paste your OpenRouter API key")} ${otui.dim("(Enter)")}` }));
+    box.add(new otui.TextRenderable(r, { id: "kp-title", content: otui.t`${otui.bold(`Paste your ${opts.label} API key`)} ${otui.dim("(Enter)")}` }));
     box.add(
       new otui.TextRenderable(r, {
         id: "kp-note",
-        content: otui.t`${otui.dim("Get one at openrouter.ai/keys · saved to your keryx config dir (owner-only, 0600)")}`,
+        content: otui.t`${otui.dim(`Set as ${opts.envKey} · saved to your keryx config dir (owner-only, 0600)`)}`,
         marginTop: 1,
       }),
     );
-    const keyInput = new otui.InputRenderable(r, { id: "kp-input", placeholder: "sk-or-...", marginTop: 1 });
+    const keyInput = new otui.InputRenderable(r, { id: "kp-input", placeholder: opts.placeholder ?? "sk-...", marginTop: 1 });
     box.add(keyInput);
     keyInput.focus();
     keyInput.on(otui.InputRenderableEvents.ENTER, () => {
@@ -249,10 +250,44 @@ function promptOpenRouterKey(otui: OpenTui, r: Renderer): Promise<string | undef
 }
 
 /**
+ * Fetch a provider's model list for the picker: for a registered OpenAI-compat
+ * provider (`envKey` set) the LIVE `/models` list (filterable by name, e.g. `free`),
+ * sending the saved key when present; otherwise the detected static list.
+ */
+async function modelsForPicker(prov: DetectedProvider): Promise<string[]> {
+  const compat = prov.envKey !== undefined ? providerByName(prov.name) : undefined;
+  if (compat === undefined) {
+    return prov.models;
+  }
+  const key = prov.envKey !== undefined ? process.env[prov.envKey] : undefined;
+  return fetchOpenAiCompatModels(globalThis.fetch, compat, key);
+}
+
+/**
+ * If `prov` is a registered OpenAI-compat provider missing its key, prompt for it,
+ * set it in the env, and persist it (0600) under its `envKey`. No-op otherwise.
+ */
+async function ensureProviderKey(otui: OpenTui, r: Renderer, prov: DetectedProvider): Promise<void> {
+  if (prov.envKey === undefined) {
+    return;
+  }
+  const current = process.env[prov.envKey];
+  if (current !== undefined && current.length > 0) {
+    return;
+  }
+  const key = await promptApiKey(otui, r, { label: prov.label ?? prov.name, envKey: prov.envKey });
+  if (key !== undefined) {
+    process.env[prov.envKey] = key;
+    saveApiKey(prov.envKey, key); // persist (0600), opencode-style
+  }
+}
+
+/**
  * In-TUI provider → model picker. A provider SelectRenderable, then the filterable
- * {@link pickModelInTui}. For OpenRouter the LIVE model list is fetched (all models,
- * searchable — e.g. `free`); without a key it then prompts + persists one. Absolute
- * overlay (works at startup AND for `/connect`). Resolves the selection or `undefined`.
+ * {@link pickModelInTui}. Registered providers (OpenRouter, DeepSeek, Z.AI GLM,
+ * Cerebras, Groq, Moonshot, …) fetch their LIVE model list and prompt + persist a key
+ * when missing. Absolute overlay (works at startup AND for `/connect`). Resolves the
+ * selection or `undefined`.
  */
 function selectProviderModelInTui(
   otui: OpenTui,
@@ -267,6 +302,8 @@ function selectProviderModelInTui(
     const box = overlayBox(otui, r, "picker");
     r.root.add(box);
     box.add(new otui.TextRenderable(r, { id: "picker-title", content: otui.t`${otui.bold("Select a provider")} ${otui.dim("(↑/↓, Enter)")}` }));
+    // Match by the displayed label (unique) so registry ids stay hidden but resolvable.
+    const labelOf = (d: DetectedProvider): string => d.label ?? d.name;
     const provSelect = new otui.SelectRenderable(r, {
       id: "picker-provider",
       width: 60,
@@ -274,35 +311,26 @@ function selectProviderModelInTui(
       // or only half the providers stay visible (flow 084 fix).
       height: selectBoxHeight(detected.length, true),
       showScrollIndicator: true,
-      options: detected.map((d) => ({ name: d.name, description: d.name === "openrouter" ? "hosted · many models" : `${d.models.length} model(s)` })),
+      options: detected.map((d) => ({ name: labelOf(d), description: d.note ?? `${d.models.length} model(s)` })),
       selectedTextColor: "#ffd166",
     });
     box.add(provSelect);
     provSelect.focus();
     provSelect.on(otui.SelectRenderableEvents.ITEM_SELECTED, () => {
       const chosen = provSelect.getSelectedOption();
-      const prov = chosen === null ? undefined : detected.find((d) => d.name === chosen.name);
+      const prov = chosen === null ? undefined : detected.find((d) => labelOf(d) === chosen.name);
       r.root.remove(box);
       if (prov === undefined) {
         resolve(undefined);
         return;
       }
       void (async () => {
-        // OpenRouter: fetch the live, filterable model list; others use detected.
-        const models = prov.name === "openrouter" ? await fetchOpenRouterModels(globalThis.fetch) : prov.models;
-        const model = await pickModelInTui(otui, r, models);
+        const model = await pickModelInTui(otui, r, await modelsForPicker(prov));
         if (model === undefined) {
           resolve(undefined);
           return;
         }
-        const hasKey = typeof process.env.OPENROUTER_API_KEY === "string" && process.env.OPENROUTER_API_KEY.length > 0;
-        if (prov.name === "openrouter" && !hasKey) {
-          const key = await promptOpenRouterKey(otui, r);
-          if (key !== undefined) {
-            process.env.OPENROUTER_API_KEY = key;
-            saveShellConfig({ openrouterKey: key }); // persist (0600), opencode-style
-          }
-        }
+        await ensureProviderKey(otui, r, prov);
         resolve(prov.baseUrl === undefined ? { provider: prov.name, model } : { provider: prov.name, model, baseUrl: prov.baseUrl });
       })();
     });
@@ -728,8 +756,8 @@ export async function launchTuiAgentShell(opts: {
           void (async () => {
             const detected = opts.redetect !== undefined ? await opts.redetect() : opts.detected;
             const prov = detected.find((d) => d.name === currentSel.provider);
-            // OpenRouter: fetch the live, filterable model list; others use detected.
-            const models = currentSel.provider === "openrouter" ? await fetchOpenRouterModels(globalThis.fetch) : (prov?.models ?? []);
+            // Registered providers fetch their live, filterable list; others use detected.
+            const models = prov !== undefined ? await modelsForPicker(prov) : [];
             const chosen = await pickModelInTui(otui, r, models);
             if (chosen !== undefined) {
               await switchTo(
