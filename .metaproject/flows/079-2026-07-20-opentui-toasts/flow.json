@@ -3,17 +3,34 @@
   "id": "079",
   "slug": "opentui-toasts",
   "title": "OpenTUI toast messages — sidebar-bottom transient toasts (Copied to clipboard on copy, auto-dismiss 5s) + key-prompt transparency",
-  "status": "in-progress",
+  "status": "done",
   "createdAt": "2026-07-20T13:56:30.045Z",
-  "updatedAt": "2026-07-20T13:56:30.877Z",
+  "updatedAt": "2026-07-20T13:57:20.885Z",
   "source": {
     "type": "description",
     "ref": null
   },
   "acChecksum": "sha256:5d2872ba9d223813cebe1cfcba923ccef37e01f850c64706bb4b426669e0bff2",
-  "acConfirmed": {},
+  "acConfirmed": {
+    "AC1": {
+      "at": "2026-07-20T13:57:20.496Z",
+      "note": "tsc clean; bun test 1511/0; toast+copy = user on TTY"
+    },
+    "AC2": {
+      "at": "2026-07-20T13:57:20.602Z",
+      "note": "tsc clean; bun test 1511/0; toast+copy = user on TTY"
+    },
+    "AC3": {
+      "at": "2026-07-20T13:57:20.693Z",
+      "note": "tsc clean; bun test 1511/0; toast+copy = user on TTY"
+    },
+    "AC4": {
+      "at": "2026-07-20T13:57:20.776Z",
+      "note": "tsc clean; bun test 1511/0; toast+copy = user on TTY"
+    }
+  },
   "pr": {
-    "url": null
+    "url": "https://github.com/MrCipherSmith/keryx/pull/128"
   },
   "tasks": [
     {
@@ -154,6 +171,45 @@
       "at": "2026-07-20T13:56:30.877Z",
       "event": "task-done",
       "detail": "T6: verify"
+    },
+    {
+      "at": "2026-07-20T13:57:20.363Z",
+      "event": "implemented",
+      "detail": "draft PR: https://github.com/MrCipherSmith/keryx/pull/128 (warning: PR is not a draft)"
+    },
+    {
+      "at": "2026-07-20T13:57:20.496Z",
+      "event": "ac-confirmed",
+      "detail": "AC1: tsc clean; bun test 1511/0; toast+copy = user on TTY"
+    },
+    {
+      "at": "2026-07-20T13:57:20.602Z",
+      "event": "ac-confirmed",
+      "detail": "AC2: tsc clean; bun test 1511/0; toast+copy = user on TTY"
+    },
+    {
+      "at": "2026-07-20T13:57:20.693Z",
+      "event": "ac-confirmed",
+      "detail": "AC3: tsc clean; bun test 1511/0; toast+copy = user on TTY"
+    },
+    {
+      "at": "2026-07-20T13:57:20.776Z",
+      "event": "ac-confirmed",
+      "detail": "AC4: tsc clean; bun test 1511/0; toast+copy = user on TTY"
+    },
+    {
+      "at": "2026-07-20T13:57:20.862Z",
+      "event": "completing"
+    },
+    {
+      "at": "2026-07-20T13:57:20.885Z",
+      "event": "done",
+      "detail": "all gates passed"
     }
-  ]
+  ],
+  "merged": {
+    "commit": "4255efbcae0b7175e902e93d26636b61e14d93ef",
+    "ref": "origin/main",
+    "at": "2026-07-20T13:57:20.885Z"
+  }
 }
