@@ -9,7 +9,25 @@
 // after the run.
 
 import { Worker } from "node:worker_threads";
+import { randomUUID } from "node:crypto";
 import type { SandboxProfile } from "./profile";
+import type { CredentialMask } from "./proxy";
+
+/**
+ * A credential to mask: the contained process sees `sentinel` (set by
+ * setupNetworkRun) in env var `name`; the proxy substitutes the real value on
+ * outbound HTTP requests to `injectHosts`. The real value is supplied by the
+ * caller (read from its own env) and never returned to the contained process.
+ */
+export interface MaskedCredential {
+  name: string;
+  realValue: string;
+  injectHosts: string[];
+}
+
+export interface NetworkRunOptions {
+  masks?: MaskedCredential[];
+}
 
 export interface NetworkRunSetup {
   /** Profile with `proxy` filled in when restricted (unchanged otherwise). */
@@ -23,10 +41,13 @@ export interface NetworkRunSetup {
 const NOOP_CLOSE = async (): Promise<void> => {};
 
 /** Spawn the proxy worker and resolve once it reports its listening port. */
-function startProxyWorker(allowedDomains: string[]): Promise<{ port: number; close: () => Promise<void> }> {
+function startProxyWorker(
+  allowedDomains: string[],
+  masks: CredentialMask[],
+): Promise<{ port: number; close: () => Promise<void> }> {
   return new Promise((resolve, reject) => {
     const worker = new Worker(new URL("./proxy-worker.ts", import.meta.url), {
-      workerData: { allowedDomains },
+      workerData: { allowedDomains, masks },
     });
     let settled = false;
     const timer = setTimeout(() => {
@@ -70,12 +91,27 @@ function startProxyWorker(allowedDomains: string[]): Promise<{ port: number; clo
  * profile + the proxy env. A restricted profile with an empty allowlist still
  * starts a proxy that denies every host (fail-safe: reachable but nothing allowed).
  */
-export async function setupNetworkRun(profile: SandboxProfile): Promise<NetworkRunSetup> {
+export async function setupNetworkRun(
+  profile: SandboxProfile,
+  options: NetworkRunOptions = {},
+): Promise<NetworkRunSetup> {
   if (profile.network !== "restricted") {
     return { profile, envAdditions: {}, close: NOOP_CLOSE };
   }
 
-  const { port, close } = await startProxyWorker(profile.allowedDomains);
+  // Generate a per-run sentinel for each masked credential. The contained
+  // process gets the SENTINEL in its env var; only the proxy (worker) holds the
+  // real value and substitutes it on the wire to the inject hosts.
+  const maskedEnv: Record<string, string> = {};
+  const proxyMasks: CredentialMask[] = [];
+  for (const cred of options.masks ?? []) {
+    if (cred.realValue.length === 0) continue; // nothing to mask
+    const sentinel = `keryx-sentinel-${randomUUID()}`;
+    maskedEnv[cred.name] = sentinel;
+    proxyMasks.push({ sentinel, realValue: cred.realValue, injectHosts: cred.injectHosts });
+  }
+
+  const { port, close } = await startProxyWorker(profile.allowedDomains, proxyMasks);
   // The env URL uses `localhost` (not the bind IP) so it matches the launcher's
   // loopback network rule — macOS Seatbelt's `remote ip` host must be `localhost`.
   const url = `http://localhost:${port}`;
@@ -87,6 +123,8 @@ export async function setupNetworkRun(profile: SandboxProfile): Promise<NetworkR
       http_proxy: url,
       https_proxy: url,
       ALL_PROXY: url,
+      // Masked credentials: contained process sees only the sentinel.
+      ...maskedEnv,
     },
     close,
   };

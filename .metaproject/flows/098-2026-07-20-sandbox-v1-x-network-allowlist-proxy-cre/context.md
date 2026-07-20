@@ -63,8 +63,23 @@ FINDING: the executor's structural guard denies loopback/private-egress addresse
 the proxy. This is correct: real allowlists target public hosts. The smoke therefore proves
 the proxy path via a deny (deterministic, no internet).
 
+### Slice 4 done — credential-masking mechanism (HTTP)
+`proxy.ts` gains `masks: [{sentinel, realValue, injectHosts}]`: on a plaintext HTTP forward
+to an inject host it substitutes sentinel→realValue in the request headers (tests: unmask to
+inject host; sentinel passes through for a non-inject host; never leaks). `network-run.ts`
+`setupNetworkRun(profile, {masks})` generates a per-run `keryx-sentinel-<uuid>` for each
+masked cred, sets the contained env var to the SENTINEL (the real value is held only by the
+proxy worker), and configures the proxy. Passed to the worker via workerData (in-process
+trust). +4 tests.
+
+DELIBERATELY NOT exposed via a CLI flag yet: masking is HTTP-only, but real creds target
+HTTPS, which the blind CONNECT relay can't rewrite without TLS termination. Shipping a
+`--mask-env` flag now would be a footgun (sentinel leaks over HTTPS). Mechanism is the
+foundation; TLS-terminate + CLI exposure is the next slice.
+
 ### Remaining
-1. Credential masking (sentinel env + proxy substitution on injectHosts; TLS-terminate scope).
+1. TLS-terminate proxy (MITM + CA in sandbox) → HTTPS masking + content filtering; THEN
+   expose `--mask-env NAME@host` on `harness exec`.
 2. Wire restricted into the AGENT shell_exec path (not just `harness exec`).
 3. Dist caveat: worker path is `import.meta.url`-relative (works from src; verify under the
    bundled build or ship the worker as a separate asset).

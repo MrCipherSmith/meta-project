@@ -45,6 +45,19 @@ export interface ProxyDecision {
   kind: "connect" | "http";
 }
 
+/**
+ * A credential to unmask on the wire. The contained process only ever sees
+ * `sentinel`; the proxy substitutes `realValue` in the request headers of
+ * plaintext HTTP requests to a host matching `injectHosts`. NOTE: substitution
+ * is HTTP-only — HTTPS goes through the blind `CONNECT` relay (no TLS
+ * termination), so masking does not apply to it in v1.x.
+ */
+export interface CredentialMask {
+  sentinel: string;
+  realValue: string;
+  injectHosts: string[];
+}
+
 export interface AllowlistProxyOptions {
   allowedDomains: string[];
   /** Bind host — loopback only. Default 127.0.0.1. */
@@ -53,6 +66,38 @@ export interface AllowlistProxyOptions {
   port?: number;
   /** Audit hook: called for every allow/deny decision. */
   onDecision?: (decision: ProxyDecision) => void;
+  /** Credentials to unmask on outbound HTTP requests to their inject hosts. */
+  masks?: CredentialMask[];
+}
+
+/** Replace every mask's sentinel with its real value inside a header value. */
+function substituteValue(value: string | string[] | undefined, masks: CredentialMask[]): string | string[] | undefined {
+  if (value === undefined) return undefined;
+  const one = (s: string): string => {
+    let out = s;
+    for (const m of masks) out = out.split(m.sentinel).join(m.realValue);
+    return out;
+  };
+  return Array.isArray(value) ? value.map(one) : one(value);
+}
+
+/**
+ * Return `headers` with each applicable mask's sentinel replaced by its real
+ * value, for a request whose destination `hostname` matches the mask's
+ * `injectHosts`. Non-applicable masks (or none) leave headers untouched.
+ */
+function applyMasks(
+  headers: http.IncomingHttpHeaders,
+  masks: CredentialMask[],
+  hostname: string,
+): http.IncomingHttpHeaders {
+  const applicable = masks.filter((m) => matchesAllowlist(hostname, m.injectHosts));
+  if (applicable.length === 0) return headers;
+  const out: http.IncomingHttpHeaders = {};
+  for (const [key, value] of Object.entries(headers)) {
+    out[key] = substituteValue(value, applicable) as http.IncomingHttpHeaders[string];
+  }
+  return out;
 }
 
 export interface AllowlistProxy {
@@ -98,8 +143,9 @@ export async function createAllowlistProxy(opts: AllowlistProxyOptions): Promise
       res.end("blocked by keryx sandbox network allowlist");
       return;
     }
+    const headers = applyMasks(req.headers, opts.masks ?? [], target.hostname);
     const upstream = http.request(
-      { host: target.hostname, port: target.port, method: req.method, path: pathFromUrl(req.url), headers: req.headers },
+      { host: target.hostname, port: target.port, method: req.method, path: pathFromUrl(req.url), headers },
       (up) => {
         res.writeHead(up.statusCode ?? 502, up.headers);
         up.pipe(res);

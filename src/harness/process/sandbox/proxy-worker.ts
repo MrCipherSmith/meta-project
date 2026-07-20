@@ -6,16 +6,19 @@
 // connections during that window. Running it in a worker gives it an independent
 // event loop that keeps serving while the main thread is blocked.
 //
-// Protocol: parent passes `{ allowedDomains, host }` via workerData; the worker
-// posts `{ type: "ready", port }` once listening, then serves until it receives
-// `{ type: "close" }`, closes the proxy, and exits.
+// Protocol: parent passes `{ allowedDomains, host, masks }` via workerData; the
+// worker posts `{ type: "ready", port }` once listening, then serves until it
+// receives `{ type: "close" }`, closes the proxy, and exits. `masks` carry real
+// credential values, but only across the in-process worker boundary (same trust
+// domain) — never to the contained process, which sees only sentinels.
 
 import { parentPort, workerData } from "node:worker_threads";
-import { createAllowlistProxy, type AllowlistProxy } from "./proxy";
+import { createAllowlistProxy, type AllowlistProxy, type CredentialMask } from "./proxy";
 
 interface WorkerData {
   allowedDomains: string[];
   host?: string;
+  masks?: CredentialMask[];
 }
 
 async function main(): Promise<void> {
@@ -26,6 +29,7 @@ async function main(): Promise<void> {
   const proxy: AllowlistProxy = await createAllowlistProxy({
     allowedDomains: Array.isArray(data.allowedDomains) ? data.allowedDomains : [],
     ...(typeof data.host === "string" ? { host: data.host } : {}),
+    ...(Array.isArray(data.masks) ? { masks: data.masks } : {}),
   });
   parentPort.postMessage({ type: "ready", port: proxy.port, host: proxy.host });
 
