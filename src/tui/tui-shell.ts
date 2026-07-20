@@ -22,6 +22,13 @@ import type { DetectedProvider } from "../commands/select";
 import { resolveModelsForPicker } from "../commands/providers";
 import { collapseToolOutput, summarizeToolArgs } from "../lib/ui";
 import { saveApiKey, saveShellConfig } from "../lib/shell-config";
+import {
+  allowShellPattern,
+  isShellCommandAllowed,
+  loadShellPermissions,
+  parseShellExecCommand,
+  suggestShellPatterns,
+} from "../lib/shell-permissions";
 
 /** A resolved provider/model selection. */
 export interface TuiSelection {
@@ -172,6 +179,81 @@ export function createTuiAgentIo(otui: OpenTui, renderer: Renderer, transcript: 
 /** True only for an explicit `y`/`yes` (case-insensitive). Default-deny otherwise. */
 export function isShellApproved(answer: string): boolean {
   return /^y(es)?$/i.test(answer.trim());
+}
+
+/** Outcomes of the interactive shell_exec approval picker (OpenCode-style). */
+export type ShellApprovalChoice = "once" | "always-exact" | "always-prefix" | "deny";
+
+/**
+ * Interactive approval menu (↑/↓ · Enter · Esc = deny), same interaction model as
+ * the provider/model pickers and `/` command dropdown. Pure wiring over OpenTUI.
+ */
+function pickShellApproval(
+  otui: OpenTui,
+  r: Renderer,
+  command: string,
+): Promise<ShellApprovalChoice> {
+  return new Promise((resolve) => {
+    const { exact, prefix } = suggestShellPatterns(command);
+    const options: Array<{ name: string; description: string; choice: ShellApprovalChoice }> = [
+      { name: "Allow once", description: "Run only this time", choice: "once" },
+      {
+        name: `Always allow “${exact.length > 48 ? `${exact.slice(0, 45)}…` : exact}”`,
+        description: "Remember exact command (saved to permissions.json)",
+        choice: "always-exact",
+      },
+      {
+        name: `Always allow “${prefix}”`,
+        description: "Remember this prefix (saved)",
+        choice: "always-prefix",
+      },
+      { name: "Deny", description: "Do not run (default)", choice: "deny" },
+    ];
+    const box = overlayBox(otui, r, "shell-approval");
+    r.root.add(box);
+    box.add(
+      new otui.TextRenderable(r, {
+        id: "sa-title",
+        content: otui.t`${otui.bold("Allow shell command?")} ${otui.dim("↑/↓ Enter · Esc deny")}`,
+      }),
+    );
+    box.add(
+      new otui.TextRenderable(r, {
+        id: "sa-cmd",
+        content: otui.t`${otui.yellow(command)}`,
+      }),
+    );
+    const sel = new otui.SelectRenderable(r, {
+      id: "sa-sel",
+      width: 72,
+      height: selectBoxHeight(options.length, true),
+      showScrollIndicator: false,
+      showDescription: true,
+      options: options.map((o) => ({ name: o.name, description: o.description })),
+      selectedTextColor: "#ffd166",
+    });
+    box.add(sel);
+    sel.focus();
+    const cleanup = (): void => {
+      unsub();
+      r.root.remove(box);
+    };
+    const onKey = (key: { name: string; preventDefault: () => void; stopPropagation: () => void }): void => {
+      if (key.name === "escape") {
+        cleanup();
+        resolve("deny");
+        key.preventDefault();
+        key.stopPropagation();
+      }
+    };
+    const unsub = onKeypress(r, onKey);
+    sel.on(otui.SelectRenderableEvents.ITEM_SELECTED, () => {
+      const chosen = sel.getSelectedOption();
+      cleanup();
+      const match = options.find((o) => o.name === chosen?.name);
+      resolve(match?.choice ?? "deny");
+    });
+  });
 }
 
 /** Compact token count for the header counter: 1234 → "1.2K", else the number. */
@@ -509,9 +591,11 @@ export async function launchTuiAgentShell(opts: {
   const done = new Promise<void>((resolve) => {
     resolveDone = resolve;
   });
-  // Pending `shell_exec` approval resolver (default-deny on teardown).
+  // Pending `shell_exec` approval (legacy y/N path + interactive picker teardown).
   let uid = 0;
   let pendingApproval: ((ok: boolean) => void) | undefined;
+  /** Session-scoped allow patterns (plus persisted permissions.json). */
+  const sessionShellAllow = new Set<string>(loadShellPermissions().allow);
   try {
     // Stable non-nullable handle for the closures below (the outer `renderer`
     // stays `Renderer | undefined` for the `finally` teardown).
@@ -673,27 +757,66 @@ export async function launchTuiAgentShell(opts: {
         }),
       );
     };
-    // `shell_exec` approval: render a prompt; resolve from the NEXT composer
-    // submit (handled in the ENTER listener). Keeps the default-deny gate.
-    io.requestApproval = (_tool, inputJson) => {
-      let cmd = inputJson;
-      try {
-        const parsed: unknown = JSON.parse(inputJson);
-        if (parsed !== null && typeof parsed === "object" && typeof (parsed as { command?: unknown }).command === "string") {
-          cmd = (parsed as { command: string }).command;
-        }
-      } catch {
-        // show the raw input if it is not JSON
+    // `shell_exec` approval: OpenCode/Claude-style interactive picker
+    // (once / always-exact / always-prefix / deny). Remembered allow patterns
+    // live in permissions.json + this session's set. Default-deny on cancel.
+    io.requestApproval = async (_tool, inputJson) => {
+      const cmd = parseShellExecCommand(inputJson);
+      // Auto-allow from session + disk (re-read disk so external edits apply).
+      for (const p of loadShellPermissions().allow) {
+        sessionShellAllow.add(p);
       }
+      if (isShellCommandAllowed(cmd, [...sessionShellAllow])) {
+        transcript.add(
+          new otui.TextRenderable(r, {
+            id: `ap${uid++}`,
+            content: otui.t`${otui.dim(`✓ auto-approved shell: ${cmd}`)}`,
+          }),
+        );
+        return true;
+      }
+
       transcript.add(
         new otui.TextRenderable(r, {
           id: `ap${uid++}`,
-          content: otui.t`${otui.yellow(`Run: ${cmd}`)} ${otui.dim("[y/N]")}`,
+          content: otui.t`${otui.yellow(`⚙ shell_exec needs approval`)}`,
         }),
       );
-      return new Promise<boolean>((resolve) => {
-        pendingApproval = resolve;
-      });
+      const choice = await pickShellApproval(otui, r, cmd);
+      input.focus();
+
+      if (choice === "deny") {
+        transcript.add(
+          new otui.TextRenderable(r, {
+            id: `av${uid++}`,
+            content: otui.t`${otui.red("denied")}`,
+          }),
+        );
+        return false;
+      }
+
+      if (choice === "always-exact" || choice === "always-prefix") {
+        const { exact, prefix } = suggestShellPatterns(cmd);
+        const pattern = choice === "always-exact" ? exact : prefix;
+        allowShellPattern(pattern);
+        sessionShellAllow.add(pattern);
+        transcript.add(
+          new otui.TextRenderable(r, {
+            id: `av${uid++}`,
+            content: otui.t`${otui.green(`approved · remembered “${pattern}”`)}`,
+          }),
+        );
+        return true;
+      }
+
+      // once
+      transcript.add(
+        new otui.TextRenderable(r, {
+          id: `av${uid++}`,
+          content: otui.t`${otui.green("approved (once)")}`,
+        }),
+      );
+      return true;
     };
 
     // The live `/` command dropdown (Pi/grok-style): a SelectRenderable filtered
@@ -946,7 +1069,8 @@ export async function launchTuiAgentShell(opts: {
     });
 
     input.on(otui.InputRenderableEvents.ENTER, () => {
-      // A pending shell_exec approval consumes this submit (y/N), never a turn.
+      // Legacy y/N fallback if an approval is still pending on the composer
+      // (interactive picker is the primary path and resolves itself).
       if (pendingApproval !== undefined) {
         const ok = isShellApproved(input.value);
         input.value = "";
