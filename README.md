@@ -48,6 +48,37 @@ and alternative install paths (global via `bun`, or project-local).
 
 **Requirements:** `git` and `bun` (>= 1.1.0).
 
+## Interactive agent shell (TUI)
+
+keryx ships a full-screen interactive agent shell. To (re)install the latest and
+launch it in one line:
+
+```bash
+reset && curl -fsSL https://raw.githubusercontent.com/MrCipherSmith/keryx/main/scripts/install.sh | bash -s -- --global && keryx shell --agent --tui
+```
+
+- `reset` clears the terminal first (optional).
+- The `install.sh --global` step updates `~/.keryx/keryx` to `main` and refreshes
+  the `keryx` launcher — run it whenever you want to pull the newest build.
+- `keryx shell --agent --tui` opens the OpenTUI shell in **agent** mode. The TUI is
+  opt-in via `--tui` and needs a real TTY; without it you get the plain readline
+  shell. `--chat` swaps agent mode for plain conversation.
+
+On first launch a picker walks you through **provider → model → API key**:
+
+- **Providers:** any OpenAI-compatible gateway — OpenRouter, DeepSeek, Z.AI (GLM,
+  incl. the flat-rate Coding Plan endpoint), Cerebras, Groq, Moonshot (Kimi) —
+  plus a local Ollama and `anthropic` when their env keys are set.
+- **Models:** the live model list is fetched per provider and is **type-to-filter**
+  (start typing, e.g. `free`, to narrow it).
+- **API key:** prompted when missing and saved owner-only (`0600`) to your keryx
+  config dir, then reused on the next launch (an already-set env var always wins).
+- **Navigation:** `↑/↓` + `Enter` to choose; `Esc` steps back a stage (key → model
+  → provider), or cancels at the provider step.
+
+Switch on the fly inside the shell with `/model` (change model) and `/connect`
+(change provider / key); `/help` lists all commands.
+
 ## Core Ideas
 
 A few pieces of jargon, defined once:
