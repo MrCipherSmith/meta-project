@@ -20,6 +20,7 @@ import type { NormalizedMessage } from "../harness/provider/types";
 import { AGENT_SLASH_COMMANDS, filterCommands, findAgentCommand } from "../commands/agent-commands";
 import type { DetectedProvider } from "../commands/select";
 import { collapseToolOutput, summarizeToolArgs } from "../lib/ui";
+import { saveShellConfig } from "../lib/shell-config";
 
 /** A resolved provider/model selection. */
 export interface TuiSelection {
@@ -267,7 +268,7 @@ function selectProviderModelInTui(
           box.add(
             new otui.TextRenderable(r, {
               id: "picker-key-note",
-              content: otui.t`${otui.dim("Get one at openrouter.ai/keys · used for this session (not saved to disk)")}`,
+              content: otui.t`${otui.dim("Get one at openrouter.ai/keys · saved to ~/.local/share/keryx/auth.json (chmod 600)")}`,
               marginTop: 1,
             }),
           );
@@ -276,6 +277,7 @@ function selectProviderModelInTui(
             const key = keyInput.value.trim();
             if (key.length > 0) {
               process.env.OPENROUTER_API_KEY = key;
+              saveShellConfig({ openrouterKey: key }); // persist (0600), opencode-style
             }
             finish();
           });
@@ -365,6 +367,8 @@ export async function launchTuiAgentShell(opts: {
       r.destroy();
       return true; // could not select; treat as a clean exit (do not fall back)
     }
+    // Persist the chosen provider/model (opencode-style) so the next launch reuses it.
+    saveShellConfig(sel.baseUrl === undefined ? { provider: sel.provider, model: sel.model } : { provider: sel.provider, model: sel.model, baseUrl: sel.baseUrl });
     const deps = await opts.makeAgentDeps(sel);
 
     // opencode-style layout: a main chat column on the left + a right status
