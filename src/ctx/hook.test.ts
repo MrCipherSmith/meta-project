@@ -33,6 +33,29 @@ test("blocks git diff/log/show, allows other git subcommands", () => {
   expect(classifyCommand("git commit -m x").block).toBe(false);
 });
 
+test("blocks sed/awk file reads and suggests ctx run", () => {
+  for (const cmd of ["sed -n '1,60p' src/cli.ts", "awk '/foo/{print}' file.ts"]) {
+    const result = classifyCommand(cmd);
+    expect(result.block).toBe(true);
+    expect(result.suggestion).toContain("keryx ctx run");
+  }
+});
+
+test("allows sed in-place edits (no stdout to flood)", () => {
+  expect(classifyCommand("sed -i 's/a/b/' file.ts").block).toBe(false);
+  expect(classifyCommand("sed -i.bak 's/a/b/' file.ts").block).toBe(false);
+  expect(classifyCommand("sed --in-place 's/a/b/' file.ts").block).toBe(false);
+});
+
+test("blocks find and recursive ls, allows plain ls", () => {
+  expect(classifyCommand("find . -name '*.ts'").block).toBe(true);
+  expect(classifyCommand("ls -R src").block).toBe(true);
+  expect(classifyCommand("ls -laR").block).toBe(true);
+  expect(classifyCommand("ls --recursive").block).toBe(true);
+  expect(classifyCommand("ls -la").block).toBe(false);
+  expect(classifyCommand("ls -lr src").block).toBe(false); // -r is reverse, not recursive
+});
+
 test("does not block already-routed keryx ctx / rtk commands", () => {
   expect(classifyCommand('keryx ctx rg "foo"').block).toBe(false);
   expect(classifyCommand("rtk grep foo").block).toBe(false);

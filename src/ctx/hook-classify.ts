@@ -4,8 +4,9 @@
 // It knows nothing about how any particular harness delivers the command or
 // signals a block — that lives in the per-runtime adapters (runtimes.ts).
 //
-// The guard is deliberately NARROW (routing-only): it flags only the handful of
-// commands where `keryx ctx` adds structural value (rg/grep, cat/head/tail, git
+// The guard is deliberately NARROW (routing-only): it flags only the commands
+// whose output floods context and where `keryx ctx` adds structural value
+// (rg/grep, cat/head/tail, sed/awk file reads, find, recursive ls, git
 // diff/log/show) and passes everything else through, so a generic output-
 // compressing proxy can coexist. An explicit escape marker
 // (`# keryx:raw <reason>`) always allows a raw command and self-documents why.
@@ -90,6 +91,28 @@ export function classifyCommand(command: string): HookClassification {
       if (route.names.test(first)) {
         return { block: true, matched: first, suggestion: route.suggestion };
       }
+    }
+
+    // sed/awk that PRINT file content flood context; route them through the
+    // generic compaction wrapper. Skip `sed -i` (in-place edit, no stdout).
+    if (first === "sed" || first === "awk") {
+      const inPlace =
+        first === "sed" &&
+        tokens.slice(1).some((t) => t === "-i" || t.startsWith("-i") || t === "--in-place");
+      if (!inPlace) {
+        return { block: true, matched: first, suggestion: "keryx ctx run -- <command>" };
+      }
+    }
+
+    // Large listings: `find` (any) and recursive `ls` (`-R`/`--recursive`).
+    if (first === "find") {
+      return { block: true, matched: "find", suggestion: "keryx ctx run -- <command>" };
+    }
+    if (
+      first === "ls" &&
+      tokens.slice(1).some((t) => t === "--recursive" || /^-[A-Za-z]*R/.test(t))
+    ) {
+      return { block: true, matched: "ls -R", suggestion: "keryx ctx run -- <command>" };
     }
 
     if (first === "git" && tokens[1] && GIT_ROUTABLE.test(tokens[1])) {

@@ -779,6 +779,12 @@ function groupBy<T>(items: T[], getKey: (item: T) => string): Map<string, T[]> {
 function printArtifactSummary(artifact: CtxArtifact, summary: string): void {
   console.log(summary.trimEnd());
   console.log("");
+  if (artifact.truncated && artifact.bytesIn > 0) {
+    const savedPct = Math.round((1 - artifact.bytesOut / artifact.bytesIn) * 100);
+    console.log(
+      `compacted: ${artifact.bytesIn.toLocaleString("en-US")} → ${artifact.bytesOut.toLocaleString("en-US")} bytes (${savedPct}% saved; full output in raw)`,
+    );
+  }
   console.log(`raw: ${artifact.rawPath}`);
   console.log(`summary: ${artifact.summaryPath}`);
 }
