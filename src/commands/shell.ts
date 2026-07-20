@@ -36,6 +36,7 @@ import { buildApprovalContext } from "./agent-approval-context";
 import { shellExecTool } from "../harness/tool/builtin/shell-exec-tool";
 import { collapseHome } from "../lib/statusbar";
 import { LiveMarkdownBlock } from "../lib/live-render";
+import { launchTuiShell } from "../tui/tui-shell";
 import { collapseToolOutput, colorEnabled, indentBlock, renderMarkdown, style, summarizeToolArgs } from "../lib/ui";
 import { type AgentDeps, type AgentIO, buildAgentSystemInstruction, runAgentTurn } from "./agent";
 import { detectProviders, pickAgentMode, pickProviderModel } from "./select";
@@ -738,6 +739,7 @@ export async function shellCommand(args: string[]): Promise<void> {
   // interactive picker asks (agent-default), and the non-interactive path
   // defaults to agent. `undefined` = "no explicit flag given".
   let modeFlag: boolean | undefined;
+  let tuiFlag = false;
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
     if (arg === "--provider") {
@@ -750,7 +752,15 @@ export async function shellCommand(args: string[]): Promise<void> {
       modeFlag = true;
     } else if (arg === "--chat") {
       modeFlag = false;
+    } else if (arg === "--tui") {
+      tuiFlag = true;
     }
+  }
+
+  // Experimental OpenTUI shell (flow 059 spike). Opt-in via `--tui`; falls back to
+  // the readline shell below when there is no TTY or the TUI cannot initialise.
+  if (tuiFlag && (await launchTuiShell())) {
+    return;
   }
 
   const rl = readline.createInterface({ input: process.stdin });
