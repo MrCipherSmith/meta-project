@@ -697,20 +697,30 @@ export async function launchTuiAgentShell(opts: {
       new otui.TextRenderable(r, { id: "sb-tools-v", content: otui.t`${otui.dim(`${deps.tools.length} available`)}` }),
     );
     // Multi-agent / page-worker fleet (enrich swarm + future harness subagents).
-    sidebar.add(new otui.TextRenderable(r, { id: "sb-workers-k", content: otui.t`${otui.dim("Workers")}`, marginTop: 1 }));
+    // Live activity: main agent phase + optional enrich/subagent fleet.
+    // Yellow when blocked (user must act), red on failure — not cryptic glyphs only.
+    sidebar.add(new otui.TextRenderable(r, { id: "sb-status-k", content: otui.t`${otui.dim("Status")}`, marginTop: 1 }));
     const sbWorkers = new otui.TextRenderable(r, {
-      id: "sb-workers-v",
-      content: otui.t`${otui.dim("(idle)")}`,
+      id: "sb-status-v",
+      content: otui.t`${otui.dim("○ Ready")}`,
     });
     sidebar.add(sbWorkers);
     const fleet = new WorkerFleet();
     const paintFleet = (): void => {
-      const text = formatFleetSidebar(fleet.list(), 12);
-      sbWorkers.content = otui.t`${otui.dim(text)}`;
+      const list = fleet.list();
+      const text = formatFleetSidebar(list, 12);
+      const main = list.find((w) => w.id === MAIN_AGENT_ID);
+      if (main?.status === "blocked") {
+        sbWorkers.content = otui.t`${otui.yellow(text)}`;
+      } else if (main?.status === "failed") {
+        sbWorkers.content = otui.t`${otui.red(text)}`;
+      } else {
+        sbWorkers.content = otui.t`${otui.dim(text)}`;
+      }
     };
     fleet.subscribe(paintFleet);
 
-    /** Update the pinned main-agent slot (same glyphs as page workers / subagents). */
+    /** Update the pinned main-agent slot (Activity panel). */
     const setMainAgent = (
       status: "queued" | "running" | "done" | "failed" | "blocked",
       detail?: string,
@@ -724,7 +734,7 @@ export async function launchTuiAgentShell(opts: {
       });
     };
     // Idle main agent visible from launch.
-    setMainAgent("queued", "idle");
+    setMainAgent("queued", "ready");
     // Toast area pinned to the bottom of the sidebar (spacer pushes it down).
     sidebar.add(new otui.BoxRenderable(r, { id: "sb-spacer", flexGrow: 1 }));
     const toastText = new otui.TextRenderable(r, { id: "sb-toast", content: "" });
@@ -827,13 +837,14 @@ export async function launchTuiAgentShell(opts: {
       const args = summarizeToolArgs(input);
       const short = args.length > 40 ? `${args.slice(0, 37)}…` : args;
       setBusyPhase(short.length > 0 ? `running ${name}(${short})` : `running ${name}`);
-      setMainAgent("running", name.length > 14 ? `${name.slice(0, 12)}…` : name);
+      // Keep tool names intact for humanFleetPhase ("tool: shell_exec").
+      setMainAgent("running", name.length > 20 ? `${name.slice(0, 18)}…` : name);
       baseOnToolCall?.(name, input);
     };
     io.onToolResult = (name, result) => {
       setBusyPhase(result.isError ? `tool error · waiting for model` : `waiting for model`);
       // Stay "running" between tools (multi-step turn); only terminal on turn end.
-      setMainAgent("running", result.isError ? `err:${name.slice(0, 10)}` : "waiting");
+      setMainAgent("running", result.isError ? `err:${name.slice(0, 14)}` : "waiting");
       baseOnToolResult?.(name, result);
     };
     io.onSystem = (text) => {
@@ -923,6 +934,7 @@ export async function launchTuiAgentShell(opts: {
         }),
       );
       setMainAgent("blocked", "approval");
+      setBusyPhase("waiting for your approval (menu above input)");
       menu.visible = false;
       const choice = await pickShellApproval(otui, r, choiceDock, cmd);
       input.focus();
@@ -935,6 +947,7 @@ export async function launchTuiAgentShell(opts: {
           }),
         );
         setMainAgent("running", "denied");
+        setBusyPhase("shell denied · continuing");
         return false;
       }
 
@@ -950,6 +963,7 @@ export async function launchTuiAgentShell(opts: {
           }),
         );
         setMainAgent("running", "shell");
+        setBusyPhase("running approved shell");
         return true;
       }
 
@@ -961,6 +975,7 @@ export async function launchTuiAgentShell(opts: {
         }),
       );
       setMainAgent("running", "shell");
+      setBusyPhase("running approved shell");
       return true;
     };
 
@@ -971,6 +986,7 @@ export async function launchTuiAgentShell(opts: {
     }): Promise<string> => {
       menu.visible = false;
       setMainAgent("blocked", "ask");
+      setBusyPhase("waiting for your answer (menu above input)");
       // Keep a short transcript breadcrumb; the interactive picker is at the input.
       const qShort = req.question.length > 100 ? `${req.question.slice(0, 97)}…` : req.question;
       transcript.add(

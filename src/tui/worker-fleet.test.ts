@@ -1,27 +1,57 @@
 import { expect, test } from "bun:test";
-import { formatFleetSidebar, MAIN_AGENT_ID, shortWorkerLabel, WorkerFleet } from "./worker-fleet";
+import {
+  formatFleetSidebar,
+  humanFleetPhase,
+  MAIN_AGENT_ID,
+  mainHeadline,
+  shortWorkerLabel,
+  WorkerFleet,
+} from "./worker-fleet";
 
 test("shortWorkerLabel strips path and .md", () => {
   expect(shortWorkerLabel("components/src-wiki.md")).toBe("src-wiki");
   expect(shortWorkerLabel("src-foo")).toBe("src-foo");
 });
 
-test("formatFleetSidebar idle and ordered glyphs", () => {
-  expect(formatFleetSidebar([])).toBe("(idle)");
+test("humanFleetPhase maps cryptic keys to readable phrases", () => {
+  expect(humanFleetPhase("blocked", "approval")).toBe("shell permission");
+  expect(humanFleetPhase("blocked", "ask")).toBe("answer a question");
+  expect(humanFleetPhase("running", "thinking")).toBe("thinking…");
+  expect(humanFleetPhase("running", "streaming")).toBe("writing reply…");
+  expect(humanFleetPhase("running", "shell_exec")).toBe("tool: shell_exec");
+  expect(humanFleetPhase("queued", "idle")).toBe("ready");
+  expect(mainHeadline("blocked")).toContain("Waiting for you");
+});
+
+test("formatFleetSidebar idle and blocked main are human-readable", () => {
+  expect(formatFleetSidebar([])).toContain("Ready");
+
+  const blocked = formatFleetSidebar([
+    { id: MAIN_AGENT_ID, label: "main", status: "blocked", detail: "approval" },
+  ]);
+  expect(blocked).toContain("Waiting for you");
+  expect(blocked).toContain("shell permission");
+  expect(blocked).toMatch(/pick menu above input/i);
+  // Must NOT claim "run" for a user wait.
+  expect(blocked).not.toMatch(/\d+ run/);
+});
+
+test("formatFleetSidebar fleet counts busy not wait-as-run", () => {
   const text = formatFleetSidebar([
+    { id: MAIN_AGENT_ID, label: "main", status: "running", detail: "thinking" },
     { id: "a", label: "page-a", status: "done" },
     { id: "b", label: "page-b", status: "running", detail: "model" },
     { id: "c", label: "page-c", status: "failed", detail: "validate" },
     { id: "d", label: "page-d", status: "queued" },
   ]);
-  expect(text).toContain("1 run");
-  expect(text).toContain("1 ok");
-  expect(text).toContain("1 fail");
-  // running before done
-  const runIdx = text.indexOf("◐");
-  const doneIdx = text.indexOf("●");
-  expect(runIdx).toBeGreaterThanOrEqual(0);
-  expect(doneIdx).toBeGreaterThan(runIdx);
+  expect(text).toContain("Working");
+  expect(text).toContain("thinking");
+  expect(text).toMatch(/Fleet/);
+  expect(text).toMatch(/busy/);
+  expect(text).toMatch(/ok/);
+  expect(text).toMatch(/fail/);
+  // running glyph appears for page workers
+  expect(text).toContain("◐");
 });
 
 test("formatFleetSidebar pins main agent first", () => {
@@ -30,10 +60,10 @@ test("formatFleetSidebar pins main agent first", () => {
     { id: MAIN_AGENT_ID, label: "main", status: "running", detail: "thinking" },
     { id: "a", label: "page-a", status: "queued" },
   ]);
-  const mainIdx = text.indexOf("main");
+  const headIdx = text.indexOf("Working");
   const pageIdx = text.indexOf("page-z");
-  expect(mainIdx).toBeGreaterThanOrEqual(0);
-  expect(mainIdx).toBeLessThan(pageIdx);
+  expect(headIdx).toBeGreaterThanOrEqual(0);
+  expect(headIdx).toBeLessThan(pageIdx);
 });
 
 test("WorkerFleet upsert and subscribe", () => {
