@@ -3,17 +3,34 @@
   "id": "075",
   "slug": "opentui-layout-shrink",
   "title": "OpenTUI layout fix — composer no longer breaks when the transcript scrolls (flexShrink:0 on chrome, minHeight:0 on scroll)",
-  "status": "in-progress",
+  "status": "done",
   "createdAt": "2026-07-20T13:16:02.569Z",
-  "updatedAt": "2026-07-20T13:16:03.435Z",
+  "updatedAt": "2026-07-20T13:16:44.107Z",
   "source": {
     "type": "description",
     "ref": null
   },
   "acChecksum": "sha256:8a4833bd8f0cb96315f67e735001820aa93f91f4f3b0e2869fd22b5a12c0a8eb",
-  "acConfirmed": {},
+  "acConfirmed": {
+    "AC1": {
+      "at": "2026-07-20T13:16:43.199Z",
+      "note": "tsc clean; bun test 1507/0; user validates layout on TTY"
+    },
+    "AC2": {
+      "at": "2026-07-20T13:16:43.344Z",
+      "note": "tsc clean; bun test 1507/0; user validates layout on TTY"
+    },
+    "AC3": {
+      "at": "2026-07-20T13:16:43.469Z",
+      "note": "tsc clean; bun test 1507/0; user validates layout on TTY"
+    },
+    "AC4": {
+      "at": "2026-07-20T13:16:43.740Z",
+      "note": "tsc clean; bun test 1507/0; user validates layout on TTY"
+    }
+  },
   "pr": {
-    "url": null
+    "url": "https://github.com/MrCipherSmith/keryx/pull/120"
   },
   "tasks": [
     {
@@ -154,6 +171,45 @@
       "at": "2026-07-20T13:16:03.435Z",
       "event": "task-done",
       "detail": "T6: verify"
+    },
+    {
+      "at": "2026-07-20T13:16:42.195Z",
+      "event": "implemented",
+      "detail": "draft PR: https://github.com/MrCipherSmith/keryx/pull/120 (warning: PR is not a draft)"
+    },
+    {
+      "at": "2026-07-20T13:16:43.199Z",
+      "event": "ac-confirmed",
+      "detail": "AC1: tsc clean; bun test 1507/0; user validates layout on TTY"
+    },
+    {
+      "at": "2026-07-20T13:16:43.344Z",
+      "event": "ac-confirmed",
+      "detail": "AC2: tsc clean; bun test 1507/0; user validates layout on TTY"
+    },
+    {
+      "at": "2026-07-20T13:16:43.469Z",
+      "event": "ac-confirmed",
+      "detail": "AC3: tsc clean; bun test 1507/0; user validates layout on TTY"
+    },
+    {
+      "at": "2026-07-20T13:16:43.740Z",
+      "event": "ac-confirmed",
+      "detail": "AC4: tsc clean; bun test 1507/0; user validates layout on TTY"
+    },
+    {
+      "at": "2026-07-20T13:16:44.034Z",
+      "event": "completing"
+    },
+    {
+      "at": "2026-07-20T13:16:44.107Z",
+      "event": "done",
+      "detail": "all gates passed"
     }
-  ]
+  ],
+  "merged": {
+    "commit": "1bd7a4bef4fbd1ff13401273e0cdf951f42c51fb",
+    "ref": "origin/main",
+    "at": "2026-07-20T13:16:44.106Z"
+  }
 }
