@@ -23,6 +23,13 @@ import type { BudgetReservation, ParentRemainingBudget } from "./isolation";
 export interface LedgerLimits {
   /** Maximum total children admitted over the ledger's lifetime. */
   maxChildren?: number;
+  /**
+   * Optional provider-neutral cost ceiling (flow 101). When set, the ledger
+   * decrements a cost dimension by each reservation's `costUnits` and denies a
+   * reservation whose cost would breach the remaining ceiling. When absent, cost
+   * is not tracked at all (byte-for-byte the pre-hook behavior).
+   */
+  maxCostUnits?: number;
 }
 
 /** Result of {@link RemainingBudgetLedger.admit}: a granted reservation or a denial. */
@@ -55,6 +62,8 @@ export class RemainingBudgetLedger {
   private remainingBudget: ParentRemainingBudget;
   private admittedChildren = 0;
   private readonly maxChildren: number | undefined;
+  /** Remaining cost budget; `undefined` when cost is not tracked (no ceiling). */
+  private costUnitsRemaining: number | undefined;
 
   constructor(initial: ParentRemainingBudget, limits: LedgerLimits = {}) {
     this.remainingBudget =
@@ -62,6 +71,12 @@ export class RemainingBudgetLedger {
         ? { maxRuntimeMs: initial.maxRuntimeMs, maxToolCalls: initial.maxToolCalls }
         : { maxRuntimeMs: initial.maxRuntimeMs };
     this.maxChildren = limits.maxChildren;
+    this.costUnitsRemaining = limits.maxCostUnits;
+  }
+
+  /** Remaining cost budget, or `undefined` when cost is not tracked. */
+  get costRemaining(): number | undefined {
+    return this.costUnitsRemaining;
   }
 
   /** A copy of the currently-remaining budget (never the internal reference). */
@@ -77,9 +92,11 @@ export class RemainingBudgetLedger {
   }
 
   /**
-   * Admit one child reservation. On success the running remaining is decremented
-   * and the child counter incremented; on ANY denial (count cap first, then the
-   * fail-closed subset check) state is unchanged.
+   * Admit one child reservation. All checks run BEFORE any mutation, so ANY
+   * denial (count cap, then the fail-closed runtime/tool-call subset check via
+   * `inheritBudget`, then the optional cost ceiling) leaves ledger state entirely
+   * unchanged. On success the running budget, cost (when tracked), and child
+   * counter are decremented together.
    */
   admit(request: BudgetReservation): LedgerAdmitResult {
     if (this.maxChildren !== undefined && this.admittedChildren >= this.maxChildren) {
@@ -89,9 +106,28 @@ export class RemainingBudgetLedger {
     if (!granted.ok) {
       return { ok: false, reason: granted.reason };
     }
+    // Cost ceiling (only when tracked). `costUnits` is a caller estimate that
+    // `inheritBudget` deliberately ignores; the ledger owns its aggregation.
+    const cost = request.costUnits ?? 0;
+    if (this.costUnitsRemaining !== undefined && cost > this.costUnitsRemaining) {
+      return {
+        ok: false,
+        reason: `cost cap exceeded: reservation costUnits ${cost} > remaining ${this.costUnitsRemaining}`,
+      };
+    }
+
     this.remainingBudget = decrement(this.remainingBudget, granted.reservation);
     this.admittedChildren += 1;
-    return { ok: true, reservation: granted.reservation };
+    if (this.costUnitsRemaining !== undefined) {
+      this.costUnitsRemaining -= cost;
+    }
+    return {
+      ok: true,
+      reservation:
+        request.costUnits !== undefined
+          ? { ...granted.reservation, costUnits: request.costUnits }
+          : granted.reservation,
+    };
   }
 
   /**

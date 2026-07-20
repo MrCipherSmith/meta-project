@@ -27,6 +27,13 @@ export interface BudgetReservation {
   reservationId: string;
   maxRuntimeMs: number;
   maxToolCalls?: number;
+  /**
+   * Optional provider-neutral cost estimate for this reservation (flow 101). A
+   * caller-supplied estimate (from a pricing/token table). `inheritBudget`
+   * IGNORES it — cost is never part of the runtime/tool-call subset check; only a
+   * `RemainingBudgetLedger` with a `maxCostUnits` ceiling aggregates it.
+   */
+  costUnits?: number;
 }
 
 /** The parent's currently-remaining budget a child request is measured against. */
