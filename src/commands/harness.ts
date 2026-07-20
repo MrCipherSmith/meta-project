@@ -35,6 +35,10 @@ import type {
   RunContainedProcessInput,
 } from "../harness/process/executor";
 import { RealProcessAdapter } from "../harness/process/real-process-adapter";
+import { defaultSandboxProfile } from "../harness/process/sandbox/profile";
+import { resolveSandboxAdapter } from "../harness/process/sandbox/detect";
+import { realpathSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
 import type { BudgetReservation, ParentRemainingBudget } from "../harness/child/isolation";
 import type { ToolRisk } from "../harness/tool/types";
 import { registerExtension } from "../harness/extension/registry";
@@ -47,6 +51,40 @@ import { checkApproval } from "../harness/mutation/approval";
 import type { ApprovalCheckInput } from "../harness/mutation/approval";
 import type { ParsedChildResult } from "../harness/child/contract";
 import type { Provenance } from "../harness/session/types";
+
+/** realpath a path, falling back to the input if it cannot be resolved. */
+function canonicalPath(p: string): string {
+  try {
+    return realpathSync(p);
+  } catch {
+    return p;
+  }
+}
+
+/**
+ * Build the default OS-contained real-subprocess adapter for `keryx harness
+ * exec`: the v1 workspace-write + network-off sandbox around a real spawn.
+ * Writable roots (cwd + session tmp) are canonicalized so a symlinked temp path
+ * (macOS /var, /tmp) is matched by the launcher. Fails closed when the launcher
+ * is missing unless KERYX_SANDBOX_ALLOW_UNSANDBOXED=1; opts out entirely on
+ * KERYX_DANGEROUSLY_DISABLE_SANDBOX=1.
+ */
+function buildDefaultShellAdapter(
+  cwd: string,
+  env: Record<string, string | undefined>,
+): ProcessAdapter {
+  const real = new RealProcessAdapter({ allowRealSubprocess: true });
+  let profile = defaultSandboxProfile(canonicalPath(cwd), canonicalPath(tmpdir()), homedir());
+  if (env.KERYX_DANGEROUSLY_DISABLE_SANDBOX === "1") {
+    profile = { ...profile, mode: "danger-full-access", required: false };
+  }
+  const { adapter } = resolveSandboxAdapter(profile, real, {
+    platform: process.platform,
+    env,
+    failIfUnavailable: env.KERYX_SANDBOX_ALLOW_UNSANDBOXED !== "1",
+  });
+  return adapter;
+}
 
 /**
  * Spec injected into `keryx harness extension` (a test injects it; a real CLI
@@ -464,8 +502,11 @@ function harnessExec(args: string[], deps?: HarnessCommandDeps): void {
   };
   const parentRemaining: ParentRemainingBudget = { maxRuntimeMs: EXEC_PARENT_REMAINING_MS };
 
-  const adapter: ProcessAdapter =
-    deps?.processAdapter ?? new RealProcessAdapter({ allowRealSubprocess: true });
+  // Default (non-injected) real spawns are OS-contained: workspace-write
+  // (writable = cwd + session tmp) + network OFF, fail-closed when the launcher
+  // is missing. Set KERYX_DANGEROUSLY_DISABLE_SANDBOX=1 to opt out, or
+  // KERYX_SANDBOX_ALLOW_UNSANDBOXED=1 to run unsandboxed when no launcher exists.
+  const adapter: ProcessAdapter = deps?.processAdapter ?? buildDefaultShellAdapter(cwd, env);
 
   const runInput: RunContainedProcessInput = {
     command,
