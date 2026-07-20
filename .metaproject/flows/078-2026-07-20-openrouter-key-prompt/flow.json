@@ -3,17 +3,34 @@
   "id": "078",
   "slug": "openrouter-key-prompt",
   "title": "OpenRouter always offered + in-TUI API key prompt when missing (cheap curated models)",
-  "status": "in-progress",
+  "status": "done",
   "createdAt": "2026-07-20T13:51:25.515Z",
-  "updatedAt": "2026-07-20T13:51:26.323Z",
+  "updatedAt": "2026-07-20T13:52:00.978Z",
   "source": {
     "type": "description",
     "ref": null
   },
   "acChecksum": "sha256:7abff15f58379d56e1bf12c1dbad0874e2fd49969902211560b0b772001da09c",
-  "acConfirmed": {},
+  "acConfirmed": {
+    "AC1": {
+      "at": "2026-07-20T13:52:00.502Z",
+      "note": "tsc clean; bun test 1511/0; select updated; key entry = user on TTY"
+    },
+    "AC2": {
+      "at": "2026-07-20T13:52:00.590Z",
+      "note": "tsc clean; bun test 1511/0; select updated; key entry = user on TTY"
+    },
+    "AC3": {
+      "at": "2026-07-20T13:52:00.674Z",
+      "note": "tsc clean; bun test 1511/0; select updated; key entry = user on TTY"
+    },
+    "AC4": {
+      "at": "2026-07-20T13:52:00.765Z",
+      "note": "tsc clean; bun test 1511/0; select updated; key entry = user on TTY"
+    }
+  },
   "pr": {
-    "url": null
+    "url": "https://github.com/MrCipherSmith/keryx/pull/126"
   },
   "tasks": [
     {
@@ -154,6 +171,45 @@
       "at": "2026-07-20T13:51:26.323Z",
       "event": "task-done",
       "detail": "T6: verify"
+    },
+    {
+      "at": "2026-07-20T13:52:00.377Z",
+      "event": "implemented",
+      "detail": "draft PR: https://github.com/MrCipherSmith/keryx/pull/126 (warning: PR is not a draft)"
+    },
+    {
+      "at": "2026-07-20T13:52:00.502Z",
+      "event": "ac-confirmed",
+      "detail": "AC1: tsc clean; bun test 1511/0; select updated; key entry = user on TTY"
+    },
+    {
+      "at": "2026-07-20T13:52:00.590Z",
+      "event": "ac-confirmed",
+      "detail": "AC2: tsc clean; bun test 1511/0; select updated; key entry = user on TTY"
+    },
+    {
+      "at": "2026-07-20T13:52:00.675Z",
+      "event": "ac-confirmed",
+      "detail": "AC3: tsc clean; bun test 1511/0; select updated; key entry = user on TTY"
+    },
+    {
+      "at": "2026-07-20T13:52:00.765Z",
+      "event": "ac-confirmed",
+      "detail": "AC4: tsc clean; bun test 1511/0; select updated; key entry = user on TTY"
+    },
+    {
+      "at": "2026-07-20T13:52:00.916Z",
+      "event": "completing"
+    },
+    {
+      "at": "2026-07-20T13:52:00.978Z",
+      "event": "done",
+      "detail": "all gates passed"
     }
-  ]
+  ],
+  "merged": {
+    "commit": "a4b0438a3067ed0fd89106cd131032ff97a6907c",
+    "ref": "origin/main",
+    "at": "2026-07-20T13:52:00.978Z"
+  }
 }
