@@ -110,14 +110,15 @@ export function buildAgentSystemInstruction(orient?: string, ctx: AgentInstructi
     "to run a known keryx workflow.\n\n" +
     "Workflow routing (follow these instead of improvising):\n" +
     "- User asks to enrich / enrich wiki / «обогати вики» (TUI also pre-routes this):\n" +
-    "  1) Prefer `keryx wiki enrich --list` (or plan) to show draft vs accepted counts.\n" +
-    "  2) Ask the user: enrich drafts only, OR force all pages (`--force`), OR cancel.\n" +
-    "  3) Then shell_exec:\n" +
-    `       keryx wiki enrich --all${enrichFlags}                 # drafts only\n` +
-    `       keryx wiki enrich --all --force${enrichFlags}        # drafts + accepted\n` +
-    `       keryx wiki enrich <page-or-slug>${enrichFlags}       # one page any status\n` +
-    "  Do NOT thrash search_code/read_wiki instead of running wiki enrich.\n" +
-    "- Optional prep: `keryx wiki collect` scaffolds drafts; then enrich.\n" +
+    "  1) `keryx wiki enrich --list` — show drafts vs accepted.\n" +
+    "  2) Ask: drafts only | force all (`--force`) | cancel.\n" +
+    "  3) shell_exec (provider/model from auth.json if omitted):\n" +
+    `       keryx wiki enrich --all${enrichFlags}\n` +
+    `       keryx wiki enrich --all --force --concurrency 4${enrichFlags}\n` +
+    `       keryx wiki enrich --all --resume --limit 10${enrichFlags}\n` +
+    `       keryx wiki enrich --all --refresh-graph${enrichFlags}\n` +
+    "  Do NOT thrash search_code/read_wiki instead of wiki enrich.\n" +
+    "- Optional prep: `keryx wiki collect` then enrich.\n" +
     "- Other keryx work (graph, health, memory, flow) → prefer `shell_exec` with the " +
     "matching `keryx …` CLI when the user wants a full command run.\n\n" +
     "ALWAYS use a tool to obtain facts instead of guessing; never fabricate paths, file " +

@@ -1261,8 +1261,9 @@ export async function launchTuiAgentShell(opts: {
               force,
               provider: currentSel.provider,
               model: currentSel.model,
+              concurrency: 2, // small parallel swarm; raise via CLI for larger batches
               onPage: (info) => {
-                setBusyPhase(`enrich ${info.index}/${info.total} ${info.path}`);
+                setBusyPhase(`enrich ${info.index}/${info.total} [${info.phase}] ${info.path}`);
               },
             });
             stopBusy();

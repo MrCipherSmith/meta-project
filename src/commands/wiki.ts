@@ -232,14 +232,30 @@ async function runAsk(args: string[]): Promise<void> {
 }
 
 async function runEnrich(args: string[]): Promise<void> {
-  const { planWikiEnrich, wikiEnrich } = await import("../wiki/enrich");
+  const { defaultEnrichProgress, planWikiEnrich, wikiEnrich } = await import("../wiki/enrich");
   const prompt = optionValue(args, "--prompt");
   const provider = optionValue(args, "--provider");
   const model = optionValue(args, "--model");
+  const limitRaw = optionValue(args, "--limit");
+  const concurrencyRaw = optionValue(args, "--concurrency");
+  const maxTokensRaw = optionValue(args, "--max-tokens");
   const force = args.includes("--force");
   const listOnly = args.includes("--list");
+  const resume = args.includes("--resume");
+  const refreshGraph = args.includes("--refresh-graph");
+  const dryRun = args.includes("--dry-run");
+  const keepStatus = args.includes("--keep-status");
+  const noValidate = args.includes("--no-validate");
   // Positional page = first bare token that is neither a flag nor a flag's value.
-  const valueFlags = new Set(["--page", "--prompt", "--provider", "--model"]);
+  const valueFlags = new Set([
+    "--page",
+    "--prompt",
+    "--provider",
+    "--model",
+    "--limit",
+    "--concurrency",
+    "--max-tokens",
+  ]);
   const page = args.find(
     (arg, i) => !arg.startsWith("--") && !(i > 0 && valueFlags.has(args[i - 1] as string)),
   );
@@ -287,25 +303,40 @@ async function runEnrich(args: string[]): Promise<void> {
       console.log("- no wiki pages found");
     } else {
       console.log("Run:");
-      console.log("  keryx wiki enrich --all                  # drafts only");
-      console.log("  keryx wiki enrich --all --force          # drafts + accepted");
-      console.log("  keryx wiki enrich <page>                 # one page (any status)");
+      console.log("  keryx wiki enrich --all                         # drafts only (provider/model from auth.json)");
+      console.log("  keryx wiki enrich --all --force                 # drafts + accepted");
+      console.log("  keryx wiki enrich --all --concurrency 4         # parallel page workers");
+      console.log("  keryx wiki enrich --all --resume --limit 10     # continue, 10 pages");
+      console.log("  keryx wiki enrich --all --refresh-graph         # gdgraph build first");
+      console.log("  keryx wiki enrich <page>                        # one page (any status)");
     }
     return;
   }
+
+  const limit = limitRaw !== undefined ? Number.parseInt(limitRaw, 10) : undefined;
+  const concurrency = concurrencyRaw !== undefined ? Number.parseInt(concurrencyRaw, 10) : undefined;
+  const maxOutputTokens = maxTokensRaw !== undefined ? Number.parseInt(maxTokensRaw, 10) : undefined;
 
   const result = await wikiEnrich({
     cwd: process.cwd(),
     ...(page ? { page } : {}),
     all: args.includes("--all"),
     force,
+    resume,
+    refreshGraph,
+    dryRun,
+    keepStatus,
+    validate: !noValidate,
+    markAccepted: !keepStatus,
     ...(prompt ? { prompt } : {}),
     ...(provider ? { provider } : {}),
     ...(model ? { model } : {}),
-    dryRun: args.includes("--dry-run"),
-    onPage: (info) => {
-      console.error(`[enrich] ${info.index}/${info.total} ${info.path} (${info.status})`);
-    },
+    ...(typeof limit === "number" && Number.isFinite(limit) ? { limit } : {}),
+    ...(typeof concurrency === "number" && Number.isFinite(concurrency) ? { concurrency } : {}),
+    ...(typeof maxOutputTokens === "number" && Number.isFinite(maxOutputTokens)
+      ? { maxOutputTokens }
+      : {}),
+    onPage: defaultEnrichProgress,
   });
 
   if (args.includes("--json")) {
@@ -318,7 +349,12 @@ async function runEnrich(args: string[]): Promise<void> {
   console.log("");
   console.log(`provider: ${result.provider} (${result.model})`);
   console.log(`credential available: ${result.credentialAvailable ? "yes" : "no"}`);
-  console.log(`mode: ${page ? `page ${page}` : force ? "batch --force (all statuses)" : "batch drafts only"}`);
+  console.log(`concurrency: ${result.concurrency}`);
+  console.log(
+    `mode: ${page ? `page ${page}` : force ? "batch --force (all statuses)" : "batch drafts only"}` +
+      (resume ? " +resume" : "") +
+      (refreshGraph ? " +refresh-graph" : ""),
+  );
   console.log(
     `enriched: ${result.enriched}  dry-run: ${result.dryRun}  skipped: ${result.skipped}  failed: ${result.failed}`,
   );
@@ -386,8 +422,11 @@ Usage:
   keryx wiki check-links
   keryx wiki validate
   keryx wiki ask "<question>" [--k <n>] [--rerank]
-  keryx wiki enrich [<page>|--all] [--force] [--list] [--prompt "<i>"] [--provider <p>] [--model <m>] [--dry-run] [--json]
-                         # default batch: draft only; --force includes accepted; --list plans without calling the model
+  keryx wiki enrich [<page>|--all] [--force] [--list] [--resume] [--limit N] [--concurrency N]
+                    [--refresh-graph] [--max-tokens N] [--keep-status] [--no-validate]
+                    [--prompt "<i>"] [--provider <p>] [--model <m>] [--dry-run] [--json]
+                         # defaults: drafts only; provider/model from auth.json; validate on;
+                         # mark Status: accepted; concurrency 1 (raise for parallel page swarm)
   keryx wiki context
   keryx wiki backlinks <wiki-page-or-code-file>
 

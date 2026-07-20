@@ -1,25 +1,38 @@
-// gdwiki enrichment via a model provider (flow 087, item 2 — first model-backed
-// command). Targets DRAFT wiki pages (the work-front `wiki collect` already
-// flags) and rewrites their prose through a provider turn.
+// gdwiki enrichment via a model provider (flow 087 + enrich batch/swarm prep).
 //
-// Reuses the harness provider boundary (`makeProvider` + the neutral
-// `ProviderPort.stream`) for a single-shot completion — no tools, no policy
-// loop. FAIL-CLOSED: without a credential for the requested provider the command
-// refuses BEFORE any network attempt and reports a clear reason (never a silent
-// no-op, never a partial write). Deterministic given an injected provider
-// factory; the default factory is the same one `keryx harness run` uses.
+// Targets draft wiki pages by default (or all statuses with `--force`), rewrites
+// prose through provider turns, validates each result, optionally marks
+// Status: accepted, and can run a bounded parallel worker pool (same shape a
+// future subagent swarm would use — one worker per page, concurrency-capped).
+//
+// FAIL-CLOSED without credentials. Provider/model default from shell auth.json
+// (not a hard-coded anthropic-only path). Progress via onPage + stderr.
 
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { buildGraph } from "../gdgraph/build";
 import { defaultModelFor, hasCredential, runModelTurn } from "../harness/provider/single-turn";
 import type { ProviderFactory } from "../harness/provider/single-turn";
 import { pathExists } from "../lib/fs";
-import { envWithSavedApiKeys } from "../lib/shell-config";
-import { collectPages } from "./service";
+import { envWithSavedApiKeys, loadShellConfig } from "../lib/shell-config";
+import { collectPages, wikiValidate } from "./service";
 import type { WikiPage } from "./types";
 
 export type { ProviderFactory } from "../harness/provider/single-turn";
 export { hasCredential } from "../harness/provider/single-turn";
+
+/** Default completion budget per page — wiki pages with frontmatter + prose need headroom. */
+export const DEFAULT_MAX_OUTPUT_TOKENS = 8192;
+
+/** Default parallel workers. 1 = sequential; raise for a page swarm. */
+export const DEFAULT_CONCURRENCY = 1;
+
+/** Hard ceiling so a typo cannot open hundreds of provider streams. */
+export const MAX_CONCURRENCY = 8;
+
+/** Fallback only when neither CLI flags nor auth.json provide a provider. */
+const FALLBACK_PROVIDER = "anthropic";
 
 export interface WikiEnrichInput {
   cwd: string;
@@ -32,20 +45,44 @@ export interface WikiEnrichInput {
   all?: boolean;
   /**
    * Include non-draft pages (e.g. `accepted`) in batch mode.
-   * CLI: `--force`. Ignored when a single `page` is specified (single page
-   * already matches regardless of status).
+   * CLI: `--force`. Single `page` already matches any status.
    */
   force?: boolean;
   /** Extra instruction merged into the enrichment prompt. */
   prompt?: string;
-  /** Provider name (anthropic | ollama | openrouter | grok | …). */
+  /** Provider name; defaults to shell auth.json then {@link FALLBACK_PROVIDER}. */
   provider?: string;
-  /** Model id; a per-provider default is used when absent. */
+  /** Model id; defaults to shell auth.json then provider default. */
   model?: string;
   /** Print the enriched draft without writing it. */
   dryRun?: boolean;
-  /** Called before each page is sent to the model (1-based index). */
-  onPage?: (info: { index: number; total: number; path: string; status: string }) => void;
+  /** Max pages this run (after filters / resume). CLI: `--limit`. */
+  limit?: number;
+  /**
+   * Parallel page workers (1..{@link MAX_CONCURRENCY}). Lays the groundwork for
+   * a multi-agent enrich swarm (one logical worker per page).
+   */
+  concurrency?: number;
+  /** Skip paths already recorded as completed in the resume state file. */
+  resume?: boolean;
+  /** After a successful write, set frontmatter Status to accepted (default true). */
+  markAccepted?: boolean;
+  /** Keep model Status field as returned (disables markAccepted). */
+  keepStatus?: boolean;
+  /** Run `gdgraph build` before enriching. */
+  refreshGraph?: boolean;
+  /** Validate each page after enrich (frontmatter + wikiValidate). Default true. */
+  validate?: boolean;
+  /** Completion token budget per page. Default {@link DEFAULT_MAX_OUTPUT_TOKENS}. */
+  maxOutputTokens?: number;
+  /** Called before each page is sent to the model (1-based index of this run). */
+  onPage?: (info: {
+    index: number;
+    total: number;
+    path: string;
+    status: string;
+    phase: "start" | "model" | "validate" | "done" | "failed";
+  }) => void;
   // Injected, all-optional for deterministic offline tests:
   fetch?: typeof fetch;
   env?: Record<string, string | undefined>;
@@ -80,6 +117,7 @@ export interface WikiEnrichResult {
   provider: string;
   model: string;
   credentialAvailable: boolean;
+  concurrency: number;
   pages: WikiEnrichPageResult[];
   enriched: number;
   dryRun: number;
@@ -87,19 +125,88 @@ export interface WikiEnrichResult {
   failed: number;
 }
 
-const DEFAULT_PROVIDER = "anthropic";
+interface ResumeState {
+  updatedAt: string;
+  provider?: string;
+  model?: string;
+  completed: string[];
+  failed: Array<{ path: string; reason: string }>;
+}
 
 const DEFAULT_SYSTEM_PROMPT = `You are a technical writer maintaining a software project's knowledge wiki.
 You are given ONE wiki page whose prose is a stub or draft. Rewrite it into clear,
 accurate, well-structured Markdown documentation.
 
 Rules:
-- Preserve the YAML frontmatter block (between the leading --- lines) EXACTLY.
+- Preserve the YAML frontmatter block (between the leading --- lines) EXACTLY in structure
+  (Title, Version, Type, Status, Summary keys). You may set Status to accepted when prose is solid.
 - Keep the existing H1 title.
 - Do not invent APIs, files, or behavior that are not implied by the page's own
   title, type, and summary. When unsure, describe intent at a high level.
 - Prefer short paragraphs and bullet lists over walls of text.
 - Return ONLY the full Markdown page (frontmatter + body), no commentary.`;
+
+/** Resolve provider/model: explicit input → shell auth.json → fallbacks. */
+export function resolveEnrichProviderModel(input: {
+  provider?: string;
+  model?: string;
+}): { provider: string; model: string } {
+  const cfg = loadShellConfig();
+  const provider =
+    (input.provider && input.provider.trim()) ||
+    (typeof cfg.provider === "string" && cfg.provider.trim().length > 0 ? cfg.provider.trim() : "") ||
+    FALLBACK_PROVIDER;
+  const model =
+    (input.model && input.model.trim()) ||
+    (typeof cfg.model === "string" && cfg.model.trim().length > 0 ? cfg.model.trim() : "") ||
+    defaultModelFor(provider);
+  return { provider, model };
+}
+
+function resumeStatePath(cwd: string): string {
+  return path.join(cwd, ".metaproject", "data", "wiki", "enrich-resume.json");
+}
+
+function loadResumeState(cwd: string): ResumeState {
+  try {
+    const file = resumeStatePath(cwd);
+    if (!existsSync(file)) {
+      return { updatedAt: new Date().toISOString(), completed: [], failed: [] };
+    }
+    const raw: unknown = JSON.parse(readFileSync(file, "utf8"));
+    if (raw === null || typeof raw !== "object") {
+      return { updatedAt: new Date().toISOString(), completed: [], failed: [] };
+    }
+    const o = raw as Partial<ResumeState>;
+    return {
+      updatedAt: typeof o.updatedAt === "string" ? o.updatedAt : new Date().toISOString(),
+      ...(typeof o.provider === "string" ? { provider: o.provider } : {}),
+      ...(typeof o.model === "string" ? { model: o.model } : {}),
+      completed: Array.isArray(o.completed) ? o.completed.filter((p): p is string => typeof p === "string") : [],
+      failed: Array.isArray(o.failed)
+        ? o.failed.filter(
+            (e): e is { path: string; reason: string } =>
+              e !== null &&
+              typeof e === "object" &&
+              typeof (e as { path?: unknown }).path === "string" &&
+              typeof (e as { reason?: unknown }).reason === "string",
+          )
+        : [],
+    };
+  } catch {
+    return { updatedAt: new Date().toISOString(), completed: [], failed: [] };
+  }
+}
+
+function saveResumeState(cwd: string, state: ResumeState): void {
+  try {
+    const file = resumeStatePath(cwd);
+    mkdirSync(path.dirname(file), { recursive: true });
+    writeFileSync(file, `${JSON.stringify({ ...state, updatedAt: new Date().toISOString() }, null, 2)}\n`, "utf8");
+  } catch {
+    // best-effort
+  }
+}
 
 /** Load the enrichment system prompt, preferring a project-local override. */
 async function loadSystemPrompt(cwd: string): Promise<string> {
@@ -170,25 +277,115 @@ export function isWikiEnrichIntent(line: string): boolean {
   if (t.length === 0) {
     return false;
   }
-  // Cyrillic: do not use \w (ASCII-only without /u). Match stems loosely.
-  const ru =
-    t.includes("вики") && (t.includes("обогат") || t.includes("обогащ"));
-  const en =
-    (/\benrich\b/.test(t) && /\bwiki\b/.test(t)) || /\bwiki\s+enrich\b/.test(t);
+  const ru = t.includes("вики") && (t.includes("обогат") || t.includes("обогащ"));
+  const en = (/\benrich\b/.test(t) && /\bwiki\b/.test(t)) || /\bwiki\s+enrich\b/.test(t);
   return ru || en;
 }
 
+/**
+ * Lightweight structural validation of model output before write.
+ * Returns null if OK, or a reason string.
+ */
+export function validateEnrichedMarkdown(original: string, enriched: string): string | null {
+  const text = enriched.trim();
+  if (text.length === 0) {
+    return "empty model response";
+  }
+  if (!text.startsWith("---")) {
+    return "missing YAML frontmatter (must start with ---)";
+  }
+  const close = text.indexOf("\n---", 3);
+  if (close < 0) {
+    return "unclosed YAML frontmatter";
+  }
+  const fm = text.slice(0, close + 4);
+  if (!/^Status:\s*\S+/im.test(fm) && !/\nStatus:\s*\S+/im.test(fm)) {
+    return "frontmatter missing Status field";
+  }
+  if (!/^Title:\s*\S+/im.test(fm) && !/\nTitle:\s*\S+/im.test(fm)) {
+    return "frontmatter missing Title field";
+  }
+  // Body should still look like markdown docs (at least one heading or paragraph).
+  const body = text.slice(close + 4).trim();
+  if (body.length < 20) {
+    return "body too short after frontmatter";
+  }
+  // Reject pure commentary wrappers the model sometimes adds.
+  if (/^(here is|here's|ниже|вот)\b/i.test(body) && body.length < 80) {
+    return "looks like commentary, not a full page";
+  }
+  // Size sanity: model should not delete almost everything or explode 20×.
+  if (original.length > 200 && text.length < original.length * 0.15) {
+    return "enriched content much shorter than original (possible truncation)";
+  }
+  return null;
+}
+
+/** Set or replace Status in YAML frontmatter. */
+export function setFrontmatterStatus(markdown: string, status: string): string {
+  if (/\nStatus:\s*\S+/i.test(markdown)) {
+    return markdown.replace(/\nStatus:\s*\S+/i, `\nStatus: ${status}`);
+  }
+  if (/^Status:\s*\S+/im.test(markdown)) {
+    return markdown.replace(/^Status:\s*\S+/im, `Status: ${status}`);
+  }
+  // Insert after opening ---
+  if (markdown.startsWith("---\n")) {
+    return `---\nStatus: ${status}\n${markdown.slice(4)}`;
+  }
+  return markdown;
+}
+
+/** Run async work over items with a concurrency cap (page swarm primitive). */
+export async function mapPool<T, R>(
+  items: readonly T[],
+  concurrency: number,
+  worker: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let next = 0;
+  const workers = Array.from({ length: Math.max(1, Math.min(concurrency, items.length || 1)) }, async () => {
+    while (true) {
+      const i = next++;
+      if (i >= items.length) {
+        return;
+      }
+      results[i] = await worker(items[i]!, i);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
+/** Default stderr progress printer (CLI). */
+export function defaultEnrichProgress(info: {
+  index: number;
+  total: number;
+  path: string;
+  status: string;
+  phase: string;
+}): void {
+  const pct = info.total > 0 ? Math.round((info.index / info.total) * 100) : 0;
+  console.error(`[enrich ${info.index}/${info.total} ${pct}%] ${info.phase} · ${info.path} (${info.status})`);
+}
+
 export async function wikiEnrich(input: WikiEnrichInput): Promise<WikiEnrichResult> {
-  const provider = input.provider ?? DEFAULT_PROVIDER;
-  const model = input.model ?? defaultModelFor(provider);
-  // `runModelTurn` also merges auth.json; we mirror that here so the early
-  // fail-closed skip message matches what the turn will actually use.
+  const { provider, model } = resolveEnrichProviderModel(input);
   const env = envWithSavedApiKeys(input.env ?? process.env);
   const credentialAvailable = hasCredential(provider, env);
+  const concurrency = Math.max(
+    1,
+    Math.min(MAX_CONCURRENCY, input.concurrency ?? DEFAULT_CONCURRENCY),
+  );
+  const maxOutputTokens = input.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS;
+  const validate = input.validate !== false;
+  const markAccepted = input.keepStatus === true ? false : input.markAccepted !== false;
+
   const result: WikiEnrichResult = {
     provider,
     model,
     credentialAvailable,
+    concurrency,
     pages: [],
     enriched: 0,
     dryRun: 0,
@@ -196,20 +393,39 @@ export async function wikiEnrich(input: WikiEnrichInput): Promise<WikiEnrichResu
     failed: 0,
   };
 
-  const pages = await selectPages(input);
+  if (input.refreshGraph) {
+    try {
+      await buildGraph(input.cwd);
+    } catch (cause) {
+      // Non-fatal: enrich can still run on existing graph/wiki.
+      console.error(
+        `[enrich] gdgraph build failed (continuing): ${cause instanceof Error ? cause.message : String(cause)}`,
+      );
+    }
+  }
+
+  let pages = await selectPages(input);
+
+  const resumeStateEarly = input.resume === true ? loadResumeState(input.cwd) : null;
+  if (resumeStateEarly !== null) {
+    const done = new Set(resumeStateEarly.completed);
+    pages = pages.filter((p) => !done.has(p.relativePath));
+  }
+
+  if (typeof input.limit === "number" && input.limit > 0) {
+    pages = pages.slice(0, input.limit);
+  }
+
   if (pages.length === 0) {
     return result;
   }
 
-  // Fail-closed: no credential ⇒ refuse every page with a clear reason rather
-  // than fall back to an offline FakeProvider. An injected factory (tests)
-  // bypasses the credential requirement.
   if (!credentialAvailable && input.providerFactory === undefined) {
     for (const page of pages) {
       result.pages.push({
         path: page.relativePath,
         action: "skipped",
-        reason: `no credential for provider "${provider}" (set its API key env var)`,
+        reason: `no credential for provider "${provider}" (set its API key env var or enter it in keryx shell)`,
       });
       result.skipped += 1;
     }
@@ -218,67 +434,139 @@ export async function wikiEnrich(input: WikiEnrichInput): Promise<WikiEnrichResu
 
   const systemPrompt = await loadSystemPrompt(input.cwd);
   const total = pages.length;
+  const onPage = input.onPage ?? defaultEnrichProgress;
 
-  for (let i = 0; i < pages.length; i++) {
-    const page = pages[i]!;
-    input.onPage?.({
-      index: i + 1,
-      total,
-      path: page.relativePath,
-      status: page.status ?? "draft",
-    });
+  // Ordered results matching input page order (parallel workers write by index).
+  const pageResults = await mapPool(pages, concurrency, async (page, i) => {
+    const index = i + 1;
+    const status = page.status ?? "draft";
+    onPage({ index, total, path: page.relativePath, status, phase: "start" });
 
-    const original = await readFile(page.absolutePath, "utf8");
-    const turn = await runModelTurn({
-      provider,
-      model,
-      system: systemPrompt,
-      user: buildUserPrompt(page, original, input.prompt),
-      maxOutputTokens: 2048,
-      requestId: `wiki-enrich:${page.relativePath}`,
-      env,
-      ...(input.fetch ? { fetch: input.fetch } : {}),
-      ...(input.baseUrl !== undefined ? { baseUrl: input.baseUrl } : {}),
-      ...(input.providerFactory ? { providerFactory: input.providerFactory } : {}),
-    });
+    try {
+      const original = await readFile(page.absolutePath, "utf8");
+      onPage({ index, total, path: page.relativePath, status, phase: "model" });
 
-    if (turn.error) {
-      result.pages.push({
-        path: page.relativePath,
-        action: "failed",
-        reason: `${turn.error.kind}: ${turn.error.message}`,
+      const turn = await runModelTurn({
+        provider,
+        model,
+        system: systemPrompt,
+        user: buildUserPrompt(page, original, input.prompt),
+        maxOutputTokens,
+        requestId: `wiki-enrich:${page.relativePath}`,
+        env,
+        ...(input.fetch ? { fetch: input.fetch } : {}),
+        ...(input.baseUrl !== undefined ? { baseUrl: input.baseUrl } : {}),
+        ...(input.providerFactory ? { providerFactory: input.providerFactory } : {}),
       });
-      result.failed += 1;
-      continue;
-    }
 
-    const enriched = turn.text.trim();
-    if (enriched.length === 0) {
-      result.pages.push({ path: page.relativePath, action: "failed", reason: "empty model response" });
-      result.failed += 1;
-      continue;
-    }
+      if (turn.error) {
+        onPage({ index, total, path: page.relativePath, status, phase: "failed" });
+        return {
+          path: page.relativePath,
+          action: "failed" as const,
+          reason: `${turn.error.kind}: ${turn.error.message}`,
+        };
+      }
 
-    if (input.dryRun) {
-      result.pages.push({
+      let enriched = turn.text.trim();
+      if (enriched.length === 0) {
+        onPage({ index, total, path: page.relativePath, status, phase: "failed" });
+        return { path: page.relativePath, action: "failed" as const, reason: "empty model response" };
+      }
+
+      if (validate) {
+        onPage({ index, total, path: page.relativePath, status, phase: "validate" });
+        const structural = validateEnrichedMarkdown(original, enriched);
+        if (structural !== null) {
+          onPage({ index, total, path: page.relativePath, status, phase: "failed" });
+          return { path: page.relativePath, action: "failed" as const, reason: `validation: ${structural}` };
+        }
+      }
+
+      if (markAccepted) {
+        enriched = setFrontmatterStatus(enriched, "accepted");
+      }
+
+      if (input.dryRun) {
+        onPage({ index, total, path: page.relativePath, status, phase: "done" });
+        return {
+          path: page.relativePath,
+          action: "dry-run" as const,
+          bytesBefore: original.length,
+          bytesAfter: enriched.length,
+          preview: enriched,
+        };
+      }
+
+      await writeFile(page.absolutePath, `${enriched}\n`, "utf8");
+
+      onPage({ index, total, path: page.relativePath, status: markAccepted ? "accepted" : status, phase: "done" });
+      return {
         path: page.relativePath,
-        action: "dry-run",
+        action: "enriched" as const,
         bytesBefore: original.length,
         bytesAfter: enriched.length,
-        preview: enriched,
-      });
-      result.dryRun += 1;
-      continue;
+      };
+    } catch (cause) {
+      onPage({ index, total, path: page.relativePath, status, phase: "failed" });
+      return {
+        path: page.relativePath,
+        action: "failed" as const,
+        reason: cause instanceof Error ? cause.message : String(cause),
+      };
     }
+  });
 
-    await writeFile(page.absolutePath, `${enriched}\n`, "utf8");
-    result.pages.push({
-      path: page.relativePath,
-      action: "enriched",
-      bytesBefore: original.length,
-      bytesAfter: enriched.length,
+  const resumeState = resumeStateEarly ?? loadResumeState(input.cwd);
+  const completed = new Set(resumeState.completed);
+
+  for (const entry of pageResults) {
+    result.pages.push(entry);
+    if (entry.action === "enriched") {
+      result.enriched += 1;
+      completed.add(entry.path);
+    } else if (entry.action === "dry-run") {
+      result.dryRun += 1;
+    } else if (entry.action === "skipped") {
+      result.skipped += 1;
+    } else if (entry.action === "failed") {
+      result.failed += 1;
+      resumeState.failed.push({ path: entry.path, reason: entry.reason ?? "failed" });
+    }
+  }
+
+  if (input.resume === true || result.enriched > 0) {
+    saveResumeState(input.cwd, {
+      ...resumeState,
+      provider,
+      model,
+      completed: [...completed],
     });
-    result.enriched += 1;
+  }
+
+  // Batch-end validation: once for the workspace (links/index), not N× per page.
+  if (validate && result.enriched > 0 && !input.dryRun) {
+    try {
+      const check = await wikiValidate(input.cwd);
+      if (!check.ok) {
+        const pageIssues = check.issues.filter((issue) =>
+          result.pages.some((p) => p.action === "enriched" && issue.page.includes(p.path)),
+        );
+        console.error(
+          `[enrich] wikiValidate: ${check.issues.length} issue(s)` +
+            (pageIssues.length > 0 ? ` (${pageIssues.length} on pages just enriched)` : ""),
+        );
+        for (const issue of check.issues.slice(0, 12)) {
+          console.error(`  - ${issue.page}: ${issue.message}`);
+        }
+      } else {
+        console.error("[enrich] wikiValidate: ok");
+      }
+    } catch (cause) {
+      console.error(
+        `[enrich] wikiValidate failed: ${cause instanceof Error ? cause.message : String(cause)}`,
+      );
+    }
   }
 
   return result;

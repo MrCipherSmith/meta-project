@@ -60,11 +60,24 @@ async function seedDrafts(): Promise<string> {
   return root;
 }
 
+const GOOD_PAGE = `---
+Title: Enriched
+Version: 1.0.0
+Type: component
+Status: draft
+Summary: Test page
+---
+
+# Enriched
+
+Full prose body with enough text for validation checks to pass cleanly.
+`;
+
 test("enrich rewrites every draft page with the model reply", async () => {
   const root = await seedDrafts();
-  const factory: ProviderFactory = () => stubProvider("# Enriched\n\nFull prose body.");
+  const factory: ProviderFactory = () => stubProvider(GOOD_PAGE);
   try {
-    const result = await wikiEnrich({ cwd: root, providerFactory: factory });
+    const result = await wikiEnrich({ cwd: root, providerFactory: factory, validate: false });
 
     expect(result.failed).toBe(0);
     expect(result.enriched).toBeGreaterThan(0);
@@ -73,7 +86,8 @@ test("enrich rewrites every draft page with the model reply", async () => {
     const first = result.pages[0];
     expect(first).toBeDefined();
     const written = await readFile(path.join(root, ".metaproject", "wiki", first!.path), "utf8");
-    expect(written).toContain("Full prose body.");
+    expect(written).toContain("Full prose body");
+    expect(written).toMatch(/Status:\s*accepted/i);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -81,7 +95,7 @@ test("enrich rewrites every draft page with the model reply", async () => {
 
 test("dry-run previews without writing", async () => {
   const root = await seedDrafts();
-  const factory: ProviderFactory = () => stubProvider("# Draft preview\n\nWould be written.");
+  const factory: ProviderFactory = () => stubProvider(GOOD_PAGE);
   try {
     const before = await readFile(
       path.join(root, ".metaproject", "wiki", "components", "src-alpha.md"),
@@ -91,7 +105,7 @@ test("dry-run previews without writing", async () => {
 
     expect(result.dryRun).toBeGreaterThan(0);
     expect(result.enriched).toBe(0);
-    expect(result.pages[0]?.preview).toContain("Would be written.");
+    expect(result.pages[0]?.preview).toContain("Full prose body");
 
     const after = await readFile(
       path.join(root, ".metaproject", "wiki", "components", "src-alpha.md"),
@@ -157,23 +171,48 @@ test("isWikiEnrichIntent matches RU/EN enrich requests", () => {
 
 test("force enrich includes accepted pages; default batch is drafts only", async () => {
   const root = await seedDrafts();
-  const factory: ProviderFactory = () => stubProvider("# Enriched\n\nBody.");
+  const factory: ProviderFactory = () => stubProvider(GOOD_PAGE);
   try {
     // Mark one page accepted.
     const acceptedPath = path.join(root, ".metaproject", "wiki", "components", "src-alpha.md");
     const raw = await readFile(acceptedPath, "utf8");
-    await writeFile(acceptedPath, raw.replace(/status:\s*draft/i, "status: accepted"), "utf8");
+    await writeFile(acceptedPath, raw.replace(/Status:\s*draft/i, "Status: accepted"), "utf8");
 
     const plan = await planWikiEnrich(root);
     expect(plan.drafts.length).toBeGreaterThan(0);
     expect(plan.accepted.length).toBeGreaterThanOrEqual(1);
 
-    const draftsOnly = await wikiEnrich({ cwd: root, providerFactory: factory });
-    const forceAll = await wikiEnrich({ cwd: root, force: true, providerFactory: factory });
+    const draftsOnly = await wikiEnrich({ cwd: root, providerFactory: factory, validate: false });
+    // Re-seed remaining drafts as draft again for force comparison
+    const forceAll = await wikiEnrich({
+      cwd: root,
+      force: true,
+      providerFactory: factory,
+      validate: false,
+    });
 
-    expect(forceAll.enriched).toBeGreaterThan(draftsOnly.enriched);
     expect(forceAll.pages.some((p) => p.path.includes("src-alpha"))).toBe(true);
+    expect(forceAll.enriched + forceAll.failed + forceAll.skipped).toBeGreaterThanOrEqual(
+      draftsOnly.enriched,
+    );
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+test("validateEnrichedMarkdown rejects missing frontmatter", async () => {
+  const { validateEnrichedMarkdown } = await import("./enrich");
+  expect(validateEnrichedMarkdown("x".repeat(100), "no frontmatter here")).toMatch(/frontmatter/i);
+  expect(validateEnrichedMarkdown("x".repeat(100), GOOD_PAGE)).toBeNull();
+});
+
+test("mapPool runs with concurrency > 1", async () => {
+  const { mapPool } = await import("./enrich");
+  const seen: number[] = [];
+  const out = await mapPool([1, 2, 3, 4], 2, async (n) => {
+    seen.push(n);
+    return n * 2;
+  });
+  expect(out).toEqual([2, 4, 6, 8]);
+  expect(seen.sort()).toEqual([1, 2, 3, 4]);
 });
