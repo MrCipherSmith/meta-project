@@ -49,6 +49,7 @@ import {
   SIDE_WORKER_ID_PREFIX,
   sideWorkerLabel,
 } from "./side-worker";
+import { setSubagentFleetListener } from "./subagent-bridge";
 import { formatFleetSidebar, MAIN_AGENT_ID, shortWorkerLabel, WorkerFleet } from "./worker-fleet";
 
 /** A resolved provider/model selection. */
@@ -673,6 +674,7 @@ export async function launchTuiAgentShell(opts: {
         pendingApproval = undefined;
         clearBusyTimer?.(); // stop live spinner if a turn is mid-flight
         setAskUserHost(undefined);
+        setSubagentFleetListener(undefined);
         resolveDone();
       },
     }));
@@ -760,6 +762,20 @@ export async function launchTuiAgentShell(opts: {
       }
     };
     fleet.subscribe(paintFleet);
+    // MAE spawn_subagent → Workers panel
+    setSubagentFleetListener((ev) => {
+      if (ev.kind === "remove") {
+        fleet.remove(ev.id);
+        return;
+      }
+      fleet.upsert({
+        id: ev.id,
+        label: ev.label,
+        status: ev.status,
+        ...(ev.detail !== undefined ? { detail: ev.detail } : {}),
+        ...(ev.model !== undefined ? { model: ev.model } : {}),
+      });
+    });
 
     /** Update the pinned main-agent slot (Activity panel). */
     const setMainAgent = (
@@ -1007,10 +1023,66 @@ export async function launchTuiAgentShell(opts: {
     textarea.focus();
     syncComposerHeight();
 
-    // `shell_exec` approval: composer-dock picker (once / always-exact /
-    // always-prefix / deny). Remembered allow patterns live in permissions.json
-    // + this session's set. Default-deny on cancel.
-    io.requestApproval = async (_tool, inputJson) => {
+    // Approval gate: `shell_exec` (remembered patterns) + `spawn_subagent` (MAE).
+    // Default-deny for shell on cancel; read_only subagents auto-approve.
+    io.requestApproval = async (tool, inputJson) => {
+      // Multi-agent spawn: auto-allow read_only; ask for general.
+      if (tool === "spawn_subagent") {
+        let mode = "read_only";
+        let taskPreview = inputJson;
+        try {
+          const parsed: unknown = JSON.parse(inputJson);
+          if (parsed !== null && typeof parsed === "object") {
+            const o = parsed as { mode?: unknown; task?: unknown; label?: unknown };
+            if (o.mode === "general" || o.mode === "read_only") {
+              mode = o.mode;
+            }
+            if (typeof o.task === "string") {
+              taskPreview = o.task.length > 80 ? `${o.task.slice(0, 77)}…` : o.task;
+            }
+          }
+        } catch {
+          // raw
+        }
+        if (mode === "read_only") {
+          transcript.add(
+            new otui.TextRenderable(r, {
+              id: `ap${uid++}`,
+              content: otui.t`${otui.dim(`◇ spawn_subagent (read_only): ${taskPreview}`)}`,
+            }),
+          );
+          return true;
+        }
+        menu.visible = false;
+        setMainAgent("blocked", "approval");
+        const id = await showComposerChoice(otui, r, choiceDock, {
+          title: "Spawn general subagent?",
+          subtitle: taskPreview,
+          cancelId: "deny",
+          options: [
+            {
+              id: "allow",
+              label: "Allow subagent",
+              description: "Run bounded child (still no shell in v1)",
+              recommended: true,
+            },
+            { id: "deny", label: "Deny", description: "Do not spawn" },
+          ],
+        });
+        input.focus();
+        setMainAgent("running", id === "allow" ? "subagent" : "denied");
+        transcript.add(
+          new otui.TextRenderable(r, {
+            id: `ap${uid++}`,
+            content:
+              id === "allow"
+                ? otui.t`${otui.green("◇ subagent approved")}`
+                : otui.t`${otui.red("◇ subagent denied")}`,
+          }),
+        );
+        return id === "allow";
+      }
+
       const cmd = parseShellExecCommand(inputJson);
       // Auto-allow from session + disk (re-read disk so external edits apply).
       for (const p of loadShellPermissions().allow) {

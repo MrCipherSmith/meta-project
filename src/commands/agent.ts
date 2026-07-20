@@ -110,7 +110,11 @@ export function buildAgentSystemInstruction(orient?: string, ctx: AgentInstructi
     "to run a known keryx workflow.\n" +
     "- When you need a decision, interview step, or clarification: use **ask_user** with " +
     "2–6 options `{ id, label, description, recommended? }` (mark one recommended). " +
-    "Do not dump long prose questions without options.\n\n" +
+    "Do not dump long prose questions without options.\n" +
+    "- For a focused independent subtask (investigate X, review Y, research Z): use " +
+    "**spawn_subagent** with `{ task, mode?: 'read_only'|'general', label? }`. " +
+    "Default mode is read_only (no shell). Prefer spawn for work that can finish " +
+    "without your intermediate turns; do not spawn for trivial one-line answers.\n\n" +
     "Workflow routing (follow these instead of improvising):\n" +
     "- User asks to enrich / enrich wiki / «обогати вики» (TUI also pre-routes this):\n" +
     "  1) `keryx wiki enrich --list` — show drafts vs accepted.\n" +
@@ -499,13 +503,24 @@ async function executeCall(
     return { output: `invalid input for ${call.name}: ${detail}${hint}`, isError: true };
   }
 
-  // Risk gate: `read` auto-allows; `shell` requires approval (DEFAULT-DENY — no
-  // approver means no execution); anything else is denied.
+  // Risk gate:
+  // - `read` auto-allows
+  // - `shell` requires approval (DEFAULT-DENY when no approver)
+  // - `delegate` (spawn_subagent): auto-allow when no approver; when an approver
+  //   is present, ask (TUI may auto-approve read_only subagents)
+  // - anything else is denied
   const risk = tool.definition.risk;
   if (risk === "shell") {
     const approved = requestApproval !== undefined && (await requestApproval(call.name, call.input));
     if (!approved) {
       return { output: `command not approved by the user; not executed`, isError: true };
+    }
+  } else if (risk === "delegate") {
+    if (requestApproval !== undefined) {
+      const approved = await requestApproval(call.name, call.input);
+      if (!approved) {
+        return { output: `subagent spawn not approved by the user; not executed`, isError: true };
+      }
     }
   } else if (risk !== "read") {
     return { output: `tool "${call.name}" (risk ${risk}) is not permitted`, isError: true };

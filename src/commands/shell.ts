@@ -36,6 +36,7 @@ import { createMetaprojectAdapter } from "../harness/tool/metaproject-adapter";
 import type { MetaprojectPort } from "../harness/tool/metaproject-port";
 import { buildApprovalContext } from "./agent-approval-context";
 import { shellExecTool } from "../harness/tool/builtin/shell-exec-tool";
+import { createSpawnSubagentTool } from "../harness/tool/builtin/spawn-subagent-tool";
 import { collapseHome } from "../lib/statusbar";
 import { LiveMarkdownBlock } from "../lib/live-render";
 import { launchTuiAgentShell } from "../tui/tui-shell";
@@ -1057,6 +1058,24 @@ export async function shellCommand(args: string[]): Promise<void> {
         orient = "";
       }
       const metaprojectPort = createMetaprojectAdapter(cwd);
+      // MAE multi-agent: parent can spawn bounded subagents (ledger + fleet events).
+      const spawnTool = createSpawnSubagentTool({
+        cwd,
+        getParentModel: () => ({
+          providerId: sel.provider,
+          modelId: sel.model,
+          ...(sel.baseUrl !== undefined ? { baseUrl: sel.baseUrl } : {}),
+        }),
+        makeProvider: (providerId, modelId, childBaseUrl) =>
+          tuiProviderFactory(providerId, modelId, childBaseUrl ?? sel.baseUrl),
+        getDetectedProviders: () => {
+          const names = new Set<string>([sel.provider]);
+          for (const d of tuiDetected) {
+            names.add(d.name);
+          }
+          return [...names].map((name) => ({ name }));
+        },
+      });
       return {
         provider: agentProvider,
         providerId: sel.provider,
@@ -1066,6 +1085,7 @@ export async function shellCommand(args: string[]): Promise<void> {
           ...builtinMetaprojectTools(cwd, makeKeryxRunner(cwd), metaprojectPort),
           shellExecTool(cwd),
           createAskUserTool(invokeAskUserHost),
+          spawnTool,
         ],
         systemInstruction: buildAgentSystemInstruction(orient, {
           providerId: sel.provider,
@@ -1202,14 +1222,28 @@ export async function shellCommand(args: string[]): Promise<void> {
       // In-process metaproject access (flow 037): the adapter serves graph +
       // memory in-process; search_code still falls back to the subprocess runner.
       const metaprojectPort = createMetaprojectAdapter(process.cwd());
+      const agentCwd = process.cwd();
+      const spawnTool = createSpawnSubagentTool({
+        cwd: agentCwd,
+        getParentModel: () => ({
+          providerId: provider,
+          modelId: model,
+          ...(baseUrl !== undefined ? { baseUrl } : {}),
+        }),
+        makeProvider: (providerId, modelId, childBaseUrl) =>
+          baseFactory(providerId, modelId, childBaseUrl ?? baseUrl),
+        getDetectedProviders: () => [{ name: provider }],
+      });
       const agentDeps: AgentDeps = {
         provider: agentProvider,
         providerId: provider,
         modelId: model,
         tools: [
-          ...builtinReadOnlyTools(process.cwd()),
-          ...builtinMetaprojectTools(process.cwd(), makeKeryxRunner(process.cwd()), metaprojectPort),
-          shellExecTool(process.cwd()),
+          ...builtinReadOnlyTools(agentCwd),
+          ...builtinMetaprojectTools(agentCwd, makeKeryxRunner(agentCwd), metaprojectPort),
+          shellExecTool(agentCwd),
+          createAskUserTool(invokeAskUserHost),
+          spawnTool,
         ],
         systemInstruction: buildAgentSystemInstruction(orient, {
           providerId: provider,
