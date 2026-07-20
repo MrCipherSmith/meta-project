@@ -15,3 +15,10 @@
 - 2026-07-20T13:16:03.275Z - task-done: T3: Add/adjust tests and make them pass
 - 2026-07-20T13:16:03.358Z - task-done: T5: layout constraints
 - 2026-07-20T13:16:03.435Z - task-done: T6: verify
+- 2026-07-20T13:16:42.195Z - implemented: draft PR: https://github.com/MrCipherSmith/keryx/pull/120 (warning: PR is not a draft)
+- 2026-07-20T13:16:43.199Z - ac-confirmed: AC1: tsc clean; bun test 1507/0; user validates layout on TTY
+- 2026-07-20T13:16:43.344Z - ac-confirmed: AC2: tsc clean; bun test 1507/0; user validates layout on TTY
+- 2026-07-20T13:16:43.469Z - ac-confirmed: AC3: tsc clean; bun test 1507/0; user validates layout on TTY
+- 2026-07-20T13:16:43.740Z - ac-confirmed: AC4: tsc clean; bun test 1507/0; user validates layout on TTY
+- 2026-07-20T13:16:44.034Z - completing
+- 2026-07-20T13:16:44.107Z - done: all gates passed
