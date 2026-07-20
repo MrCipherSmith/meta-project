@@ -19,3 +19,10 @@
 - 2026-07-20T08:22:48.752Z - task-done: T5: implement chrome parity
 - 2026-07-20T08:22:48.836Z - task-done: T6: headless markdown/tool test
 - 2026-07-20T08:22:48.927Z - task-done: T7: verify
+- 2026-07-20T08:22:57.504Z - implemented: draft PR: https://github.com/MrCipherSmith/keryx/pull/94
+- 2026-07-20T08:22:57.626Z - ac-confirmed: AC1: markdownToChunks worker-free → StyledText; headless test: bold rendered, ** stripped, • bullet
+- 2026-07-20T08:22:57.717Z - ac-confirmed: AC2: ● keryx header + ❯ line; ⚙ name(args); ↳ collapsed/✗; dim ⋯ thinking + ↑↓ tokens; dim/red system; gutter=padding
+- 2026-07-20T08:22:57.801Z - ac-confirmed: AC3: reuses summarizeToolArgs/collapseToolOutput + pure markdownToChunks; runAgentTurn/readline/chat/roleLabel unchanged; --tui+fallback preserved
+- 2026-07-20T08:22:57.903Z - ac-confirmed: AC4: headless markdown+tool test; tsc clean; bun test 1497/0 (baseline 1496,+1); no new dep
+- 2026-07-20T08:23:22.770Z - completing
+- 2026-07-20T08:23:22.802Z - done: all gates passed
