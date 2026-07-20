@@ -39,7 +39,7 @@ import { LiveMarkdownBlock } from "../lib/live-render";
 import { launchTuiAgentShell } from "../tui/tui-shell";
 import { collapseToolOutput, colorEnabled, indentBlock, renderMarkdown, style, summarizeToolArgs } from "../lib/ui";
 import { type AgentDeps, type AgentIO, buildAgentSystemInstruction, runAgentTurn } from "./agent";
-import { detectProviders, pickAgentMode, pickProviderModel } from "./select";
+import { type DetectedProvider, detectProviders, pickAgentMode, pickProviderModel } from "./select";
 
 /** Async line source + write sink; no real stdio is reached by `runShell`. */
 export interface ShellIO {
@@ -760,6 +760,60 @@ export async function shellCommand(args: string[]): Promise<void> {
     }
   }
 
+  // Clean OpenTUI agent path (flow 067, opt-in via `--tui`): OpenTUI owns the
+  // terminal from the START — NO readline is created here, so it cannot consume
+  // the terminal's responses to OpenTUI's capability queries (the flows 065/066
+  // corruption). Provider/model come from flags or an in-TUI picker. On no-TTY /
+  // absent optional dep / init failure it returns false and we fall through to the
+  // readline shell below. Agent mode only (not `--chat`).
+  if (tuiFlag && !noTuiFlag && modeFlag !== false && process.stdout.isTTY) {
+    const cwd = process.cwd();
+    const tuiProviderFactory = realMakeProvider(() => {});
+    const makeAgentDeps = async (sel: { provider: string; model: string; baseUrl?: string }): Promise<AgentDeps> => {
+      const agentProvider = tuiProviderFactory(sel.provider, sel.model, sel.baseUrl);
+      let orient = "";
+      try {
+        orient = await buildOrientation(cwd);
+      } catch {
+        orient = "";
+      }
+      const metaprojectPort = createMetaprojectAdapter(cwd);
+      return {
+        provider: agentProvider,
+        providerId: sel.provider,
+        modelId: sel.model,
+        tools: [
+          ...builtinReadOnlyTools(cwd),
+          ...builtinMetaprojectTools(cwd, makeKeryxRunner(cwd), metaprojectPort),
+          shellExecTool(cwd),
+        ],
+        systemInstruction: buildAgentSystemInstruction(orient),
+        idSeq: () => randomUUID(),
+      };
+    };
+    let tuiInitial: { provider: string; model: string; baseUrl?: string } | undefined;
+    let tuiDetected: DetectedProvider[] = [];
+    if (providerArg !== undefined && modelArg !== undefined) {
+      tuiInitial = baseUrl === undefined ? { provider: providerArg, model: modelArg } : { provider: providerArg, model: modelArg, baseUrl };
+    } else {
+      tuiDetected = await detectProviders({
+        fetch: globalThis.fetch,
+        env: process.env,
+        ...(baseUrl !== undefined ? { baseUrl } : {}),
+      });
+    }
+    if (
+      await launchTuiAgentShell({
+        detected: tuiDetected,
+        makeAgentDeps,
+        ...(tuiInitial !== undefined ? { initial: tuiInitial } : {}),
+      })
+    ) {
+      return;
+    }
+    // else: optional dep absent / init failed → fall through to the readline shell.
+  }
+
   const rl = readline.createInterface({ input: process.stdin });
   // A SINGLE shared line iterator so the picker and the REPL consume stdin in
   // sequence (two independent iterators would race over the same readline).
@@ -847,15 +901,9 @@ export async function shellCommand(args: string[]): Promise<void> {
         systemInstruction: buildAgentSystemInstruction(orient),
         idSeq: () => randomUUID(),
       };
-      // OpenTUI agent shell (flows 060-064, ADR-0005) — OPT-IN via `--tui` only.
-      // The default flip (flow 064) was reverted (flow 065): on a real TTY the
-      // readline-picker → OpenTUI stdin handoff leaks the terminal's capability/
-      // DA/DSR query responses as text and corrupts the terminal (see the flow-065
-      // report). Until that handoff is fixed and validated on a real terminal, the
-      // readline shell is the default; `--tui` opts in (and `--no-tui` overrides).
-      if (tuiFlag && !noTuiFlag && process.stdout.isTTY && (await launchTuiAgentShell(agentDeps, { onBeforeInit: () => rl.close() }))) {
-        return;
-      }
+      // OpenTUI (`--tui`) is handled EARLIER, before readline is created (flow
+      // 067), so it never runs here. This is the readline agent REPL — the default
+      // and the fallback when the TUI declines.
       await runAgentRepl(sharedLines, { printPrompt }, agentDeps, metaprojectPort);
     } else {
       await runShell(io, deps);

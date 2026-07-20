@@ -18,7 +18,15 @@ import type { AgentDeps, AgentIO } from "../commands/agent";
 import { runAgentTurn } from "../commands/agent";
 import type { NormalizedMessage } from "../harness/provider/types";
 import { AGENT_SLASH_COMMANDS, filterCommands, findAgentCommand } from "../commands/agent-commands";
+import type { DetectedProvider } from "../commands/select";
 import { collapseToolOutput, summarizeToolArgs } from "../lib/ui";
+
+/** A resolved provider/model selection. */
+export interface TuiSelection {
+  provider: string;
+  model: string;
+  baseUrl?: string;
+}
 
 /** The `@opentui/core` module shape, referenced structurally (type-only import). */
 type OpenTui = typeof import("@opentui/core");
@@ -160,14 +168,78 @@ export function isShellApproved(answer: string): boolean {
 }
 
 /**
- * Attempt the OpenTUI agent shell. Returns `true` if it ran to completion (user
- * exited), `false` if it declined/failed and the caller should fall back to the
- * readline shell. Never throws.
+ * In-TUI provider → model picker (used when no `--provider`/`--model` flags were
+ * given). Renders a provider SelectRenderable, then a model SelectRenderable, both
+ * navigated with ↑/↓ + Enter (they own focus, so no readline/Input conflict).
+ * Resolves the chosen selection, or `undefined` if it cannot resolve one.
  */
-export async function launchTuiAgentShell(
-  deps: AgentDeps,
-  opts?: { onBeforeInit?: () => void },
-): Promise<boolean> {
+function selectProviderModelInTui(
+  otui: OpenTui,
+  r: Renderer,
+  detected: DetectedProvider[],
+): Promise<TuiSelection | undefined> {
+  return new Promise((resolve) => {
+    if (detected.length === 0) {
+      resolve(undefined);
+      return;
+    }
+    const box = new otui.BoxRenderable(r, { id: "picker", flexGrow: 1, flexDirection: "column", padding: 1 });
+    r.root.add(box);
+    const title = new otui.TextRenderable(r, {
+      id: "picker-title",
+      content: otui.t`${otui.bold("Select a provider")} ${otui.dim("(↑/↓, Enter)")}`,
+    });
+    box.add(title);
+    const provSelect = new otui.SelectRenderable(r, {
+      id: "picker-provider",
+      width: 60,
+      height: Math.min(8, Math.max(1, detected.length)),
+      options: detected.map((d) => ({ name: d.name, description: `${d.models.length} model(s)` })),
+    });
+    box.add(provSelect);
+    provSelect.focus();
+    provSelect.on(otui.SelectRenderableEvents.ITEM_SELECTED, () => {
+      const chosen = provSelect.getSelectedOption();
+      const prov = chosen === null ? undefined : detected.find((d) => d.name === chosen.name);
+      if (prov === undefined) {
+        r.root.remove(box);
+        resolve(undefined);
+        return;
+      }
+      title.content = otui.t`${otui.bold(`Select a model for ${prov.name}`)} ${otui.dim("(↑/↓, Enter)")}`;
+      box.remove(provSelect);
+      const models = prov.models.length > 0 ? prov.models : ["fake-echo"];
+      const modelSelect = new otui.SelectRenderable(r, {
+        id: "picker-model",
+        width: 60,
+        height: Math.min(10, Math.max(1, models.length)),
+        options: models.map((m) => ({ name: m, description: "" })),
+      });
+      box.add(modelSelect);
+      modelSelect.focus();
+      modelSelect.on(otui.SelectRenderableEvents.ITEM_SELECTED, () => {
+        const chosenModel = modelSelect.getSelectedOption();
+        const model = chosenModel === null ? (models[0] ?? "fake-echo") : chosenModel.name;
+        r.root.remove(box);
+        resolve(prov.baseUrl === undefined ? { provider: prov.name, model } : { provider: prov.name, model, baseUrl: prov.baseUrl });
+      });
+    });
+  });
+}
+
+/**
+ * Run the OpenTUI agent shell. OpenTUI owns the terminal from the START — there is
+ * NO concurrent readline (that leaked terminal query responses, flows 065/066).
+ * The provider/model is taken from `opts.initial` (flags) or an in-TUI picker over
+ * `opts.detected`; `opts.makeAgentDeps` then builds the driver deps. Returns `true`
+ * once the user exits, `false` if it declined/failed (no TTY / absent optional dep)
+ * so the caller can fall back to the readline shell. Never throws.
+ */
+export async function launchTuiAgentShell(opts: {
+  detected: DetectedProvider[];
+  initial?: TuiSelection;
+  makeAgentDeps: (sel: TuiSelection) => Promise<AgentDeps>;
+}): Promise<boolean> {
   if (!process.stdout.isTTY) {
     return false;
   }
@@ -177,12 +249,6 @@ export async function launchTuiAgentShell(
   } catch {
     return false;
   }
-  // Hand off stdin BEFORE OpenTUI initialises: the caller detaches its readline
-  // interface so the terminal's responses to OpenTUI's capability/DA/DSR queries
-  // (sent inside `createCliRenderer`) reach OpenTUI's parser instead of leaking as
-  // text. Runs only past the no-TTY / absent-dep guards above, so those fallback
-  // paths keep the readline shell usable.
-  opts?.onBeforeInit?.();
 
   let renderer: Renderer | undefined;
   let resolveDone: () => void = () => {};
@@ -204,6 +270,15 @@ export async function launchTuiAgentShell(
         resolveDone();
       },
     }));
+
+    // Resolve the provider/model — from flags, or an in-TUI picker.
+    const sel = opts.initial ?? (await selectProviderModelInTui(otui, r, opts.detected));
+    if (sel === undefined) {
+      r.destroy();
+      return true; // could not select; treat as a clean exit (do not fall back)
+    }
+    const deps = await opts.makeAgentDeps(sel);
+
     // A scrollable, sticky-to-bottom transcript so long conversations scroll and
     // auto-follow the newest output; the AgentIO renders into its `.content`.
     const scroll = new otui.ScrollBoxRenderable(r, {

@@ -1,0 +1,159 @@
+{
+  "schemaVersion": 2,
+  "id": "067",
+  "slug": "opentui-owns-terminal",
+  "title": "OpenTUI owns terminal from start — no readline picker; provider/model selected via flags or in-TUI SelectRenderable (--tui)",
+  "status": "in-progress",
+  "createdAt": "2026-07-20T10:56:50.700Z",
+  "updatedAt": "2026-07-20T10:59:45.576Z",
+  "source": {
+    "type": "description",
+    "ref": null
+  },
+  "acChecksum": "sha256:c3011e4d62dd499fb5e1cd0079884d00b19c677599cb82994935713a69f76ae6",
+  "acConfirmed": {},
+  "pr": {
+    "url": null
+  },
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Collect remaining context",
+      "kind": "context",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T2",
+      "title": "Implement per plan",
+      "kind": "implement",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T3",
+      "title": "Add/adjust tests and make them pass",
+      "kind": "test",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T4",
+      "title": "Self-review and prepare draft PR",
+      "kind": "review",
+      "status": "todo",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {}
+    },
+    {
+      "id": "T5",
+      "title": "refactor launch + shellCommand",
+      "kind": "implement",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T6",
+      "title": "verify",
+      "kind": "review",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    }
+  ],
+  "history": [
+    {
+      "at": "2026-07-20T10:56:50.700Z",
+      "event": "created"
+    },
+    {
+      "at": "2026-07-20T10:59:44.960Z",
+      "event": "task-added",
+      "detail": "T5: refactor launch + shellCommand"
+    },
+    {
+      "at": "2026-07-20T10:59:45.042Z",
+      "event": "task-added",
+      "detail": "T6: verify"
+    },
+    {
+      "at": "2026-07-20T10:59:45.123Z",
+      "event": "frozen",
+      "detail": "4 criteria; checksum recorded"
+    },
+    {
+      "at": "2026-07-20T10:59:45.204Z",
+      "event": "started"
+    },
+    {
+      "at": "2026-07-20T10:59:45.288Z",
+      "event": "task-done",
+      "detail": "T1: Collect remaining context"
+    },
+    {
+      "at": "2026-07-20T10:59:45.361Z",
+      "event": "task-done",
+      "detail": "T2: Implement per plan"
+    },
+    {
+      "at": "2026-07-20T10:59:45.432Z",
+      "event": "task-done",
+      "detail": "T3: Add/adjust tests and make them pass"
+    },
+    {
+      "at": "2026-07-20T10:59:45.508Z",
+      "event": "task-done",
+      "detail": "T5: refactor launch + shellCommand"
+    },
+    {
+      "at": "2026-07-20T10:59:45.576Z",
+      "event": "task-done",
+      "detail": "T6: verify"
+    }
+  ]
+}

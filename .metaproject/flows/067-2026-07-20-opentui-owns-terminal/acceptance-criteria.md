@@ -1,0 +1,6 @@
+# Acceptance Criteria — flow 067 (OpenTUI owns terminal from start)
+
+- AC1: With `--tui` (agent mode, TTY), `shellCommand` does NOT create a readline interface before OpenTUI; the OpenTUI attempt runs FIRST (before `readline.createInterface`). This removes the readline↔OpenTUI stdin contention that leaked terminal capability-query responses (flows 065/066).
+- AC2: `launchTuiAgentShell({ detected, initial?, makeAgentDeps })` resolves the provider/model from `initial` (flags) or an in-TUI provider→model picker (`SelectRenderable`, ↑/↓+Enter, which own focus so there is no Input conflict), then builds deps via `makeAgentDeps` and runs the agent UI (transcript + composer + `/` menu + approval).
+- AC3: The default stays readline; `--tui` opts in; `--no-tui` and chat mode never take the TUI path. If OpenTUI declines (no TTY / absent optional dep), `shellCommand` falls through to the readline shell (a fresh readline is created there). `runAgentTurn`, chat, and `roleLabel` unchanged.
+- AC4: `bunx tsc --noEmit` clean; `bun test` green with no reduction from baseline (1506); default `--agent` (no --tui) still runs the readline shell (smoke). No new dependency. NOTE: the real-terminal `--tui` experience (clean init, in-TUI picker) is validated by the user.
