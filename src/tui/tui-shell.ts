@@ -30,6 +30,7 @@ import {
   suggestShellPatterns,
 } from "../lib/shell-permissions";
 import { isWikiEnrichIntent, planWikiEnrich, wikiEnrich } from "../wiki/enrich";
+import { formatFleetSidebar, shortWorkerLabel, WorkerFleet } from "./worker-fleet";
 
 /** A resolved provider/model selection. */
 export interface TuiSelection {
@@ -758,6 +759,19 @@ export async function launchTuiAgentShell(opts: {
     sidebar.add(
       new otui.TextRenderable(r, { id: "sb-tools-v", content: otui.t`${otui.dim(`${deps.tools.length} available`)}` }),
     );
+    // Multi-agent / page-worker fleet (enrich swarm + future harness subagents).
+    sidebar.add(new otui.TextRenderable(r, { id: "sb-workers-k", content: otui.t`${otui.dim("Workers")}`, marginTop: 1 }));
+    const sbWorkers = new otui.TextRenderable(r, {
+      id: "sb-workers-v",
+      content: otui.t`${otui.dim("(idle)")}`,
+    });
+    sidebar.add(sbWorkers);
+    const fleet = new WorkerFleet();
+    const paintFleet = (): void => {
+      const text = formatFleetSidebar(fleet.list(), 12);
+      sbWorkers.content = otui.t`${otui.dim(text)}`;
+    };
+    fleet.subscribe(paintFleet);
     // Toast area pinned to the bottom of the sidebar (spacer pushes it down).
     sidebar.add(new otui.BoxRenderable(r, { id: "sb-spacer", flexGrow: 1 }));
     const toastText = new otui.TextRenderable(r, { id: "sb-toast", content: "" });
@@ -855,10 +869,25 @@ export async function launchTuiAgentShell(opts: {
       const args = summarizeToolArgs(input);
       const short = args.length > 40 ? `${args.slice(0, 37)}…` : args;
       setBusyPhase(short.length > 0 ? `running ${name}(${short})` : `running ${name}`);
+      // Show the main agent slot in the Workers panel (alongside page workers).
+      fleet.upsert({
+        id: "agent:main",
+        label: "main",
+        status: "running",
+        detail: name,
+        model: `${currentSel.provider}/${currentSel.model}`,
+      });
       baseOnToolCall?.(name, input);
     };
     io.onToolResult = (name, result) => {
       setBusyPhase(result.isError ? `tool error · waiting for model` : `waiting for model`);
+      fleet.upsert({
+        id: "agent:main",
+        label: "main",
+        status: result.isError ? "failed" : "done",
+        detail: name,
+        model: `${currentSel.provider}/${currentSel.model}`,
+      });
       baseOnToolResult?.(name, result);
     };
     // `shell_exec` approval: OpenCode/Claude-style interactive picker
@@ -1254,6 +1283,19 @@ export async function launchTuiAgentShell(opts: {
             }
 
             const force = choice === "force";
+            const targets = force ? plan.forceTargets : plan.drafts;
+            fleet.clear();
+            for (const p of targets) {
+              fleet.upsert({
+                id: p.relativePath,
+                label: shortWorkerLabel(p.relativePath),
+                status: "queued",
+                detail: "queued",
+                model: `${currentSel.provider}/${currentSel.model}`,
+              });
+            }
+            paintFleet();
+
             startBusy(`wiki enrich ${force ? "(force all)" : "(drafts)"}…`);
             const result = await wikiEnrich({
               cwd: process.cwd(),
@@ -1264,9 +1306,19 @@ export async function launchTuiAgentShell(opts: {
               concurrency: 2, // small parallel swarm; raise via CLI for larger batches
               onPage: (info) => {
                 setBusyPhase(`enrich ${info.index}/${info.total} [${info.phase}] ${info.path}`);
+                const status =
+                  info.phase === "done" ? "done" : info.phase === "failed" ? "failed" : "running";
+                fleet.upsert({
+                  id: info.path,
+                  label: shortWorkerLabel(info.path),
+                  status,
+                  detail: info.phase,
+                  model: `${currentSel.provider}/${currentSel.model}`,
+                });
               },
             });
             stopBusy();
+            // Leave final fleet state visible; clear on next enrich run.
 
             const lines = [
               `provider: ${result.provider} (${result.model})`,
