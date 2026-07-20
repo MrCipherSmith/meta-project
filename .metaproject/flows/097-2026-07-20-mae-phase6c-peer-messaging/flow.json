@@ -1,0 +1,170 @@
+{
+  "schemaVersion": 2,
+  "id": "097",
+  "slug": "mae-phase6c-peer-messaging",
+  "title": "Multi-Agent Engine Phase 6c: bounded peer messaging",
+  "status": "in-progress",
+  "createdAt": "2026-07-20T20:46:08.453Z",
+  "updatedAt": "2026-07-20T21:04:18.539Z",
+  "source": {
+    "type": "description",
+    "ref": null
+  },
+  "acChecksum": "sha256:69ee07ddabf7ce8df96d49b82829ae06e7c914376ada84c8ff2c0bdb6cee82c0",
+  "acConfirmed": {
+    "AC1": {
+      "at": "2026-07-20T21:04:17.863Z",
+      "note": "admitPeerMessage: admits only when sender allowed_actions includes 'peer'; else fail-closed {ok:false,reason}"
+    },
+    "AC2": {
+      "at": "2026-07-20T21:04:18.005Z",
+      "note": "inline body rejected; missing/malformed artifact_ref (empty path/kind) rejected — refs only, injection-safe"
+    },
+    "AC3": {
+      "at": "2026-07-20T21:04:18.139Z",
+      "note": "reducePeerMessages: pure fold to per-recipient inboxes keyed by to_dispatch_id, stable event order, deterministic; ignores non-peer events"
+    },
+    "AC4": {
+      "at": "2026-07-20T21:04:18.253Z",
+      "note": "buildPeerMessageEvent validates against agent-event-extensions.schema.json (with/without run_id) via contracts/validator"
+    },
+    "AC5": {
+      "at": "2026-07-20T21:04:18.373Z",
+      "note": "'peer' added to allowed_actions enum in BOTH subagent-dispatch.schema.json copies; diff IDENTICAL (parity); additive/backward-compatible"
+    },
+    "AC6": {
+      "at": "2026-07-20T21:04:18.539Z",
+      "note": "peer.test.ts 9 tests (gate allow/deny, inline-body+malformed reject, inbox fold+determinism, schema-valid build); full suite 1724 pass/0 fail incl dep guard+parity; tsc clean"
+    }
+  },
+  "pr": {
+    "url": null
+  },
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Collect remaining context",
+      "kind": "context",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T2",
+      "title": "Implement per plan",
+      "kind": "implement",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T3",
+      "title": "Add/adjust tests and make them pass",
+      "kind": "test",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    },
+    {
+      "id": "T4",
+      "title": "Self-review and prepare draft PR",
+      "kind": "review",
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
+    }
+  ],
+  "history": [
+    {
+      "at": "2026-07-20T20:46:08.453Z",
+      "event": "created"
+    },
+    {
+      "at": "2026-07-20T20:49:16.245Z",
+      "event": "frozen",
+      "detail": "6 criteria; checksum recorded"
+    },
+    {
+      "at": "2026-07-20T20:59:48.674Z",
+      "event": "started"
+    },
+    {
+      "at": "2026-07-20T21:04:17.176Z",
+      "event": "task-done",
+      "detail": "T1: Collect remaining context"
+    },
+    {
+      "at": "2026-07-20T21:04:17.401Z",
+      "event": "task-done",
+      "detail": "T2: Implement per plan"
+    },
+    {
+      "at": "2026-07-20T21:04:17.572Z",
+      "event": "task-done",
+      "detail": "T3: Add/adjust tests and make them pass"
+    },
+    {
+      "at": "2026-07-20T21:04:17.735Z",
+      "event": "task-done",
+      "detail": "T4: Self-review and prepare draft PR"
+    },
+    {
+      "at": "2026-07-20T21:04:17.863Z",
+      "event": "ac-confirmed",
+      "detail": "AC1: admitPeerMessage: admits only when sender allowed_actions includes 'peer'; else fail-closed {ok:false,reason}"
+    },
+    {
+      "at": "2026-07-20T21:04:18.006Z",
+      "event": "ac-confirmed",
+      "detail": "AC2: inline body rejected; missing/malformed artifact_ref (empty path/kind) rejected — refs only, injection-safe"
+    },
+    {
+      "at": "2026-07-20T21:04:18.139Z",
+      "event": "ac-confirmed",
+      "detail": "AC3: reducePeerMessages: pure fold to per-recipient inboxes keyed by to_dispatch_id, stable event order, deterministic; ignores non-peer events"
+    },
+    {
+      "at": "2026-07-20T21:04:18.253Z",
+      "event": "ac-confirmed",
+      "detail": "AC4: buildPeerMessageEvent validates against agent-event-extensions.schema.json (with/without run_id) via contracts/validator"
+    },
+    {
+      "at": "2026-07-20T21:04:18.373Z",
+      "event": "ac-confirmed",
+      "detail": "AC5: 'peer' added to allowed_actions enum in BOTH subagent-dispatch.schema.json copies; diff IDENTICAL (parity); additive/backward-compatible"
+    },
+    {
+      "at": "2026-07-20T21:04:18.539Z",
+      "event": "ac-confirmed",
+      "detail": "AC6: peer.test.ts 9 tests (gate allow/deny, inline-body+malformed reject, inbox fold+determinism, schema-valid build); full suite 1724 pass/0 fail incl dep guard+parity; tsc clean"
+    }
+  ]
+}

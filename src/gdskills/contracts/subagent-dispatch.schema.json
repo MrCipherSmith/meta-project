@@ -59,7 +59,7 @@
       "type": "array",
       "items": {
         "type": "string",
-        "enum": ["read", "write", "run-command", "network", "git", "ask-user", "spawn-subagent"]
+        "enum": ["read", "write", "run-command", "network", "git", "ask-user", "spawn-subagent", "peer"]
       }
     },
     "output_contract": {
