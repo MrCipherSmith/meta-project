@@ -328,7 +328,8 @@ function realSelectProviderModel(baseUrl: string | undefined): NonNullable<Shell
     const filtered =
       opts?.onlyProvider !== undefined ? detected.filter((d) => d.name === opts.onlyProvider) : detected;
     const list = filtered.length > 0 ? filtered : detected;
-    return pickProviderModel(io, list);
+    // Always re-probe live `/models` (when online) inside pickProviderModel.
+    return pickProviderModel(io, list, { fetch: globalThis.fetch, env: process.env });
   };
 }
 

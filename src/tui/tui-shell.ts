@@ -19,7 +19,7 @@ import { runAgentTurn } from "../commands/agent";
 import type { NormalizedMessage } from "../harness/provider/types";
 import { AGENT_SLASH_COMMANDS, filterCommands, findAgentCommand } from "../commands/agent-commands";
 import type { DetectedProvider } from "../commands/select";
-import { fetchOpenAiCompatModels, providerByName } from "../commands/providers";
+import { resolveModelsForPicker } from "../commands/providers";
 import { collapseToolOutput, summarizeToolArgs } from "../lib/ui";
 import { saveApiKey, saveShellConfig } from "../lib/shell-config";
 
@@ -290,17 +290,13 @@ function promptApiKeyStep(otui: OpenTui, r: Renderer, opts: { label: string; env
 }
 
 /**
- * Fetch a provider's model list for the picker: for a registered OpenAI-compat
- * provider (`envKey` set) the LIVE `/models` list (filterable by name, e.g. `free`),
- * sending the saved key when present; otherwise the detected static list.
+ * Resolve models for the picker: always probe the live `/models` endpoint when
+ * the provider is OpenAI-compat (network available + optional Bearer key);
+ * curated registry list is offline/401 fallback only.
  */
 async function modelsForPicker(prov: DetectedProvider): Promise<string[]> {
-  const compat = prov.envKey !== undefined ? providerByName(prov.name) : undefined;
-  if (compat === undefined) {
-    return prov.models;
-  }
-  const key = prov.envKey !== undefined ? process.env[prov.envKey] : undefined;
-  return fetchOpenAiCompatModels(globalThis.fetch, compat, key);
+  const result = await resolveModelsForPicker(globalThis.fetch, prov, process.env);
+  return result.models;
 }
 
 /** Provider-selection step. Resolves the chosen provider, or `undefined` on Esc/cancel. */

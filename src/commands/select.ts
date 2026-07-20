@@ -19,7 +19,7 @@
 // 022-2026-07-13-keryx-r2-4-tui/acceptance-criteria.md` (AC1-AC2).
 
 import { isLoopbackHost, isPrivateEgressHost } from "../harness/mutation/guard";
-import { OPENAI_COMPAT_PROVIDERS, fetchOpenAiCompatModels, providerByName } from "./providers";
+import { OPENAI_COMPAT_PROVIDERS, fetchOpenAiCompatModels, providerByName, resolveModelsForPicker } from "./providers";
 import type { ShellIO } from "./shell";
 
 /** A provider detected as usable, with its selectable chat `models`. */
@@ -234,15 +234,27 @@ function toSelection(provider: DetectedProvider, model: string): { provider: str
     : { provider: provider.name, model, baseUrl: provider.baseUrl };
 }
 
+/** Optional deps so tests can inject fetch/env without real network. */
+export interface PickProviderModelDeps {
+  fetch?: typeof fetch;
+  env?: Record<string, string | undefined>;
+}
+
 /**
  * Interactive numbered provider + model picker over the injected `ShellIO`.
- * Re-prompts on invalid input; on EOF before a valid choice, falls back
- * deterministically to `detected[0]` (+ its first model). Never throws/hangs.
+ * After a provider is chosen, ALWAYS attempts a live `/models` request when
+ * that provider is OpenAI-compat (and the network answers); curated lists are
+ * only the offline/error fallback. Re-prompts on invalid input; on EOF before
+ * a valid choice, falls back deterministically to `detected[0]` (+ its first
+ * model). Never throws/hangs.
  */
 export async function pickProviderModel(
   io: ShellIO,
   detected: DetectedProvider[],
+  deps: PickProviderModelDeps = {},
 ): Promise<{ provider: string; model: string; baseUrl?: string }> {
+  const fetchFn = deps.fetch ?? globalThis.fetch;
+  const env = deps.env ?? process.env;
   const iterator = io.lines[Symbol.asyncIterator]();
   const nextLine = async (): Promise<string | undefined> => {
     const result = await iterator.next();
@@ -288,10 +300,19 @@ export async function pickProviderModel(
     break;
   }
 
-  // Stage 2 — model menu for the chosen provider.
+  // Stage 2 — live model list when the network is up; curated offline fallback.
+  io.write(`Fetching models for ${chosenProvider.name}…\n`);
+  const resolved = await resolveModelsForPicker(fetchFn, chosenProvider, env);
+  const models = resolved.models.length > 0 ? resolved.models : chosenProvider.models;
+  if (resolved.source === "live") {
+    io.write(`  (${models.length} model(s) from API)\n`);
+  } else if (providerByName(chosenProvider.name) !== undefined) {
+    io.write(`  (offline/API fallback · ${models.length} curated model(s))\n`);
+  }
+
   io.write(`Select a model for ${chosenProvider.name}:\n`);
-  for (let i = 0; i < chosenProvider.models.length; i++) {
-    io.write(`  ${i + 1}. ${chosenProvider.models[i]}\n`);
+  for (let i = 0; i < models.length; i++) {
+    io.write(`  ${i + 1}. ${models[i]}\n`);
   }
 
   while (true) {
@@ -299,12 +320,12 @@ export async function pickProviderModel(
     if (line === undefined) {
       return fallback();
     }
-    const index = parseChoice(line, chosenProvider.models.length);
+    const index = parseChoice(line, models.length);
     if (index === undefined) {
       io.write("Invalid choice — enter the number of a listed model.\n");
       continue;
     }
-    const model = chosenProvider.models[index];
+    const model = models[index];
     if (model === undefined) {
       io.write("Invalid choice — enter the number of a listed model.\n");
       continue;

@@ -138,30 +138,102 @@ export function providerByName(name: string): OpenAiCompatProvider | undefined {
   return OPENAI_COMPAT_PROVIDERS.find((p) => p.name === name);
 }
 
+/** Default network timeout for live `/models` probes (offline must not hang the picker). */
+export const MODELS_FETCH_TIMEOUT_MS = 10_000;
+
+export type ModelsResolveSource = "live" | "fallback";
+
+export interface ModelsResolveResult {
+  models: string[];
+  /** `live` when the provider's HTTP `/models` returned at least one id. */
+  source: ModelsResolveSource;
+}
+
 /**
  * Fetch a provider's LIVE model list (`GET {baseUrl}{modelsPath}`), sending the
  * Bearer `apiKey` when present (some `/models` endpoints require auth; OpenRouter's
- * is public). Returns ids deduped + sorted; on ANY failure (offline / non-2xx /
- * malformed / no ids) falls back to the provider's curated `models`. Never throws.
+ * is public). ALWAYS attempts the network when `fetchFn` is available — curated
+ * `models` are only a fallback for offline / non-2xx / timeout / empty body.
+ * Never throws.
  */
 export async function fetchOpenAiCompatModels(
   fetchFn: typeof fetch,
   provider: OpenAiCompatProvider,
   apiKey?: string,
+  opts?: { timeoutMs?: number },
 ): Promise<string[]> {
+  const result = await fetchOpenAiCompatModelsDetailed(fetchFn, provider, apiKey, opts);
+  return result.models;
+}
+
+/**
+ * Same as {@link fetchOpenAiCompatModels} but reports whether the list came from
+ * the live endpoint or the curated fallback (for UI status lines / tests).
+ */
+export async function fetchOpenAiCompatModelsDetailed(
+  fetchFn: typeof fetch,
+  provider: OpenAiCompatProvider,
+  apiKey?: string,
+  opts?: { timeoutMs?: number },
+): Promise<ModelsResolveResult> {
   const url = `${provider.baseUrl.replace(/\/+$/, "")}${provider.modelsPath ?? DEFAULT_MODELS_PATH}`;
+  const timeoutMs = opts?.timeoutMs ?? MODELS_FETCH_TIMEOUT_MS;
+  const fallback: ModelsResolveResult = { models: [...provider.models], source: "fallback" };
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const init = apiKey !== undefined && apiKey.length > 0 ? { headers: { authorization: `Bearer ${apiKey}` } } : undefined;
+    const init: RequestInit = { signal: controller.signal };
+    if (apiKey !== undefined && apiKey.length > 0) {
+      init.headers = { authorization: `Bearer ${apiKey}` };
+    }
     const res = await fetchFn(url, init);
     if (!res.ok) {
-      return [...provider.models];
+      return fallback;
     }
-    const body = (await res.json()) as { data?: Array<{ id?: unknown }> } | null;
+    const body = (await res.json()) as { data?: Array<{ id?: unknown; name?: unknown }> } | null;
     const ids = Array.isArray(body?.data)
-      ? body.data.map((m) => (typeof m.id === "string" ? m.id : "")).filter((id) => id.length > 0)
+      ? body.data
+          .map((m) => {
+            if (typeof m.id === "string" && m.id.length > 0) {
+              return m.id;
+            }
+            // Some gateways put the model id in `name` instead of `id`.
+            if (typeof m.name === "string" && m.name.length > 0) {
+              return m.name;
+            }
+            return "";
+          })
+          .filter((id) => id.length > 0)
       : [];
-    return ids.length > 0 ? Array.from(new Set(ids)).sort() : [...provider.models];
+    if (ids.length === 0) {
+      return fallback;
+    }
+    return { models: Array.from(new Set(ids)).sort(), source: "live" };
   } catch {
-    return [...provider.models];
+    return fallback;
+  } finally {
+    clearTimeout(timer);
   }
+}
+
+/**
+ * Resolve the model list for a picker entry: registry OpenAI-compat providers
+ * ALWAYS hit live `/models` when the network is available (Bearer key from
+ * `env` when required); ollama/anthropic/fake keep their already-detected list.
+ * Never throws.
+ */
+export async function resolveModelsForPicker(
+  fetchFn: typeof fetch,
+  provider: { name: string; models: string[]; envKey?: string },
+  env: Record<string, string | undefined> = process.env,
+  opts?: { timeoutMs?: number },
+): Promise<ModelsResolveResult> {
+  const compat = providerByName(provider.name);
+  if (compat === undefined) {
+    return { models: [...provider.models], source: "fallback" };
+  }
+  const envKey = provider.envKey ?? compat.envKey;
+  const raw = env[envKey];
+  const apiKey = typeof raw === "string" && raw.length > 0 ? raw : undefined;
+  return fetchOpenAiCompatModelsDetailed(fetchFn, compat, apiKey, opts);
 }

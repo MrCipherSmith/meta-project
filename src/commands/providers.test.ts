@@ -1,5 +1,11 @@
 import { expect, test } from "bun:test";
-import { OPENAI_COMPAT_PROVIDERS, fetchOpenAiCompatModels, providerByName } from "./providers";
+import {
+  OPENAI_COMPAT_PROVIDERS,
+  fetchOpenAiCompatModels,
+  fetchOpenAiCompatModelsDetailed,
+  providerByName,
+  resolveModelsForPicker,
+} from "./providers";
 
 test("registry lists the flow-085 providers with base URL + env key", () => {
   const names = OPENAI_COMPAT_PROVIDERS.map((p) => p.name);
@@ -85,4 +91,56 @@ test("fetchOpenAiCompatModels: falls back to curated models on non-2xx / throw /
   expect(await fetchOpenAiCompatModels(boom, groq!)).toEqual([...groq!.models]);
   const empty = (async () => ({ ok: true, json: async () => ({ data: [] }) }) as Response) as unknown as typeof fetch;
   expect(await fetchOpenAiCompatModels(empty, groq!)).toEqual([...groq!.models]);
+});
+
+test("fetchOpenAiCompatModelsDetailed: reports live vs fallback source", async () => {
+  const groq = providerByName("groq");
+  expect(groq).toBeDefined();
+  const live = (async () =>
+    ({
+      ok: true,
+      json: async () => ({ data: [{ id: "live-a" }, { name: "live-b" }] }),
+    }) as Response) as unknown as typeof fetch;
+  const liveResult = await fetchOpenAiCompatModelsDetailed(live, groq!);
+  expect(liveResult.source).toBe("live");
+  expect(liveResult.models).toEqual(["live-a", "live-b"]);
+
+  const offline = (async () => {
+    throw new Error("offline");
+  }) as unknown as typeof fetch;
+  const offlineResult = await fetchOpenAiCompatModelsDetailed(offline, groq!);
+  expect(offlineResult.source).toBe("fallback");
+  expect(offlineResult.models).toEqual([...groq!.models]);
+});
+
+test("resolveModelsForPicker: always probes live for registry providers when online", async () => {
+  let called = false;
+  const fetchFn = (async () => {
+    called = true;
+    return {
+      ok: true,
+      json: async () => ({ data: [{ id: "glm-5.2" }, { id: "glm-4.7" }] }),
+    } as Response;
+  }) as unknown as typeof fetch;
+  const result = await resolveModelsForPicker(
+    fetchFn,
+    { name: "zai-coding", models: ["glm-4.5"], envKey: "ZAI_API_KEY" },
+    { ZAI_API_KEY: "sk-test" },
+  );
+  expect(called).toBe(true);
+  expect(result.source).toBe("live");
+  expect(result.models).toContain("glm-5.2");
+  expect(result.models).toContain("glm-4.7");
+});
+
+test("resolveModelsForPicker: non-registry providers keep detected models without network", async () => {
+  let called = false;
+  const fetchFn = (async () => {
+    called = true;
+    return { ok: true, json: async () => ({ data: [] }) } as Response;
+  }) as unknown as typeof fetch;
+  const result = await resolveModelsForPicker(fetchFn, { name: "fake", models: ["fake-echo"] }, {});
+  expect(called).toBe(false);
+  expect(result.models).toEqual(["fake-echo"]);
+  expect(result.source).toBe("fallback");
 });
