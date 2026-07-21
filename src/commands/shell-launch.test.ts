@@ -12,7 +12,7 @@ import { expect, test } from "bun:test";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { parseShellCliFlags, resolveTuiStartup } from "./shell";
+import { chooseShellSurface, parseShellCliFlags, resolveTuiStartup } from "./shell";
 import type { DetectedProvider } from "./select";
 
 /** A env var name no other test or real environment uses. */
@@ -42,15 +42,43 @@ const never = (): Promise<DetectedProvider[]> => {
   throw new Error("providers must not be detected when a saved selection exists");
 };
 
-test("AC12: `--chat` no longer opts out of the TUI, it only selects the mode", () => {
+test("AC12: `--chat` parses as a MODE flag, and only `--no-tui` clears wantTui", () => {
   const chat = parseShellCliFlags(["--chat"]);
   expect(chat.modeFlag).toBe(false);
-  expect(chat.wantTui).toBe(true); // the guard now dispatches on the mode
+  // NOTE: `wantTui: true` for `--chat` is NOT evidence of the AC12 fix — the
+  // parser always returned that. The exclusion lived in the launch guard, which
+  // `chooseShellSurface` (next test) is what actually pins.
+  expect(chat.wantTui).toBe(true);
 
   // The explicit opt-outs still work, and still reach the readline fallback.
   expect(parseShellCliFlags(["--chat", "--no-tui"]).wantTui).toBe(false);
   expect(parseShellCliFlags(["--agent"]).modeFlag).toBe(true);
   expect(parseShellCliFlags([]).modeFlag).toBeUndefined();
+});
+
+test("AC12: the launch guard sends `--chat` to the TUI chat surface, not past the TUI", () => {
+  const surfaceFor = (args: string[], isTty = true): string =>
+    chooseShellSurface(parseShellCliFlags(args), isTty);
+
+  // THE headline claim: with a TTY, `--chat` reaches `launchTuiChatShell`. The
+  // pre-fix guard (`… && modeFlag !== false`) returned the readline shell here,
+  // which is exactly what no test covered.
+  expect(surfaceFor(["--chat"])).toBe("tui-chat");
+
+  // Agent is the default and stays the default; `--agent` is explicit agreement.
+  expect(surfaceFor([])).toBe("tui-agent");
+  expect(surfaceFor(["--agent"])).toBe("tui-agent");
+  expect(surfaceFor(["--tui"])).toBe("tui-agent");
+
+  // `--no-tui` is the ONLY flag that opts out of the TUI — in both modes.
+  expect(surfaceFor(["--no-tui"])).toBe("readline");
+  expect(surfaceFor(["--chat", "--no-tui"])).toBe("readline");
+  expect(surfaceFor(["--agent", "--no-tui"])).toBe("readline");
+
+  // …and without a TTY there is no TUI to dispatch to, whatever the flags say.
+  expect(surfaceFor([], false)).toBe("readline");
+  expect(surfaceFor(["--chat"], false)).toBe("readline");
+  expect(surfaceFor(["--agent", "--tui"], false)).toBe("readline");
 });
 
 test("AC12: a provider key saved by /connect is applied to the environment at launch", async () => {

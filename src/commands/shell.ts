@@ -1152,6 +1152,35 @@ export function parseShellCliFlags(args: string[]): ShellCliFlags {
   };
 }
 
+/** Which surface `shellCommand` should run for a given set of flags. */
+export type ShellSurface =
+  /** The OpenTUI agent shell (`launchTuiAgentShell`). */
+  | "tui-agent"
+  /** The OpenTUI chat shell (`launchTuiChatShell`) — flow 112. */
+  | "tui-chat"
+  /** The classic readline shell (also the fallback when a TUI launch declines). */
+  | "readline";
+
+/**
+ * Pure: pick the surface from the parsed flags and whether stdout is a TTY.
+ *
+ * Extracted from the launch guard because the guard's own shape is the AC12
+ * change: it used to read `flags.wantTui && isTty && modeFlag !== false`, so
+ * `--chat` never reached the TUI at all. `parseShellCliFlags` was never the
+ * thing that excluded chat — it always returned `wantTui: true` for `--chat` —
+ * so asserting on its output cannot tell the old behaviour from the new one.
+ * This function can.
+ */
+export function chooseShellSurface(
+  flags: Pick<ShellCliFlags, "wantTui" | "modeFlag">,
+  isTty: boolean,
+): ShellSurface {
+  if (!flags.wantTui || !isTty) {
+    return "readline";
+  }
+  return flags.modeFlag === false ? "tui-chat" : "tui-agent";
+}
+
 /**
  * Thin TTY wrapper (NOT unit-tested end-to-end): parses flags, wires IO, and
  * runs the deterministic core.
@@ -1187,7 +1216,8 @@ export async function shellCommand(args: string[]): Promise<void> {
   // dispatches on the mode — agent → `launchTuiAgentShell`, chat → the chat
   // driver, which renders `ShellIO` through the same chrome and is driven by the
   // very `runShell` the readline fallback runs.
-  if (flags.wantTui && process.stdout.isTTY) {
+  const surface = chooseShellSurface(flags, process.stdout.isTTY === true);
+  if (surface !== "readline") {
     const cwd = process.cwd();
     const tuiProviderFactory = realMakeProvider(() => {});
     const makeAgentDeps = async (sel: { provider: string; model: string; baseUrl?: string }): Promise<AgentDeps> => {
@@ -1257,7 +1287,7 @@ export async function shellCommand(args: string[]): Promise<void> {
     const tuiInitial = startup.initial;
     const tuiDetected = startup.detected;
 
-    if (modeFlag === false) {
+    if (surface === "tui-chat") {
       // Chat: the SAME `runShell` the readline fallback below runs, rendered
       // through the shared chrome.
       const chatFactory = realMakeProvider(() => {});
