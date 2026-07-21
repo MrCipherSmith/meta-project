@@ -3,40 +3,73 @@ Version: 0.2.0
 
 ## Status
 
-`implemented` — Phases 0–5 landed; the OpenTUI shell is the **default interactive
-shell** when `process.stdout.isTTY`. The migration from `node:readline` to a
-full-screen **OpenTUI** (`@opentui/core`) terminal UI described by this package is
-shipped: live `/` command composer, persistent composer region, and component-based
-rendering, WITHOUT rewriting the deterministic agent driver or the pure render
-helpers.
+`implemented (agent mode) — chat renderer outstanding`. Phases 0–5 shipped for
+the **agent** shell. The scope below says "chat + agent", and the chat half was
+never built: `--chat` still runs the readline renderer. See **§10 Open items**
+in `specification.md` for the full list of what remains.
 
-Runtime evidence (flows 059–066):
+This package specified migrating the keryx interactive shell/agent UI from the
+line-based `node:readline` renderer to a full-screen **OpenTUI**
+(`@opentui/core`) terminal UI, to gain a live, Pi/grok-style command composer (an
+as-you-type `/` command dropdown), a persistent input area, and a component-based
+rendering model — WITHOUT rewriting the deterministic agent driver or the pure
+render helpers already in place.
 
-- `src/tui/tui-shell.ts` (~80 KB) — the OpenTUI renderer implementing `AgentIO` /
-  `ShellIO` (flows 060 skeleton + 061 chrome parity).
-- `src/commands/shell.ts:1043-1049` selects OpenTUI when `stdout.isTTY` and the
-  `--tui`/`--no-tui` flag allows it; comment at `shell.ts:1026`: "TUI is already
-  the default".
-- `src/commands/agent-commands.ts` — promoted shared command registry with the
-  pure `filterCommands` / `findAgentCommand` helpers (flow 062).
-- `@opentui/core ^0.4.5` declared as an `optionalDependencies` entry
-  (`package.json:48`); loaded via dynamic `import()` with graceful readline
-  fallback. ADR-0005 (`docs/decisions/keryx-harness/ADR-0005-opentui-shell-dependency.md`)
-  is **Accepted (Phase 1)**.
+The renderer now lives in `src/tui/` and **the TUI is the default** on an
+interactive TTY (`parseShellCliFlags` defaults `wantTui = true`); `--no-tui`
+opts out and the readline shell remains the fallback whenever there is no TTY,
+the optional dependency is absent, or the renderer fails to initialise.
+
+### Delivery
+
+| Phase | What | Flow(s) |
+|---|---|---|
+| 0 | Spike — native dep, scrollback, primitives, license, latency. GO verdict | 059 |
+| 1 | `TuiShell` renderer skeleton wired to the driver, `--tui` opt-in; ADR-0005 ratifies the dependency | 060 |
+| 2 | Chrome parity — markdown, role headers, tool + collapse, reasoning, usage | 061 |
+| 3 | Live `/` command dropdown + shared command registry | 062 |
+| 4 | Scrollable transcript, default-deny approval, resize | 063 |
+| 5 | TUI default on TTY, `--no-tui` opt-out | 064; reverted by 065 over a stdin-handoff leak, root-caused in 066 and re-landed in 067 |
+
+Phase 5's second half — "retire the readline path once at parity" — is **not**
+done and cannot be until the chat renderer exists, because chat has no other
+home. Readline is therefore load-bearing, not merely a fallback.
+
+Post-migration work that amends this package rather than extending the roadmap:
+layout and UX passes (068–079), persistence and provider work (080–086), and
+**flow 109** — the transcript block model (per-block collapse, copyable markdown
+payloads, structural code/diff rendering). See §9 of `specification.md` for the
+decisions those flows recorded.
+
+### Runtime evidence
+
+- `src/tui/tui-shell.ts` — the OpenTUI renderer. It implements **`AgentIO` only**;
+  `ShellIO` has no implementation under `src/tui/`, which is exactly open item
+  O-1 (flows 060 skeleton + 061 chrome parity).
+- `src/commands/shell.ts:1094` selects OpenTUI when `flags.wantTui && modeFlag
+  !== false && process.stdout.isTTY` — note the middle clause: `--chat` sets
+  `modeFlag = false`, so chat never reaches the TUI.
+- `src/commands/agent-commands.ts` — the promoted command registry with the pure
+  `filterCommands` / `findAgentCommand` helpers (flow 062). It currently has one
+  consumer; PRD F1's "chat and agent share definitions" is open item O-2.
+- `@opentui/core` declared under `optionalDependencies`, loaded via dynamic
+  `import()` with a readline fallback. ADR-0005 is **Accepted (Phase 1)** and its
+  guard update landed — the package is pinned in the optional-dependency set at
+  `src/testing/block-d-no-network.test.ts:82`.
 - Headless render tests: `src/tui/tui-shell.test.ts`.
 
 Beyond the original Phase 0–5 scope, the TUI also gained side-workers
 (`src/tui/side-worker.ts`, `worker-fleet.ts`), multi-agent spawn wiring
-(`subagent-bridge.ts`, `ask-user-bridge.ts`, flow 065/066 + commits `9b0ca29`,
-`816e8f0`), and dual-store session persistence (`/compact`, `/resume`, `/continue`).
-These were added after the spec was written and are not normatively described
-here; cite the flow numbers if a follow-on requirements package is split out.
+(`subagent-bridge.ts`, `ask-user-bridge.ts`), and dual-store session persistence
+(`/compact`, `/resume`, `/continue`). These were added after the spec was written
+and are not normatively described here; cite the flow numbers if a follow-on
+requirements package is split out.
 
-The original `draft` design (port-based agent driver `runAgentTurn`, the
-`AgentIO`/`ShellIO` hook surface, and the pure render helpers `renderMarkdown`,
-`live-render.ts`, `indentBlock`, `collapseToolOutput`, `summarizeToolArgs`,
-reasoning capture — flows 033, 048–057) remains the foundation and carries over
-unchanged, as specified.
+The foundation this package builds on — the port-based agent driver
+(`src/commands/agent.ts` `runAgentTurn`), the `AgentIO`/`ShellIO` hook surface,
+and the pure render helpers (flows 033, 048–057) — carried over as planned. The
+driver and hook surface are unchanged by diff; the pure helper *layer* has since
+been extended by flow 109, recorded as decision **D-6**.
 
 ## Why
 
@@ -65,16 +98,19 @@ not a dependency add. OpenTUI is the chosen framework because it is Bun-native
   keep the deterministic driver and pure helpers; swap only the IO implementation
   (`createRichIo` / `runAgentRepl` → an OpenTUI renderer implementing the same
   `AgentIO`/`ShellIO` hooks).
-- **Risk R1 (native dependency):** OpenTUI's core is Zig-compiled with prebuilt
-  per-platform binaries shipped via npm (end users should NOT need Zig). MUST be
-  validated for keryx's target platforms and its `scripts/install.sh --global`
-  (Bun) install path — Phase 0 gate.
-- **Risk R2 (scrollback):** a full-screen (alt-screen) TUI may forfeit native
-  terminal scrollback/copy that the line-based shell preserves. Phase 0 confirms
-  OpenTUI's inline-vs-fullscreen options and picks the mode.
-- **Risk R3 (rewrite surface):** every flow-050–057 render feature must be
-  re-homed on components without regressing; mitigated by keeping the logic in the
-  already-pure, unit-tested helpers and treating OpenTUI as presentation only.
+- **Risk R1 (native dependency) — resolved.** Prebuilt per-platform binary via npm
+  optionalDependencies, no Zig at install; MIT. darwin-arm64 confirmed in the
+  Phase 0 spike, other targets confirm as exercised. Ratified in ADR-0005, which
+  also pins the optional-dependency contract (dynamic `import()` only, mandatory
+  fallback, zero-`dependencies` floor untouched).
+- **Risk R2 (scrollback) — resolved, cost accepted.** Alternate-screen mode was
+  chosen, forfeiting native terminal scrollback as codex/claude do. Copy is served
+  instead by OSC-52 (mouse selection, and `y` on a focused block since flow 109),
+  and losing scrollback is precisely why flow 109's decision D-5 has to preserve
+  the scroll offset when a block expands.
+- **Risk R3 (rewrite surface) — held.** Every flow-050–057 feature was re-homed
+  without regression, with the logic kept in pure unit-tested helpers. The one
+  qualification: that helper layer is no longer frozen — see decision **D-6**.
 
 See `prd.md` for goals, requirements, success criteria, and the phased roadmap;
 `specification.md` for the technical architecture, the AgentIO→component mapping,

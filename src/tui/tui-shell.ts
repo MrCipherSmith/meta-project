@@ -4,7 +4,9 @@
 // agent.ts): it renders into an OpenTUI transcript and drives `runAgentTurn` from
 // a `split-footer` composer (a fixed footer input over a scrolling main region —
 // the Pi/grok layout). Chrome parity with the readline shell: assistant text →
-// native `MarkdownRenderable`; `● keryx` role header; `⚙ tool(args)` (via the pure
+// one sibling renderable per markdown segment, styled by the worker-free
+// `markdownToChunks` (the native `MarkdownRenderable` is deliberately NOT used —
+// flow 109 decision D-2); `● keryx` role header; `⚙ tool(args)` (via the pure
 // `summarizeToolArgs`); collapsed tool output (`collapseToolOutput`); dim
 // `⋯ thinking` reasoning; dim `↑in ↓out tokens`. The deterministic driver and the
 // pure helpers are unchanged. Gutter = the transcript box `padding`.
@@ -51,6 +53,17 @@ import {
 } from "./side-worker";
 import { setSubagentFleetListener } from "./subagent-bridge";
 import { formatFleetSidebar, MAIN_AGENT_ID, shortWorkerLabel, WorkerFleet } from "./worker-fleet";
+import { segmentMarkdown, type MdSegment } from "../lib/md-blocks";
+import {
+  createBlockMount,
+  createBlockNavController,
+  createBlockRegistry,
+  createSegmentView,
+  createStreamSegmenter,
+  markdownToChunks,
+  type BlockState,
+  type SegmentView,
+} from "./transcript-blocks";
 
 /** A resolved provider/model selection. */
 export interface TuiSelection {
@@ -63,107 +76,100 @@ export interface TuiSelection {
 type OpenTui = typeof import("@opentui/core");
 type Renderer = Awaited<ReturnType<OpenTui["createCliRenderer"]>>;
 type Box = InstanceType<OpenTui["BoxRenderable"]>;
-type Text = InstanceType<OpenTui["TextRenderable"]>;
-type Chunk = ReturnType<OpenTui["bold"]>;
 type StyledContent = string | ReturnType<OpenTui["t"]>;
 
-// Lightweight markdown → OpenTUI StyledText, mirroring the readline `renderMarkdown`
-// rules (ATX headings, **bold**, `inline code`, fenced blocks, -/* bullets) — but
-// emitting `@opentui/core` text chunks instead of ANSI, so it needs no parser
-// worker (the native `MarkdownRenderable` spins a WASM worker that is unavailable
-// headless) and renders through a plain `TextRenderable`.
-function markdownToChunks(otui: OpenTui, md: string): Chunk[] {
-  const out: Chunk[] = [];
-  const plain = (s: string): void => {
-    if (s.length > 0) {
-      out.push(...otui.stringToStyledText(s).chunks);
-    }
-  };
-  const inline = (text: string): void => {
-    const re = /(`[^`]+`)|(\*\*[^*]+\*\*)/g;
-    let last = 0;
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(text)) !== null) {
-      plain(text.slice(last, m.index));
-      if (m[1] !== undefined) {
-        out.push(otui.dim(m[1].slice(1, -1))); // `code` → dim
-      } else if (m[2] !== undefined) {
-        out.push(otui.bold(m[2].slice(2, -2))); // **bold**
-      }
-      last = m.index + m[0].length;
-    }
-    plain(text.slice(last));
-  };
-  const lines = md.split("\n");
-  let inCode = false;
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i] ?? "";
-    if (/^\s*```/.test(line)) {
-      inCode = !inCode; // drop the fence line
-      continue;
-    }
-    if (i > 0) {
-      plain("\n");
-    }
-    if (inCode) {
-      out.push(otui.dim(line));
-      continue;
-    }
-    const heading = /^#{1,6}\s+(.*)$/.exec(line);
-    if (heading !== null) {
-      out.push(otui.cyan(otui.bold(heading[1] ?? "")));
-      continue;
-    }
-    const bullet = /^(\s*)[-*]\s+(.*)$/.exec(line);
-    if (bullet !== null) {
-      plain(`${bullet[1] ?? ""}• `);
-      inline(bullet[2] ?? "");
-      continue;
-    }
-    inline(line);
-  }
-  return out;
-}
+// `markdownToChunks` now lives in `./transcript-blocks` (flow 109) so the render
+// rules are unit-testable and shared with the block bodies.
 
 /**
  * Build an `AgentIO` that renders into an OpenTUI `transcript` box with chrome
- * parity: streamed tokens (`write`) accumulate into a native `MarkdownRenderable`;
- * tool calls/results, reasoning, usage, and system lines append styled blocks.
+ * parity: streamed tokens (`write`) go through `createStreamSegmenter` and paint
+ * one `SegmentView` per markdown segment (prose via `markdownToChunks`, a fence
+ * as a framed language-tagged box — no `MarkdownRenderable`, D-2); tool
+ * calls/results, reasoning, usage, and system lines append styled one-liners.
  * Exported so the headless test can drive the same render path through
- * `runAgentTurn` without a real TTY.
+ * `runAgentTurn` without a real TTY. Pass the reasoning/tool hooks through
+ * {@link attachBlockIo} to upgrade those one-liners into retained blocks (AC1).
  */
 export function createTuiAgentIo(otui: OpenTui, renderer: Renderer, transcript: Box): AgentIO {
   let seq = 0;
-  let active: Text | undefined;
-  let pending = "";
   const append = (content: StyledContent): void => {
     transcript.add(new otui.TextRenderable(renderer, { id: `n${seq++}`, content }));
   };
-  const render = (md: string): InstanceType<OpenTui["StyledText"]> => new otui.StyledText(markdownToChunks(otui, md));
+
+  // An assistant message is a COLUMN of sibling renderables — one per markdown
+  // segment (flow 109 / AC5) — so a fenced block can be framed with its language
+  // tag instead of being flattened into one dim `TextRenderable`.
+  type Message = {
+    container: Box;
+    segmenter: ReturnType<typeof createStreamSegmenter>;
+    views: SegmentView[];
+    /** Views whose segment is final; never repainted again (risk R1). */
+    frozen: number;
+  };
+  let message: Message | undefined;
+
+  const startMessage = (): Message => {
+    const container = new otui.BoxRenderable(renderer, {
+      id: `msg${seq++}`,
+      flexDirection: "column",
+      flexShrink: 0,
+    });
+    transcript.add(container);
+    return { container, segmenter: createStreamSegmenter(), views: [], frozen: 0 };
+  };
+
+  // Repaint from `frozen` onwards only: earlier segments are settled, so a token
+  // costs the trailing segment's render and nothing else.
+  const paint = (m: Message, segments: readonly MdSegment[], frozen: number): void => {
+    for (let i = m.frozen; i < segments.length; i++) {
+      const segment = segments[i];
+      if (segment === undefined) {
+        continue;
+      }
+      const existing = m.views[i];
+      if (existing !== undefined && existing.kind === segment.kind) {
+        existing.update(segment);
+        continue;
+      }
+      existing?.destroy();
+      m.views[i] = createSegmentView(otui, renderer, m.container, segment);
+    }
+    for (const stale of m.views.splice(segments.length)) {
+      stale.destroy();
+    }
+    m.frozen = frozen;
+  };
+
   return {
-    // Assistant text streams into a TextRenderable whose StyledText is our
-    // worker-free markdown render (bold/headings/lists/code) — parity with the
-    // readline `renderMarkdown`.
+    // Assistant text streams into per-segment renderables: worker-free markdown
+    // chunks for prose (parity with the readline `renderMarkdown`) and a framed
+    // language-tagged box per fence.
     write: (s) => {
       if (s.length === 0) {
         return;
       }
-      pending += s;
-      if (active === undefined) {
-        active = new otui.TextRenderable(renderer, { id: `a${seq++}`, content: render(pending) });
-        transcript.add(active);
-      } else {
-        active.content = render(pending);
-      }
+      const m = (message ??= startMessage());
+      const { segments, frozen } = m.segmenter.push(s);
+      paint(m, segments, frozen);
     },
     onAssistantText: (text) => {
-      if (active !== undefined) {
-        active.content = render(text);
-        active = undefined;
-      } else {
-        append(render(text));
+      const m = message ?? startMessage();
+      // The authoritative final text: re-segment ONCE (not per token) and rebuild.
+      for (const view of m.views.splice(0)) {
+        view.destroy();
       }
-      pending = "";
+      m.frozen = 0;
+      const segments = segmentMarkdown(text);
+      paint(m, segments, segments.length);
+      if (segments.length === 0) {
+        try {
+          transcript.remove(m.container);
+        } catch {
+          // best-effort teardown
+        }
+      }
+      message = undefined;
     },
     // Reasoning is COLLAPSED to a one-line marker (grok/opencode style) instead of
     // dumping the whole chain-of-thought; `line count` hints at its length.
@@ -196,6 +202,68 @@ export function createTuiAgentIo(otui: OpenTui, renderer: Renderer, transcript: 
     },
     onSystem: (text) => append(text.includes("[error]") ? otui.t`${otui.red(text)}` : otui.t`${otui.dim(text)}`),
   };
+}
+
+/** Registers a block and mounts its view; returns the new block id. */
+export type BlockSink = (
+  input: { kind: string; summary: string; fullText: string; lineCount: number },
+  options?: { hint?: string; tone?: "dim" | "cyan" | "red" },
+) => string;
+
+/** Shell chrome that runs BEFORE each block is registered (busy phase, fleet). */
+export interface BlockIoChrome {
+  onReasoning?: (text: string) => void;
+  onToolCall?: (name: string, input: string) => void;
+  onToolResult?: AgentIO["onToolResult"];
+}
+
+/**
+ * Upgrade the reasoning / tool-call / tool-result hooks of `io` so each one is
+ * registered as a RETAINED, addressable block instead of a one-line renderable
+ * whose text is discarded (AC1). This is the real wiring the shell installs —
+ * it lives here, exported, so a headless test can drive `runAgentTurn` through
+ * it and assert the recovered payload, rather than proving a replica.
+ *
+ * The `createTuiAgentIo` defaults are REPLACED, not chained: they append their
+ * own line and would double-print. `chrome` keeps the shell's per-event side
+ * effects (busy phase, fleet status) out of this mapping.
+ */
+export function attachBlockIo(io: AgentIO, addBlock: BlockSink, chrome: BlockIoChrome = {}): AgentIO {
+  io.onReasoning = (text) => {
+    chrome.onReasoning?.(text);
+    const body = text.trim();
+    const lineCount = body.split("\n").filter((l) => l.trim().length > 0).length;
+    addBlock({ kind: "thought", summary: "", fullText: body, lineCount }, { hint: "/think · ctrl+o" });
+  };
+  io.onToolCall = (name, input) => {
+    chrome.onToolCall?.(name, input);
+    const args = summarizeToolArgs(input);
+    // The block retains the RAW input json; the header keeps the compact call.
+    addBlock(
+      {
+        kind: "tool",
+        summary: `⚙ ${args.length > 0 ? `${name}(${args})` : `${name}()`}`,
+        fullText: input,
+        lineCount: input.split("\n").length,
+      },
+      { hint: "ctrl+o", tone: "cyan" },
+    );
+  };
+  io.onToolResult = (name, result) => {
+    chrome.onToolResult?.(name, result);
+    const { summary, lineCount, hidden } = collapseToolOutput(result.output);
+    const more = hidden > 0 ? ` · +${hidden} more` : "";
+    addBlock(
+      {
+        kind: "output",
+        summary: `${result.isError ? "✗" : "↳"} ${summary}${more}`,
+        fullText: result.output,
+        lineCount,
+      },
+      { hint: "/expand · ctrl+o", ...(result.isError ? { tone: "red" as const } : {}) },
+    );
+  };
+  return io;
 }
 
 /** True only for an explicit `y`/`yes` (case-insensitive). Default-deny otherwise. */
@@ -355,7 +423,7 @@ function overlayBox(otui: OpenTui, r: Renderer, id: string): Box {
 }
 
 /** OpenTUI keypress event fields the overlay steps read. */
-type KeypressEvent = {
+export type KeypressEvent = {
   name: string;
   ctrl: boolean;
   meta: boolean;
@@ -368,8 +436,12 @@ type KeypressEvent = {
  * Subscribe `handler` to OpenTUI's internal keypress stream and return an unsubscribe
  * fn. The single place that reaches into the private `_internalKeyInput` API, so the
  * overlay steps don't each duplicate the on/off wiring (flow 086).
+ *
+ * Exported for the flow-109 headless nav-mode tests: they subscribe the REAL
+ * `createBlockNavController` through this exact wrapper and drive real keys, so
+ * the test exercises the shell's own subscription path rather than a replica.
  */
-function onKeypress(r: Renderer, handler: (key: KeypressEvent) => void): () => void {
+export function onKeypress(r: Renderer, handler: (key: KeypressEvent) => void): () => void {
   r._internalKeyInput.onInternal("keypress", handler);
   return () => r._internalKeyInput.offInternal("keypress", handler);
 }
@@ -850,13 +922,46 @@ export async function launchTuiAgentShell(opts: {
     let totalOut = 0;
     let hasExactUsage = false;
     const baseWrite = io.write.bind(io);
-    const baseOnToolCall = io.onToolCall?.bind(io);
-    const baseOnToolResult = io.onToolResult?.bind(io);
     const baseOnSystem = io.onSystem?.bind(io);
     // Live phase updates (footer spinner + in-transcript status) — defined after
     // footer chrome below; assigned no-ops until then, then rewired.
     let setBusyPhase: (phase: string) => void = () => {};
     // setMainAgent is already defined above (Workers fleet); hooks close over it.
+
+    // --- collapsible transcript blocks (flow 109) --------------------------
+    // Reasoning, tool calls and tool results become addressable blocks that
+    // RETAIN their full text (bounded — D-4) instead of discarding it, so they
+    // can be expanded in place, navigated with the keyboard and copied.
+    const blocks = createBlockRegistry();
+    const blockMount = createBlockMount(otui, r, transcript, blocks);
+    // The whole modal navigation mode (focus guard, key dispatch, sticky-scroll
+    // suspension) lives in `transcript-blocks.ts` so it is reachable from a
+    // headless test; the closure keeps only wiring (risk R5). `overlayActive`,
+    // `menu`/`menuNav` and `paintBusyStatus` are declared further down — the
+    // callbacks below are only ever invoked from a keypress, long after.
+    const nav = createBlockNavController({
+      registry: blocks,
+      view: (id) => blockMount.view(id),
+      scroll,
+      isBlocked: () => (menu.visible && menuNav) || overlayActive(),
+      focusComposer: () => input.focus(),
+      blurComposer: () => textarea.blur(),
+      copyText: (text) => r.copyToClipboardOSC52(text),
+      toast: (message) => showToast(message),
+      onChange: () => paintBusyStatus(),
+    });
+    const navMode = (): boolean => nav.active();
+    const focusComposer = (): void => nav.restoreComposerFocus();
+    const setBlockCollapsed = (id: string, collapsed: boolean): void => nav.setCollapsed(id, collapsed);
+    const newestBlock = (kind?: string): BlockState | undefined => nav.newest(kind);
+    const copyBlock = (id: string): boolean => nav.copy(id);
+
+    /** Register + render a new collapsed block at the end of the transcript. */
+    const addBlock: BlockSink = (input, options = {}) => {
+      const id = blockMount.add(input, options);
+      nav.paint(id);
+      return id;
+    };
 
     io.write = (s: string) => {
       if (s.length > 0) {
@@ -875,35 +980,28 @@ export async function launchTuiAgentShell(opts: {
       tokenText.content = otui.t`${otui.dim(`↑${fmtTokens(totalIn)} ↓${fmtTokens(totalOut)}`)}`;
       sbContext.content = otui.t`${otui.dim(`${(totalIn + totalOut).toLocaleString()} tokens`)}`;
     };
-    // Reasoning: store the full text (for `/think`) and render a collapsed marker.
-    // Do NOT call createTuiAgentIo's default onReasoning — it would double-print.
-    let lastReasoning = "";
-    io.onReasoning = (text) => {
-      setBusyPhase("thinking");
-      setMainAgent("running", "thinking");
-      lastReasoning = text;
-      const n = text.trim().split("\n").filter((l) => l.trim().length > 0).length;
-      transcript.add(
-        new otui.TextRenderable(r, {
-          id: `th${uid++}`,
-          content: otui.t`${otui.dim(`◆ thought (${n} line${n === 1 ? "" : "s"}) · /think to expand`)}`,
-        }),
-      );
-    };
-    io.onToolCall = (name, input) => {
-      const args = summarizeToolArgs(input);
-      const short = args.length > 40 ? `${args.slice(0, 37)}…` : args;
-      setBusyPhase(short.length > 0 ? `running ${name}(${short})` : `running ${name}`);
-      // Keep tool names intact for humanFleetPhase ("tool: shell_exec").
-      setMainAgent("running", name.length > 20 ? `${name.slice(0, 18)}…` : name);
-      baseOnToolCall?.(name, input);
-    };
-    io.onToolResult = (name, result) => {
-      setBusyPhase(result.isError ? `tool error · waiting for model` : `waiting for model`);
-      // Stay "running" between tools (multi-step turn); only terminal on turn end.
-      setMainAgent("running", result.isError ? `err:${name.slice(0, 14)}` : "waiting");
-      baseOnToolResult?.(name, result);
-    };
+    // Reasoning / tool call / tool result all render as collapsed BLOCKS whose
+    // full text is retained (AC1). The event → block mapping itself lives in the
+    // exported `attachBlockIo` (headlessly testable); the closure contributes
+    // only the busy-phase / fleet chrome that needs these locals.
+    attachBlockIo(io, addBlock, {
+      onReasoning: () => {
+        setBusyPhase("thinking");
+        setMainAgent("running", "thinking");
+      },
+      onToolCall: (name, toolInput) => {
+        const args = summarizeToolArgs(toolInput);
+        const short = args.length > 40 ? `${args.slice(0, 37)}…` : args;
+        setBusyPhase(short.length > 0 ? `running ${name}(${short})` : `running ${name}`);
+        // Keep tool names intact for humanFleetPhase ("tool: shell_exec").
+        setMainAgent("running", name.length > 20 ? `${name.slice(0, 18)}…` : name);
+      },
+      onToolResult: (name, result) => {
+        setBusyPhase(result.isError ? `tool error · waiting for model` : `waiting for model`);
+        // Stay "running" between tools (multi-step turn); only terminal on turn end.
+        setMainAgent("running", result.isError ? `err:${name.slice(0, 14)}` : "waiting");
+      },
+    });
     io.onSystem = (text) => {
       // Surface budget/stop/errors on the main agent slot.
       if (/\[error\]|\[budget\]|\[stopped\]/i.test(text)) {
@@ -930,6 +1028,22 @@ export async function launchTuiAgentShell(opts: {
       paddingBottom: 0,
     });
     main.add(choiceDock);
+
+    // A picker/approval overlay owns the keyboard while it is up, so block-nav
+    // keys must stay inert (AC4). `choiceDock.visible` covers every composer-dock
+    // menu (`showComposerChoice` toggles it); `overlayDepth` covers the
+    // full-screen `/model` and `/connect` pickers, which live on `r.root`.
+    let overlayDepth = 0;
+    const withOverlay = async <T>(run: () => Promise<T>): Promise<T> => {
+      overlayDepth += 1;
+      try {
+        return await run();
+      } finally {
+        overlayDepth -= 1;
+      }
+    };
+    const overlayActive = (): boolean =>
+      overlayDepth > 0 || choiceDock.visible === true || pendingApproval !== undefined;
 
     // Live `/` command dropdown (Pi/grok-style): Select filtered as composer changes.
     const menu = new otui.SelectRenderable(r, {
@@ -1210,7 +1324,8 @@ export async function launchTuiAgentShell(opts: {
       paddingLeft: 1,
       paddingRight: 1,
     });
-    const FOOTER_IDLE = "/ commands · Ctrl+C to exit";
+    const FOOTER_IDLE = "/ commands · Ctrl+O blocks · Ctrl+C to exit";
+    const FOOTER_NAV = "blocks · ↑/↓ move · Enter toggle · y copy · Esc exit";
     const SPINNER = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"] as const;
     const footerLeft = new otui.TextRenderable(r, {
       id: "footer-left",
@@ -1231,6 +1346,12 @@ export async function launchTuiAgentShell(opts: {
     let busy = false;
 
     const paintBusyStatus = (): void => {
+      // Block-nav mode owns the footer hint even mid-turn: the spinner interval
+      // would otherwise repaint over it every 120ms.
+      if (navMode()) {
+        footerLeft.content = otui.t`${otui.yellow(FOOTER_NAV)}`;
+        return;
+      }
       if (!busy) {
         footerLeft.content = otui.t`${otui.dim(FOOTER_IDLE)}`;
         return;
@@ -1286,7 +1407,7 @@ export async function launchTuiAgentShell(opts: {
         }
         liveStatus = undefined;
       }
-      footerLeft.content = otui.t`${otui.dim(FOOTER_IDLE)}`;
+      paintBusyStatus(); // idle hint, or the nav hint when nav mode is active
     };
     clearBusyTimer = () => {
       if (busyTimer !== undefined) {
@@ -1778,8 +1899,35 @@ export async function launchTuiAgentShell(opts: {
           }
           return;
         }
+        // `/think` and `/expand` now expand the newest matching block IN PLACE
+        // (flow 109) instead of appending a second copy of the text as a system
+        // line; `/copy` puts a block's retained payload on the clipboard (AC6).
         if (command.name === "/think") {
-          io.onSystem?.(lastReasoning.trim().length > 0 ? `${lastReasoning.trim()}\n` : "No reasoning yet.\n");
+          const thought = newestBlock("thought");
+          if (thought === undefined) {
+            io.onSystem?.("No reasoning yet.\n");
+            return;
+          }
+          setBlockCollapsed(thought.id, false);
+          return;
+        }
+        if (command.name === "/expand") {
+          const target = newestBlock("output") ?? newestBlock();
+          if (target === undefined) {
+            io.onSystem?.("Nothing to expand — no tool output yet.\n");
+            return;
+          }
+          setBlockCollapsed(target.id, false);
+          return;
+        }
+        if (command.name === "/copy") {
+          // Always the newest block: a slash command can only be submitted from
+          // the composer, and in nav mode the composer is blurred — so there is
+          // no reachable "focused block wins" case to honor here (`y` covers it).
+          const target = newestBlock();
+          if (target === undefined || !copyBlock(target.id)) {
+            io.onSystem?.("Nothing to copy yet.\n");
+          }
           return;
         }
         if (command.name === "/model") {
@@ -1788,7 +1936,7 @@ export async function launchTuiAgentShell(opts: {
             const prov = detected.find((d) => d.name === currentSel.provider);
             // Registered providers fetch their live, filterable list; others use detected.
             const models = prov !== undefined ? await modelsForPicker(prov) : [];
-            const chosen = await pickModelInTui(otui, r, models);
+            const chosen = await withOverlay(() => pickModelInTui(otui, r, models));
             if (chosen !== undefined) {
               await switchTo(
                 currentSel.baseUrl === undefined
@@ -1804,7 +1952,7 @@ export async function launchTuiAgentShell(opts: {
         if (command.name === "/connect") {
           void (async () => {
             const detected = opts.redetect !== undefined ? await opts.redetect() : opts.detected;
-            const ns = await selectProviderModelInTui(otui, r, detected);
+            const ns = await withOverlay(() => selectProviderModelInTui(otui, r, detected));
             if (ns !== undefined) {
               await switchTo(ns);
             } else {
@@ -2002,7 +2150,7 @@ export async function launchTuiAgentShell(opts: {
               }),
             );
             busy = false;
-            input.focus();
+            focusComposer(); // never steal focus from an active block-nav mode (R3)
           }
         })();
         return;
@@ -2046,7 +2194,7 @@ export async function launchTuiAgentShell(opts: {
           tokenText.content = otui.t`${otui.dim(`~${fmtTokens(est)}`)}`;
           sbContext.content = otui.t`${otui.dim(`~${est.toLocaleString()} tokens (est)`)}`;
         }
-        input.focus();
+        focusComposer(); // never steal focus from an active block-nav mode (R3)
       });
     };
 
@@ -2098,6 +2246,16 @@ export async function launchTuiAgentShell(opts: {
         key.stopPropagation();
       }
       // ↑/↓/Enter fall through → the focused SelectRenderable handles them.
+    });
+
+    // --- block navigation mode (Ctrl+O … Esc) — flow 109 D-3 ----------------
+    // The mode itself is `createBlockNavController` (transcript-blocks.ts); all
+    // that is left here is subscribing it. Registered through the `onKeypress`
+    // wrapper rather than by reaching for the private `_internalKeyInput` symbol
+    // directly (risk R2); the `/`-menu router above is the pre-existing direct
+    // consumer.
+    onKeypress(r, (key) => {
+      nav.handleKey(key);
     });
 
     const submitComposer = (): void => {
