@@ -1,8 +1,9 @@
 // Live smoke for `keryx harness exec --allowed-domains` (flow 098 slice 3).
-// Flag-gated (KERYX_ALLOW_REAL_SUBPROCESS=1) + macOS. Proves the restricted-
-// network wiring end-to-end through the real CLI: the loopback allowlist proxy
-// (worker) starts, the contained curl is pointed at it via HTTP_PROXY, the OS
-// sandbox allows only that socket, and the proxy enforces the domain allowlist.
+// Flag-gated (KERYX_ALLOW_REAL_SUBPROCESS=1) + a platform with a launcher.
+// Proves the restricted-network wiring end-to-end through the real CLI: the
+// loopback allowlist proxy (worker) starts, the contained curl is pointed at it
+// via HTTP_PROXY, the OS sandbox allows only that socket, and the proxy enforces
+// the domain allowlist.
 //
 // Deterministic + offline: the requested host is NOT on the allowlist, so the
 // proxy returns its 403 body WITHOUT ever contacting any upstream (no internet).
@@ -11,11 +12,13 @@ import { describe, expect, test } from "bun:test";
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { detectSandboxLauncher } from "../harness/process/sandbox/detect";
 
 const flag = process.env.KERYX_ALLOW_REAL_SUBPROCESS === "1";
-const supported = process.platform === "darwin";
+const supported =
+  (process.platform === "darwin" || process.platform === "linux") && detectSandboxLauncher().available;
 
-describe.skipIf(!flag || !supported)("harness exec --allowed-domains restricted network (macOS)", () => {
+describe.skipIf(!flag || !supported)("harness exec --allowed-domains restricted network", () => {
   test("a non-allowlisted host is refused by the loopback proxy, not reached", async () => {
     const { harnessCommand } = await import("./harness");
     // Write curl's output under the session tmp (a sandbox writable root).
@@ -46,6 +49,22 @@ describe.skipIf(!flag || !supported)("harness exec --allowed-domains restricted 
       expect(logs.join("\n")).toContain('"kind":"completed"');
       expect(existsSync(out)).toBe(true);
       expect(readFileSync(out, "utf8")).toContain("blocked by keryx sandbox network allowlist");
+
+      // The denial is REPORTED, not just enforced. Without this, a blocked host
+      // is invisible to the caller: curl exits 0 here (a 403 is a successful HTTP
+      // transaction), so the outcome alone cannot tell "denied" from "fetched".
+      const blob = JSON.parse(logs[logs.length - 1] as string) as {
+        network?: {
+          restricted?: boolean;
+          decisions?: Array<{ host: string; allowed: boolean; count: number }>;
+        };
+      };
+      expect(blob.network?.restricted).toBe(true);
+      expect(blob.network?.decisions).toContainEqual({
+        host: "blocked.invalid",
+        allowed: false,
+        count: 1,
+      });
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

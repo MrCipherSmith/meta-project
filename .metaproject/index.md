@@ -88,6 +88,7 @@ the registry (`src/standard/command-registry.ts`) is the source of truth.
 | обобщи память / reflect memory (model) | `keryx memory reflect --narrate` |
 | покажи флоу / list flows | `keryx flow list` |
 | проверь на секреты / security scan | `keryx security scan <path>` |
+| проверь песочницу на Linux / verify the sandbox on a real host | runbook: `docs/verification/linux-sandbox-verification.md` |
 
 ## Agent Workflow
 

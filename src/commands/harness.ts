@@ -38,7 +38,8 @@ import { RealProcessAdapter } from "../harness/process/real-process-adapter";
 import { defaultSandboxProfile } from "../harness/process/sandbox/profile";
 import type { SandboxProfile } from "../harness/process/sandbox/profile";
 import { resolveSandboxAdapter } from "../harness/process/sandbox/detect";
-import { parseMaskSpec, setupNetworkRun } from "../harness/process/sandbox/network-run";
+import { parseMaskSpec, setupNetworkRun, summarizeDecisions } from "../harness/process/sandbox/network-run";
+import type { ProxyDecision } from "../harness/process/sandbox/proxy";
 import type { MaskedCredential } from "../harness/process/sandbox/network-run";
 import { realpathSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
@@ -496,6 +497,17 @@ async function harnessExec(args: string[], deps?: HarnessCommandDeps): Promise<v
   const { allowEnvKeys, maxRuntimeMs, allowRealSubprocess, allowedDomains, maskEnv, tlsTerminate, commandPath, commandArgs } =
     parseExecArgs(args);
 
+  // A missing `-- <path>` used to sail through as an empty command path and only
+  // surface as an opaque exit 71 from the sandbox launcher failing to exec "".
+  // Say what is actually wrong instead.
+  if (deps?.processAdapter === undefined && commandPath.length === 0) {
+    console.log(
+      "keryx harness exec: no command. Put the program after a `--` terminator, " +
+        "e.g. `keryx harness exec --allow-real-subprocess -- /bin/echo hi`.",
+    );
+    return;
+  }
+
   // Fail-closed opt-in gate: with no injected adapter and no explicit real-
   // subprocess authority, refuse BEFORE constructing any adapter or spawning.
   const allowReal = allowRealSubprocess || env.KERYX_ALLOW_REAL_SUBPROCESS === "1";
@@ -566,6 +578,9 @@ async function harnessExec(args: string[], deps?: HarnessCommandDeps): Promise<v
   let effectiveAllowEnvKeys = allowEnvKeys;
   let profileOverride: SandboxProfile | undefined;
   let closeNetwork: () => Promise<void> = async () => {};
+  // Non-undefined only when the allowlist proxy actually ran, so the output can
+  // distinguish "restricted, nothing connected" from "not restricted at all".
+  let netDecisions: ProxyDecision[] | undefined;
   if (restrictedDomains !== undefined && deps?.processAdapter === undefined) {
     const baseProfile = defaultSandboxProfile(canonicalPath(cwd), canonicalPath(tmpdir()), homedir());
     const net = await setupNetworkRun(
@@ -578,6 +593,7 @@ async function harnessExec(args: string[], deps?: HarnessCommandDeps): Promise<v
     );
     profileOverride = net.profile;
     closeNetwork = net.close;
+    netDecisions = net.decisions;
     for (const [key, value] of Object.entries(net.envAdditions)) {
       commandEnv[key] = value;
     }
@@ -645,6 +661,18 @@ async function harnessExec(args: string[], deps?: HarnessCommandDeps): Promise<v
   } finally {
     // Always tear down the proxy worker, even if the run threw.
     await closeNetwork();
+  }
+
+  // Surface what the network allowlist actually did. Without this a blocked host
+  // reaches the caller only as an opaque connection error from inside the
+  // contained process, with no way to tell "the sandbox denied it" from "the
+  // host is down". Collected AFTER close() so every ruling has been delivered.
+  if (netDecisions !== undefined) {
+    output.network = {
+      restricted: true,
+      allowedDomains: restrictedDomains ?? [],
+      decisions: summarizeDecisions(netDecisions),
+    };
   }
   console.log(JSON.stringify(output));
 }

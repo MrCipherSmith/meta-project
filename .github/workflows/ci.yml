@@ -74,4 +74,5 @@ jobs:
           bun test \
             src/harness/process/sandbox/sandbox.smoke.test.ts \
             src/harness/process/real-process-adapter.smoke.test.ts \
-            src/commands/harness-exec.smoke.test.ts
+            src/commands/harness-exec.smoke.test.ts \
+            src/commands/harness-exec-restricted.smoke.test.ts
