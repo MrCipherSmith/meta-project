@@ -53,6 +53,20 @@ jobs:
       - name: Confirm the launcher is present
         run: bwrap --version
 
+      # Ubuntu 24.04 restricts unprivileged user namespaces via AppArmor, which
+      # bwrap requires. Without this the launcher cannot start at all — and a
+      # broken launcher looks a lot like "everything was contained".
+      - name: Allow unprivileged user namespaces
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+
+      # Fail LOUDLY (with bwrap's own stderr) if containment cannot run here,
+      # instead of letting the smokes fail with a bare "file was not created".
+      - name: Sanity-check that bwrap can actually contain a process
+        run: |
+          bwrap --ro-bind / / --dev /dev --proc /proc --tmpfs /tmp \
+                --unshare-ipc --unshare-net --die-with-parent --new-session \
+                -- /bin/echo bwrap-can-run
+
       - name: OS-sandbox live smokes (real subprocesses under bwrap)
         env:
           KERYX_ALLOW_REAL_SUBPROCESS: "1"
