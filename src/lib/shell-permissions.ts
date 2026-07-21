@@ -88,8 +88,12 @@ export function allowShellPattern(pattern: string, dir?: string): string {
 }
 
 /**
- * OpenCode-style glob: `*` = any run of chars, `?` = one char, other chars literal.
+ * OpenCode-style glob: `*` = any run of chars **including newlines** (heredoc /
+ * multiline shell_exec), `?` = one char (any, including newline), other chars literal.
  * Pure.
+ *
+ * Note: JS `RegExp` `.` does not match `\n` by default — we map `*` → `[\s\S]*`
+ * so remembered prefixes like `cat *` match `cat > file <<'EOF'\n…\nEOF`.
  */
 export function matchShellPattern(pattern: string, command: string): boolean {
   const p = pattern.trim();
@@ -102,9 +106,10 @@ export function matchShellPattern(pattern: string, command: string): boolean {
   for (let i = 0; i < p.length; i++) {
     const ch = p[i]!;
     if (ch === "*") {
-      re += ".*";
+      // Dot-all: any run of characters including newlines.
+      re += "[\\s\\S]*";
     } else if (ch === "?") {
-      re += ".";
+      re += "[\\s\\S]";
     } else if (/[.+^${}()|[\]\\]/.test(ch)) {
       re += `\\${ch}`;
     } else {
@@ -129,14 +134,21 @@ export function isShellCommandAllowed(command: string, allow: readonly string[])
 
 /**
  * Suggested patterns for the approval UI (OpenCode-style "always" grants).
- * - exact: full command
- * - prefix: first token + ` *` (e.g. `keryx wiki index` → `keryx *`)
+ * - exact: full command (preserves newlines so heredoc matches on re-use)
+ * - prefix: first token of the first line + ` *` (e.g. `keryx wiki index` → `keryx *`,
+ *   multiline `cat > f <<EOF\n…` → `cat *`)
  */
 export function suggestShellPatterns(command: string): { exact: string; prefix: string } {
-  const cmd = command.trim().replace(/\s+/g, " ");
-  const first = cmd.split(" ")[0] ?? cmd;
-  const prefix = first.length > 0 ? `${first} *` : cmd;
-  return { exact: cmd, prefix };
+  const trimmed = command.trim();
+  // Preserve newlines for heredoc exact-match; collapse spaces on single-line only.
+  const multiline = /[\r\n]/.test(trimmed);
+  const exact = multiline ? trimmed : trimmed.replace(/\s+/g, " ");
+  // First token from the first non-empty line only (ignore heredoc body).
+  const firstLine = trimmed.split(/\r?\n/, 1)[0] ?? trimmed;
+  const collapsed = firstLine.replace(/\s+/g, " ").trim();
+  const first = collapsed.split(" ")[0] ?? collapsed;
+  const prefix = first.length > 0 ? `${first} *` : exact;
+  return { exact, prefix };
 }
 
 /** Parse `shell_exec` tool input JSON (or a raw command string) → command text. */
