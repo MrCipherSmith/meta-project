@@ -27,6 +27,7 @@ import { runAgentTurn } from "../commands/agent";
 import type { NormalizedMessage } from "../harness/provider/types";
 import {
   commandsForMode,
+  describeUnavailableCommand,
   filterCommands,
   findAgentCommand,
   renderCommandHelp,
@@ -65,16 +66,12 @@ import {
 } from "./side-worker";
 import { setSubagentFleetListener } from "./subagent-bridge";
 import { formatFleetSidebar, MAIN_AGENT_ID, shortWorkerLabel, WorkerFleet } from "./worker-fleet";
-import { segmentMarkdown, type MdSegment } from "../lib/md-blocks";
 import {
+  createAssistantMessageStream,
   createBlockMount,
   createBlockNavController,
   createBlockRegistry,
-  createSegmentView,
-  createStreamSegmenter,
-  markdownToChunks,
   type BlockState,
-  type SegmentView,
 } from "./transcript-blocks";
 
 /** A resolved provider/model selection. */
@@ -111,77 +108,20 @@ export function createTuiAgentIo(otui: OpenTui, renderer: Renderer, transcript: 
 
   // An assistant message is a COLUMN of sibling renderables — one per markdown
   // segment (flow 109 / AC5) — so a fenced block can be framed with its language
-  // tag instead of being flattened into one dim `TextRenderable`.
-  type Message = {
-    container: Box;
-    segmenter: ReturnType<typeof createStreamSegmenter>;
-    views: SegmentView[];
-    /** Views whose segment is final; never repainted again (risk R1). */
-    frozen: number;
-  };
-  let message: Message | undefined;
-
-  const startMessage = (): Message => {
-    const container = new otui.BoxRenderable(renderer, {
-      id: `msg${seq++}`,
-      flexDirection: "column",
-      flexShrink: 0,
-    });
-    transcript.add(container);
-    return { container, segmenter: createStreamSegmenter(), views: [], frozen: 0 };
-  };
-
-  // Repaint from `frozen` onwards only: earlier segments are settled, so a token
-  // costs the trailing segment's render and nothing else.
-  const paint = (m: Message, segments: readonly MdSegment[], frozen: number): void => {
-    for (let i = m.frozen; i < segments.length; i++) {
-      const segment = segments[i];
-      if (segment === undefined) {
-        continue;
-      }
-      const existing = m.views[i];
-      if (existing !== undefined && existing.kind === segment.kind) {
-        existing.update(segment);
-        continue;
-      }
-      existing?.destroy();
-      m.views[i] = createSegmentView(otui, renderer, m.container, segment);
-    }
-    for (const stale of m.views.splice(segments.length)) {
-      stale.destroy();
-    }
-    m.frozen = frozen;
-  };
+  // tag instead of being flattened into one dim `TextRenderable`. The mechanism
+  // itself lives in `transcript-blocks.ts` (flow 112) so the chat driver renders
+  // replies through the SAME object rather than a lookalike.
+  const messages = createAssistantMessageStream(otui, renderer, transcript);
 
   return {
     // Assistant text streams into per-segment renderables: worker-free markdown
     // chunks for prose (parity with the readline `renderMarkdown`) and a framed
     // language-tagged box per fence.
     write: (s) => {
-      if (s.length === 0) {
-        return;
-      }
-      const m = (message ??= startMessage());
-      const { segments, frozen } = m.segmenter.push(s);
-      paint(m, segments, frozen);
+      messages.push(s);
     },
     onAssistantText: (text) => {
-      const m = message ?? startMessage();
-      // The authoritative final text: re-segment ONCE (not per token) and rebuild.
-      for (const view of m.views.splice(0)) {
-        view.destroy();
-      }
-      m.frozen = 0;
-      const segments = segmentMarkdown(text);
-      paint(m, segments, segments.length);
-      if (segments.length === 0) {
-        try {
-          transcript.remove(m.container);
-        } catch {
-          // best-effort teardown
-        }
-      }
-      message = undefined;
+      messages.finalize(text);
     },
     // Reasoning is COLLAPSED to a one-line marker (grok/opencode style) instead of
     // dumping the whole chain-of-thought; `line count` hints at its length.
@@ -507,7 +447,7 @@ function promptApiKeyStep(otui: OpenTui, r: Renderer, opts: { label: string; env
  * the provider is OpenAI-compat (network available + optional Bearer key);
  * curated registry list is offline/401 fallback only.
  */
-async function modelsForPicker(prov: DetectedProvider): Promise<string[]> {
+export async function modelsForPicker(prov: DetectedProvider): Promise<string[]> {
   const result = await resolveModelsForPicker(globalThis.fetch, prov, process.env);
   return result.models;
 }
@@ -560,8 +500,13 @@ function pickProviderStep(otui: OpenTui, r: Renderer, detected: DetectedProvider
  * Cerebras, Groq, Moonshot, …) fetch their LIVE model list and prompt + persist a key
  * when missing. Absolute overlay (works at startup AND for `/connect`). Resolves the
  * selection or `undefined`.
+ *
+ * Exported since flow 112 so the CHAT shell injects this very wizard as
+ * `ShellDeps.selectProviderModel`: `/provider` must open an overlay instead of
+ * `pickProviderModel`'s numbered text menu, which would read the next composer
+ * submissions as its answers.
  */
-function selectProviderModelInTui(
+export function selectProviderModelInTui(
   otui: OpenTui,
   r: Renderer,
   detected: DetectedProvider[],
@@ -623,8 +568,9 @@ function selectProviderModelInTui(
  * overlay; the SelectRenderable is focused (↑/↓/Enter native) while printable keys
  * and Backspace edit a live filter over the (potentially large) model list. Resolves
  * the chosen model, or `undefined` on Esc / no match. Removes its key handler on close.
+ * Exported since flow 112: chat's `/models` opens this same picker.
  */
-function pickModelInTui(otui: OpenTui, r: Renderer, models: string[]): Promise<string | undefined> {
+export function pickModelInTui(otui: OpenTui, r: Renderer, models: string[]): Promise<string | undefined> {
   return new Promise((resolve) => {
     const all = models.length > 0 ? models : ["fake-echo"];
     const box = overlayBox(otui, r, "model-picker");
@@ -1676,7 +1622,10 @@ export async function launchTuiAgentShell(opts: {
         return;
       }
       if (line.startsWith("/")) {
-        io.onSystem?.(`Unknown command: ${line}\n`);
+        // A real command belonging to the OTHER mode (`/models`, `/provider`)
+        // says so; only a genuinely unknown token is "unknown" (S4 parity with
+        // the readline surfaces).
+        io.onSystem?.(describeUnavailableCommand(line, "agent") ?? `Unknown command: ${line}\n`);
         io.onSystem?.(helpText());
         return;
       }

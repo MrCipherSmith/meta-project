@@ -40,6 +40,7 @@ import { createSpawnSubagentTool } from "../harness/tool/builtin/spawn-subagent-
 import { collapseHome } from "../lib/statusbar";
 import { LiveMarkdownBlock } from "../lib/live-render";
 import { launchTuiAgentShell } from "../tui/tui-shell";
+import { launchTuiChatShell } from "../tui/chat-shell";
 import { applySavedApiKeys, loadShellConfig } from "../lib/shell-config";
 import {
   collapseToolOutput,
@@ -1017,6 +1018,69 @@ async function runAgentRepl(
   }
 }
 
+/** Persisted defaults + provider detection resolved once for a TUI launch. */
+export interface TuiStartup {
+  /** The initial provider/model, from flags or the persisted config. */
+  initial?: { provider: string; model: string; baseUrl?: string };
+  /** Detected providers — populated ONLY when there is nothing to reuse. */
+  detected: DetectedProvider[];
+  /** Env var names populated from the persisted `auth.json` (never the values). */
+  appliedKeys: string[];
+}
+
+/**
+ * The persisted-credential + last-selection bootstrap for a TUI launch.
+ *
+ * Until flow 112 this lived inside the agent-only TUI branch, so `keryx shell
+ * --chat` never called `loadShellConfig()` / `applySavedApiKeys()` at all: a
+ * provider key entered through `/connect` was written to `auth.json` and then
+ * invisible to chat, which fell back to the offline no-op provider (AC12). It is
+ * now shared by BOTH modes.
+ *
+ * `detect` and `configDir` are injected so the credential path is testable
+ * against a temp config directory without touching the user's real one.
+ */
+export async function resolveTuiStartup(opts: {
+  providerArg?: string | undefined;
+  modelArg?: string | undefined;
+  baseUrl?: string | undefined;
+  detect: () => Promise<DetectedProvider[]>;
+  configDir?: string | undefined;
+}): Promise<TuiStartup> {
+  // Saved keys populate the env (env always wins); the saved provider+model
+  // become the default selection when no `--provider` flag is given.
+  const savedCfg = loadShellConfig(opts.configDir);
+  const appliedKeys = applySavedApiKeys(opts.configDir);
+  const { providerArg, modelArg, baseUrl } = opts;
+  if (providerArg !== undefined && modelArg !== undefined) {
+    return {
+      initial:
+        baseUrl === undefined
+          ? { provider: providerArg, model: modelArg }
+          : { provider: providerArg, model: modelArg, baseUrl },
+      detected: [],
+      appliedKeys,
+    };
+  }
+  if (
+    typeof savedCfg.provider === "string" &&
+    savedCfg.provider.length > 0 &&
+    typeof savedCfg.model === "string" &&
+    savedCfg.model.length > 0
+  ) {
+    const savedBase = savedCfg.baseUrl ?? baseUrl;
+    return {
+      initial:
+        savedBase === undefined
+          ? { provider: savedCfg.provider, model: savedCfg.model }
+          : { provider: savedCfg.provider, model: savedCfg.model, baseUrl: savedBase },
+      detected: [],
+      appliedKeys,
+    };
+  }
+  return { detected: await opts.detect(), appliedKeys };
+}
+
 /** Parsed flags for the interactive shell entrypoint. */
 export interface ShellCliFlags {
   providerArg?: string;
@@ -1094,7 +1158,7 @@ export function parseShellCliFlags(args: string[]): ShellCliFlags {
  *
  * Defaults: **TUI + agent** when stdout is a TTY. Escape hatches:
  * - `--no-tui` → classic readline shell
- * - `--chat` → chat mode (no tools; also forces readline, not TUI)
+ * - `--chat` → chat mode (no tools) — in the TUI too since flow 112
  * - `--tui` is accepted for compatibility (TUI is already the default)
  *
  * When `--provider` is ABSENT, providers are detected and the user picks one
@@ -1112,13 +1176,18 @@ export async function shellCommand(args: string[]): Promise<void> {
   // defaults to agent. `undefined` = "no explicit flag given".
   let modeFlag = flags.modeFlag;
 
-  // OpenTUI agent path (default when TTY): OpenTUI owns the terminal from the
-  // START — NO readline is created here, so it cannot consume the terminal's
-  // responses to OpenTUI's capability queries (the flows 065/066 corruption).
-  // Provider/model come from flags or an in-TUI picker. On no-TTY / absent
-  // optional dep / init failure / `--no-tui` / `--chat` it falls through to the
-  // readline shell below. Agent mode only (not `--chat`).
-  if (flags.wantTui && modeFlag !== false && process.stdout.isTTY) {
+  // OpenTUI path (default when TTY): OpenTUI owns the terminal from the START —
+  // NO readline is created here, so it cannot consume the terminal's responses
+  // to OpenTUI's capability queries (the flows 065/066 corruption).
+  // Provider/model come from flags, the persisted config, or an in-TUI picker.
+  // On no-TTY / absent optional dep / init failure / `--no-tui` it falls through
+  // to the readline shell below.
+  //
+  // BOTH modes since flow 112 (AC12): the guard no longer excludes `--chat`, it
+  // dispatches on the mode — agent → `launchTuiAgentShell`, chat → the chat
+  // driver, which renders `ShellIO` through the same chrome and is driven by the
+  // very `runShell` the readline fallback runs.
+  if (flags.wantTui && process.stdout.isTTY) {
     const cwd = process.cwd();
     const tuiProviderFactory = realMakeProvider(() => {});
     const makeAgentDeps = async (sel: { provider: string; model: string; baseUrl?: string }): Promise<AgentDeps> => {
@@ -1169,45 +1238,61 @@ export async function shellCommand(args: string[]): Promise<void> {
         idSeq: () => randomUUID(),
       };
     };
-    // Persisted config (flow 080/085, opencode-style): reuse the last provider/model
-    // and every saved provider API key so the user need not re-enter them. Saved keys
-    // populate the env (unless already set); saved provider+model become the default
-    // initial selection when no `--provider` flag is given.
-    const savedCfg = loadShellConfig();
-    applySavedApiKeys();
-    let tuiInitial: { provider: string; model: string; baseUrl?: string } | undefined;
-    let tuiDetected: DetectedProvider[] = [];
-    if (providerArg !== undefined && modelArg !== undefined) {
-      tuiInitial = baseUrl === undefined ? { provider: providerArg, model: modelArg } : { provider: providerArg, model: modelArg, baseUrl };
-    } else if (
-      typeof savedCfg.provider === "string" &&
-      savedCfg.provider.length > 0 &&
-      typeof savedCfg.model === "string" &&
-      savedCfg.model.length > 0
-    ) {
-      const savedBase = savedCfg.baseUrl ?? baseUrl;
-      tuiInitial =
-        savedBase === undefined
-          ? { provider: savedCfg.provider, model: savedCfg.model }
-          : { provider: savedCfg.provider, model: savedCfg.model, baseUrl: savedBase };
-    } else {
-      tuiDetected = await detectProviders({
+    const redetect = (): Promise<DetectedProvider[]> =>
+      detectProviders({
         fetch: globalThis.fetch,
         env: process.env,
         ...(baseUrl !== undefined ? { baseUrl } : {}),
       });
-    }
-    if (
+    // Persisted config (flow 080/085, opencode-style): reuse the last
+    // provider/model and every saved provider API key so the user need not
+    // re-enter them. Applied in BOTH modes since flow 112 — chat used to skip
+    // this entirely (AC12).
+    const startup = await resolveTuiStartup({
+      providerArg,
+      modelArg,
+      baseUrl,
+      detect: redetect,
+    });
+    const tuiInitial = startup.initial;
+    const tuiDetected = startup.detected;
+
+    if (modeFlag === false) {
+      // Chat: the SAME `runShell` the readline fallback below runs, rendered
+      // through the shared chrome.
+      const chatFactory = realMakeProvider(() => {});
+      let chatResumeId = flags.resumeId;
+      if (flags.resumePick === true && chatResumeId === undefined) {
+        chatResumeId = latestSession(cwd)?.id;
+      }
+      if (
+        await launchTuiChatShell({
+          detected: tuiDetected,
+          redetect,
+          ...(tuiInitial !== undefined ? { initial: tuiInitial } : {}),
+          runShell,
+          makeShellDeps: (sel) => ({
+            makeProvider: chatFactory,
+            clock: () => new Date().toISOString(),
+            idSeq: () => randomUUID(),
+            initial: sel,
+            session: {
+              cwd,
+              ...(flags.continueLast === true ? { continueLast: true } : {}),
+              ...(chatResumeId !== undefined ? { resumeId: chatResumeId } : {}),
+            },
+          }),
+        })
+      ) {
+        return;
+      }
+      // else: optional dep absent / init failed → readline chat below.
+    } else if (
       await launchTuiAgentShell({
         detected: tuiDetected,
         makeAgentDeps,
         // `/connect` and `/model` re-probe providers fresh.
-        redetect: () =>
-          detectProviders({
-            fetch: globalThis.fetch,
-            env: process.env,
-            ...(baseUrl !== undefined ? { baseUrl } : {}),
-          }),
+        redetect,
         ...(tuiInitial !== undefined ? { initial: tuiInitial } : {}),
         session: {
           cwd,
