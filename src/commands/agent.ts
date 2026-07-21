@@ -13,8 +13,22 @@
 // injected `InteractiveTool` executors.
 
 import { validateAgainstSchemaObject } from "../contracts/validator";
+import { isDestructiveCommand } from "../lib/command-risk";
 import type { InteractiveTool, InteractiveToolResult } from "../harness/tool/builtin/interactive-tools";
 import type { NormalizedMessage, NormalizedRequest, NormalizedUsage, ProviderPort } from "../harness/provider/types";
+
+/**
+ * Extra context handed to an approver alongside the raw tool input.
+ *
+ * `destructive` is a per-COMMAND judgement (see `lib/command-risk.ts`): the tool's
+ * static risk cannot tell `ls` from `rm -rf /`. It asks the approver to escalate —
+ * always prompt, never auto-approve from a saved allowlist, never offer "always".
+ * It is NOT a block signal: the classifier is incomplete by construction and must
+ * never be treated as a security boundary (ADR-0008).
+ */
+export interface ApprovalMeta {
+  destructive: boolean;
+}
 
 /** Rendering sink for agent mode. Assistant text streams through `write`. */
 export interface AgentIO {
@@ -41,11 +55,13 @@ export interface AgentIO {
   /** Non-token system/error text. */
   onSystem?: (text: string) => void;
   /**
-   * Approve a mutating (risk `shell`) tool call before it runs. DEFAULT-DENY:
-   * when this is absent the driver denies the call and never executes it. `input`
-   * is the raw JSON input string the model proposed.
+   * Approve a mutating (risk `shell`/`destructive`) tool call before it runs.
+   * DEFAULT-DENY: when this is absent the driver denies the call and never
+   * executes it. `input` is the raw JSON input string the model proposed.
+   * `meta.destructive` asks the approver to ESCALATE (never auto-approve from an
+   * allowlist, never offer "always") — see {@link ApprovalMeta}.
    */
-  requestApproval?: (tool: string, input: string) => Promise<boolean>;
+  requestApproval?: (tool: string, input: string, meta?: ApprovalMeta) => Promise<boolean>;
 }
 
 /** Injected dependencies keeping `runAgentTurn` deterministic + offline. */
@@ -541,13 +557,20 @@ async function executeCall(
 
   // Risk gate:
   // - `read` auto-allows
-  // - `shell` requires approval (DEFAULT-DENY when no approver)
+  // - `shell` / `destructive` require approval (DEFAULT-DENY when no approver)
   // - `delegate` (spawn_subagent): auto-allow when no approver; when an approver
   //   is present, ask (TUI may auto-approve read_only subagents)
   // - anything else is denied
   const risk = tool.definition.risk;
-  if (risk === "shell") {
-    const approved = requestApproval !== undefined && (await requestApproval(call.name, call.input));
+  if (risk === "shell" || risk === "destructive") {
+    // Per-command escalation. A tool carries ONE static risk, so `shell_exec` is
+    // `shell` whether it runs `ls` or `rm -rf /`; the classifier supplies the
+    // missing dimension. Escalation only — it never denies on its own (ADR-0008),
+    // because a "safe" verdict from an incomplete list must never read as a grant.
+    const command = typeof input.command === "string" ? input.command : "";
+    const destructive = risk === "destructive" || isDestructiveCommand(command);
+    const approved =
+      requestApproval !== undefined && (await requestApproval(call.name, call.input, { destructive }));
     if (!approved) {
       return { output: `command not approved by the user; not executed`, isError: true };
     }
