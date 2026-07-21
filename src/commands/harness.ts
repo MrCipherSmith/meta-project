@@ -438,7 +438,7 @@ interface ParsedExecArgs {
   tlsTerminate: boolean;
   /**
    * `--mask-mode auto|manual|off` or `--auto-mask` (alias for auto).
-   * When unset, resolver uses KERYX_SANDBOX_MASK_MODE (P0.a default: manual).
+   * When unset, resolver uses KERYX_SANDBOX_MASK_MODE (P0.b built-in default: auto).
    */
   maskMode?: MaskMode;
   /** Set when `--mask-mode` received an invalid value. */

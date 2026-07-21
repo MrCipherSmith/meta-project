@@ -4,9 +4,10 @@
 // Real secret values are NEVER part of the resolution object — callers read
 // env[name] only when building MaskedCredential for setupNetworkRun.
 //
-// P0.a migration: unset mask mode defaults to **manual** (explicit MASK_ENV only).
-// Opt in: KERYX_SANDBOX_MASK_MODE=auto (or harness --mask-mode auto / --auto-mask).
-// P1: when env unset, maskMode/tls may come from ~/.local/share/keryx/sandbox.json.
+// P0.b product default: when env, project policy, and global sandbox.json all
+// omit maskMode, built-in default is **auto** (known provider keys → masks).
+// Restore P0.a: maskMode "manual" in sandbox.json / project policy, or
+// KERYX_SANDBOX_MASK_MODE=manual. P1/P2: env > project > global > built-in.
 
 import { envVarIsSet, loadSandboxDefaults } from "../../../lib/sandbox-config";
 import { loadProjectSandboxPolicy } from "../../../lib/project-sandbox-policy";
@@ -53,8 +54,9 @@ export function buildDefaultMaskProviders(
 }
 
 /**
- * Parse mask mode. P0.a: unset / empty → `manual`. Invalid → `manual` with no throw
- * (callers that need fail-closed on invalid can use {@link parseMaskModeStrict}).
+ * Parse a raw mask-mode string. Empty / invalid → `manual` (soft fail; not the
+ * product built-in default — that lives in {@link resolveMasksFromSandboxEnv}).
+ * Callers that need fail-closed on invalid can use {@link parseMaskModeStrict}.
  */
 export function parseMaskMode(raw: string | undefined): MaskMode {
   if (raw === undefined || raw.trim().length === 0) return "manual";
@@ -324,7 +326,7 @@ export function resolveMasksFromSandboxEnv(input: {
   } else if (defaults.maskMode !== undefined) {
     mode = defaults.maskMode;
   } else {
-    mode = "manual"; // P0.a built-in default
+    mode = "auto"; // P0.b built-in product default
   }
 
   const explicitSpecs = [

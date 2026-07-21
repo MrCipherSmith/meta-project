@@ -1,5 +1,5 @@
 # Launch prompts — flow-orchestrator
-Version: 0.4.0
+Version: 0.6.0
 
 Copy-paste prompts for **one phase per flow**. Do not combine phases in a single
 flow unless the operator explicitly expands scope.
@@ -10,6 +10,7 @@ flow unless the operator explicitly expands scope.
 | **Verify** | [Verify-flow-orchestrator.md](Verify-flow-orchestrator.md) | ✅ Done — PR #176, flow 105 |
 | **P1** | [P1-flow-orchestrator.md](P1-flow-orchestrator.md) | ✅ Done — global `sandbox.json` |
 | **P2** | [P2-flow-orchestrator.md](P2-flow-orchestrator.md) | ✅ Done — project policy + init skeleton |
+| **Optional** | [Optional-P0b-live-ux-flow-orchestrator.md](Optional-P0b-live-ux-flow-orchestrator.md) | ✅ Done — P0.b default=auto + live dual-axis + light UX (flow 108) |
 
 **Operator protocol**
 
