@@ -41,7 +41,16 @@ import { collapseHome } from "../lib/statusbar";
 import { LiveMarkdownBlock } from "../lib/live-render";
 import { launchTuiAgentShell } from "../tui/tui-shell";
 import { applySavedApiKeys, loadShellConfig } from "../lib/shell-config";
-import { collapseToolOutput, colorEnabled, indentBlock, renderMarkdown, style, summarizeToolArgs } from "../lib/ui";
+import {
+  collapseToolOutput,
+  colorEnabled,
+  indentBlock,
+  renderDiff,
+  renderMarkdown,
+  style,
+  summarizeToolArgs,
+} from "../lib/ui";
+import { blockLabel, looksLikeUnifiedDiff } from "../lib/md-blocks";
 import {
   type AgentDeps,
   type AgentIO,
@@ -455,6 +464,40 @@ const PROMPT_MARK = "❯ ";
 /** Left gutter applied across the shell chrome (OpenCode/codex aesthetic). */
 const GUTTER = "  ";
 
+/** `/expand` shows at most this many lines of the last tool output. */
+export const EXPAND_MAX_LINES = 200;
+
+/**
+ * The readline shell's `/expand` rendering (AC10). Lifted out of the
+ * `runAgentRepl` closure so it is unit-testable, and routed through the SAME
+ * `src/lib` helpers the TUI transcript uses so the two shells cannot drift:
+ * the header comes from `blockLabel` (identical `▾ <kind> (n lines)` wording as
+ * a expanded TUI block) and a body that sniffs as a unified diff goes through
+ * `renderDiff` instead of being flatly dimmed.
+ *
+ * Returns the gutter-indented, newline-terminated text to print, or `undefined`
+ * when there is nothing to expand — the caller keeps owning the "Nothing to
+ * expand" system message. Pure apart from the ambient color setting.
+ */
+export function expandedToolOutput(
+  name: string | undefined,
+  output: string | undefined,
+  maxLines: number = EXPAND_MAX_LINES,
+): string | undefined {
+  if (output === undefined || output.trim().length === 0) {
+    return undefined;
+  }
+  const allLines = output.replace(/\n+$/, "").split("\n");
+  const shown = allLines.slice(0, maxLines).join("\n");
+  const header = blockLabel({ kind: name ?? "tool", lineCount: allLines.length, collapsed: false });
+  const body = looksLikeUnifiedDiff(shown) ? renderDiff(shown) : style.dim(shown);
+  let out = `\n${GUTTER}${style.dim(header)}\n${indentBlock(body, GUTTER)}\n`;
+  if (allLines.length > maxLines) {
+    out += `${GUTTER}${style.dim(`… (${allLines.length - maxLines} more lines truncated)`)}\n`;
+  }
+  return out;
+}
+
 /** Terminal rows `text` occupies starting at column 0 for the given width. */
 function countRows(text: string, columns: number): number {
   let rows = 1;
@@ -864,16 +907,10 @@ async function runAgentRepl(
             "Sessions are per-project: keryx shell -c | -r [id] | keryx sessions list\n",
         );
       } else if (command === "/expand") {
-        if (lastToolOutput !== undefined && lastToolOutput.trim().length > 0) {
+        const expanded = expandedToolOutput(lastToolName, lastToolOutput);
+        if (expanded !== undefined) {
           stopSpinner();
-          const MAX_LINES = 200;
-          const allLines = lastToolOutput.replace(/\n+$/, "").split("\n");
-          const shown = allLines.slice(0, MAX_LINES).join("\n");
-          out(`\n${GUTTER}${style.dim(`${lastToolName ?? "tool"} output:`)}\n`);
-          out(`${indentBlock(style.dim(shown), GUTTER)}\n`);
-          if (allLines.length > MAX_LINES) {
-            out(`${GUTTER}${style.dim(`… (${allLines.length - MAX_LINES} more lines truncated)`)}\n`);
-          }
+          out(expanded);
         } else {
           agentIo.onSystem?.("Nothing to expand — no tool output yet.\n");
         }
