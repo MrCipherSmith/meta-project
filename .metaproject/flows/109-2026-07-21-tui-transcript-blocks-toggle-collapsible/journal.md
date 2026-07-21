@@ -353,6 +353,14 @@ to be wrong. No other assertion was weakened or removed.
   block body on every `↑`/`↓` (`paintAll` → up to 200 lines re-parsed per
   expanded block per keystroke), and `Enter` paints twice. Real, but a
   rework in the same pass as the correctness fixes would have muddied both.
+  **Fixed after the flow closed** (`98c5023`, same PR): `showBody` repaints a
+  body only when `collapsed` or the body text actually changed (same text → no
+  work at all, changed text → a content swap on the mounted renderable, a new
+  frame only on the collapsed → expanded edge) and body ids no longer churn;
+  `moveFocus` repaints just the two blocks whose focus state changed; `Enter`
+  no longer paints a second time. Pinned by two tests driving the real renderer
+  with an instrumented core that counts renderable construction and diff
+  colouring — both fail against the previous implementation.
 - **`collapseToolOutput` does not normalize CRLF** — a CRLF tool result's
   one-line readline summary can carry a stray `\r`. Outside F1's fence scope,
   unpinned by any test; flagged rather than widening the diff.
