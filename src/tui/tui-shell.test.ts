@@ -22,7 +22,14 @@ import {
   selectBoxHeight,
   type BlockSink,
 } from "./tui-shell";
-import { createBlockMount, createBlockNavController, createBlockRegistry } from "./transcript-blocks";
+import {
+  createBlockMount,
+  createBlockNavController,
+  createBlockRegistry,
+  createBlockView,
+  EVICTED_BLOCK_TEXT,
+  type BlockState,
+} from "./transcript-blocks";
 import { AGENT_SLASH_COMMANDS, filterCommands } from "../commands/agent-commands";
 import { runAgentTurn } from "../commands/agent";
 import type { AgentDeps } from "../commands/agent";
@@ -372,7 +379,7 @@ function fgOf(frame: SpanFrame, needle: string): [number, number, number, number
  */
 async function mountBlockHarness(
   otui: OtuiBundle,
-  opts: { width?: number; height?: number; filler?: number } = {},
+  opts: { width?: number; height?: number; filler?: number; core?: OtuiBundle["core"] } = {},
 ): Promise<
   TestSetup & {
     scroll: InstanceType<OtuiBundle["core"]["ScrollBoxRenderable"]>;
@@ -438,7 +445,10 @@ async function mountBlockHarness(
   textarea.focus();
 
   const registry = createBlockRegistry();
-  const mount = createBlockMount(otui.core, renderer, scroll.content, registry);
+  // `opts.core` lets a test hand the block views an INSTRUMENTED core (counting
+  // wrappers around the real classes) while the surrounding chrome above still
+  // uses the genuine one.
+  const mount = createBlockMount(opts.core ?? otui.core, renderer, scroll.content, registry);
   const copied: string[] = [];
   const toasts: string[] = [];
   const state = { menuNav: false, overlay: false, composerFocusCalls: 0 };
@@ -634,6 +644,141 @@ test("AC3: Ctrl+O enters block-nav, ↑/↓ move focus, Enter expands, y copies,
   expect(h.textarea.focused).toBe(true);
   expect(h.captureCharFrame()).not.toContain("❯");
   h.destroy();
+});
+
+// --- repaint cost (the flow-109 review finding deferred out of its fix pass) --
+//
+// The finding: `render()` rebuilt the body on EVERY paint and `moveFocus` painted
+// every block, so one `↑`/`↓` destroyed and rebuilt the renderables of — and
+// re-parsed up to `MAX_BODY_LINES` of markdown for — every expanded block.
+// Counting renderable construction and diff colouring measures exactly that: the
+// blocks are given a DIFF payload, and `green` is only ever reached from
+// `diffChunks`, never from the header, so a re-parse cannot hide.
+
+/** The real core with renderable construction + diff colouring counted. */
+function countingCore(otui: OtuiBundle): {
+  core: OtuiBundle["core"];
+  counts: { boxes: number; texts: number; greens: number };
+} {
+  const counts = { boxes: 0, texts: 0, greens: 0 };
+  class CountingBox extends otui.core.BoxRenderable {
+    constructor(...args: ConstructorParameters<OtuiBundle["core"]["BoxRenderable"]>) {
+      super(...args);
+      counts.boxes += 1;
+    }
+  }
+  class CountingText extends otui.core.TextRenderable {
+    constructor(...args: ConstructorParameters<OtuiBundle["core"]["TextRenderable"]>) {
+      super(...args);
+      counts.texts += 1;
+    }
+  }
+  const core = {
+    ...otui.core,
+    BoxRenderable: CountingBox,
+    TextRenderable: CountingText,
+    green: (text: Parameters<OtuiBundle["core"]["green"]>[0]) => {
+      counts.greens += 1;
+      return otui.core.green(text);
+    },
+  } as unknown as OtuiBundle["core"];
+  return { core, counts };
+}
+
+const DIFF_BODY = ["@@ -1,2 +1,2 @@", "-old line", "+new line one", "+new line two"].join("\n");
+
+test("entering nav mode and moving focus repaint the highlight WITHOUT rebuilding any expanded body", async () => {
+  const otui = await loadOpenTui();
+  if (otui === undefined) {
+    return;
+  }
+  const { core, counts } = countingCore(otui);
+  const h = await mountBlockHarness(otui, { width: 80, height: 24, core });
+  const first = h.add({ kind: "output", summary: "first-summary", fullText: DIFF_BODY });
+  const second = h.add({ kind: "output", summary: "second-summary", fullText: DIFF_BODY });
+  h.nav.setCollapsed(first, false);
+  h.nav.setCollapsed(second, false);
+  await h.flush();
+  expect(h.captureCharFrame()).toContain("+new line one"); // both bodies really are expanded
+  const mounted = { ...counts };
+  expect(mounted.greens).toBeGreaterThan(0); // the diff payload was colourised once
+
+  // Ctrl+O paints every block (the focus highlight has to appear somewhere) —
+  // headers only: no renderable is built and no body is re-parsed.
+  h.mockInput.pressKey("o", { ctrl: true });
+  await h.flush();
+  expect(counts).toEqual(mounted);
+  expect(lineWith(h.captureCharFrame(), "second-summary")).toContain("❯");
+
+  // …and neither does a run of focus moves over two expanded blocks.
+  for (const direction of ["up", "down", "up", "down"] as const) {
+    h.mockInput.pressArrow(direction);
+    await h.flush();
+  }
+  expect(counts).toEqual(mounted);
+
+  // The highlight still moved for real, and both bodies are still on screen —
+  // so the counters above are not just measuring a repaint that never happened.
+  expect(h.registry.focused()?.id).toBe(second);
+  expect(lineWith(h.captureCharFrame(), "second-summary")).toContain("❯");
+  expect(lineWith(h.captureCharFrame(), "first-summary")).not.toContain("❯");
+  expect(h.captureCharFrame()).toContain("+new line one");
+
+  // A collapse → expand cycle DOES rebuild — exactly one frame and one text child
+  // for the one block that changed, not for both.
+  h.mockInput.pressEnter();
+  await h.flush();
+  expect(h.registry.get(second)?.collapsed).toBe(true);
+  expect(counts.boxes).toBe(mounted.boxes);
+  h.mockInput.pressEnter();
+  await h.flush();
+  expect(h.registry.get(second)?.collapsed).toBe(false);
+  expect(counts.boxes).toBe(mounted.boxes + 1);
+  expect(counts.texts).toBe(mounted.texts + 1);
+  h.destroy();
+});
+
+test("a repaint whose body text CHANGED (an eviction) repaints in place, keeping the mounted renderables", async () => {
+  const otui = await loadOpenTui();
+  if (otui === undefined) {
+    return;
+  }
+  const { core, counts } = countingCore(otui);
+  const { renderer, flush, captureCharFrame } = await otui.testing.createTestRenderer({ width: 80, height: 12 });
+  const transcript = new otui.core.BoxRenderable(renderer, { id: "transcript", flexGrow: 1, flexDirection: "column" });
+  renderer.root.add(transcript);
+  const state: BlockState = {
+    id: "blk1",
+    kind: "output",
+    summary: "s",
+    fullText: DIFF_BODY,
+    lineCount: 4,
+    collapsed: false,
+    retained: true,
+    truncated: false,
+  };
+  const view = createBlockView(core, renderer, transcript, state, { hint: "ctrl+o" });
+
+  view.render(state, { body: DIFF_BODY });
+  await flush();
+  expect(captureCharFrame()).toContain("+new line one");
+  const built = { ...counts };
+
+  // Same text again — the cheap path: nothing built, nothing re-coloured.
+  view.render(state, { body: DIFF_BODY });
+  await flush();
+  expect(counts).toEqual(built);
+
+  // Retention drops the payload: the marker must replace it, and the SAME frame
+  // and text renderable carry it (a content swap, not a rebuild).
+  view.render({ ...state, retained: false, fullText: undefined }, { body: EVICTED_BLOCK_TEXT });
+  await flush();
+  expect(counts.boxes).toBe(built.boxes);
+  expect(counts.texts).toBe(built.texts);
+  expect(captureCharFrame()).toContain(EVICTED_BLOCK_TEXT);
+  expect(captureCharFrame()).not.toContain("+new line one");
+  view.destroy();
+  renderer.destroy();
 });
 
 test("AC4: nav keys stay inert while the /-menu or an overlay owns the keyboard, and a turn ending mid-nav keeps focus", async () => {

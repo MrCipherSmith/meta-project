@@ -595,6 +595,10 @@ export interface BlockView {
    * created on expand, destroyed on collapse. `body` is the text to show when
    * expanded (the caller passes `registry.bodyText(id)` so an evicted block
    * shows the documented marker).
+   *
+   * The body is IDEMPOTENT: repainting an expanded block with the text it is
+   * already showing touches no renderable and re-parses nothing, so a repaint
+   * driven by something else (a focus move, entering nav mode) is cheap.
    */
   render(state: BlockState, opts?: { focused?: boolean; body?: string }): void;
   destroy(): void;
@@ -626,6 +630,9 @@ export function createBlockView(
   box.add(header);
   parent.add(box);
   let body: Box | undefined;
+  let bodyText: Text | undefined;
+  /** The text the mounted body currently shows — `undefined` while it is dropped. */
+  let painted: string | undefined;
 
   const paintHeader = (state: BlockState, focused: boolean): void => {
     const label = blockLabel({
@@ -654,12 +661,34 @@ export function createBlockView(
       // best-effort teardown
     }
     body = undefined;
+    bodyText = undefined;
+    painted = undefined;
   };
 
-  const makeBody = (text: string): void => {
-    viewSeq += 1;
+  /**
+   * Show `text` in the body, doing the LEAST work that gets there: nothing at all
+   * when the same text is already mounted, a content swap on the existing
+   * renderable when it changed (an eviction repainting its marker), and a fresh
+   * frame only on the collapsed → expanded edge.
+   *
+   * This is what makes `paintAll` — and therefore every `↑`/`↓` in nav mode —
+   * cheap: without it each keystroke destroyed and rebuilt every expanded body
+   * and re-parsed up to `MAX_BODY_LINES` of markdown per block. The renderable
+   * ids are stable for the same reason: churning them on each repaint defeats any
+   * id-keyed caching downstream.
+   */
+  const showBody = (text: string): void => {
+    if (body !== undefined && painted === text) {
+      return;
+    }
+    const content = new otui.StyledText(payloadChunks(otui, clipBody(text)));
+    painted = text;
+    if (bodyText !== undefined) {
+      bodyText.content = content;
+      return;
+    }
     const frame = new otui.BoxRenderable(renderer, {
-      id: `${id}-b${viewSeq}`,
+      id: `${id}-b`,
       flexDirection: "column",
       flexShrink: 0,
       alignSelf: "flex-start",
@@ -669,14 +698,11 @@ export function createBlockView(
       paddingLeft: 1,
       paddingRight: 1,
     });
-    frame.add(
-      new otui.TextRenderable(renderer, {
-        id: `${id}-bt${viewSeq}`,
-        content: new otui.StyledText(payloadChunks(otui, clipBody(text))),
-      }),
-    );
+    const child = new otui.TextRenderable(renderer, { id: `${id}-bt`, content });
+    frame.add(child);
     box.add(frame);
     body = frame;
+    bodyText = child;
   };
 
   return {
@@ -687,8 +713,7 @@ export function createBlockView(
         dropBody();
         return;
       }
-      dropBody(); // rebuild so an evicted block repaints its marker
-      makeBody(opts.body ?? state.fullText ?? EVICTED_BLOCK_TEXT);
+      showBody(opts.body ?? state.fullText ?? EVICTED_BLOCK_TEXT);
     },
     destroy: () => {
       dropBody();
@@ -944,17 +969,24 @@ export function createBlockNavController(options: BlockNavOptions): BlockNavCont
   };
 
   /**
-   * Repaint the focus highlight after a registry focus move. `next` is
-   * `undefined` only on an empty registry (the moves clamp otherwise), so a miss
-   * is a no-op. Scroll-into-view is NOT done here: `createBlockView` does not
-   * expose its box, and the transcript is short enough in practice that the
-   * highlight stays visible — revisit if that stops holding.
+   * Repaint the focus highlight after a registry focus move: ONLY the block that
+   * lost it and the one that gained it, never the whole transcript — a move
+   * changes nothing about any other block, and repainting them all made every
+   * keystroke cost the entire visible transcript. `next` is `undefined` only on
+   * an empty registry (the moves clamp otherwise), so a miss is a no-op.
+   *
+   * Scroll-into-view is NOT done here: `createBlockView` does not expose its box,
+   * and the transcript is short enough in practice that the highlight stays
+   * visible — revisit if that stops holding.
    */
-  const moveFocus = (next: BlockState | undefined): void => {
+  const moveFocus = (previous: BlockState | undefined, next: BlockState | undefined): void => {
     if (next === undefined) {
       return;
     }
-    paintAll();
+    if (previous !== undefined && previous.id !== next.id) {
+      paint(previous.id);
+    }
+    paint(next.id);
   };
 
   return {
@@ -992,13 +1024,12 @@ export function createBlockNavController(options: BlockNavOptions): BlockNavCont
       if (key.name === "escape") {
         exit();
       } else if (key.name === "up") {
-        moveFocus(registry.focusPrev());
+        moveFocus(focused, registry.focusPrev());
       } else if (key.name === "down") {
-        moveFocus(registry.focusNext());
+        moveFocus(focused, registry.focusNext());
       } else if (isEnter || isSpace) {
         if (focused !== undefined) {
-          toggle(focused.id);
-          paintAll();
+          toggle(focused.id); // `setCollapsed` repaints it — a second pass paints nothing new
         }
       } else if (key.name === "y" && !key.ctrl && !key.meta) {
         if (focused !== undefined) {
