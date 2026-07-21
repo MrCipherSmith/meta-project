@@ -55,6 +55,29 @@ async function loadOpenTui(): Promise<{
   }
 }
 
+/**
+ * Loaded ONCE, at module scope, so an absent optional dependency SKIPS the
+ * renderer tests instead of passing them — the same shape `chat-shell.test.ts`
+ * and `shell-chrome.test.ts` already use.
+ *
+ * Flow 114 changed this. The three renderer tests below used to `return` early
+ * when the dependency was missing, which bun reports as a PASS: on a platform
+ * whose prebuilt native binary does not resolve they became silent no-ops and
+ * the run still went green. That is fine for a developer, and useless as the
+ * per-platform evidence O-3 needs — so the absence is now visible as a skip,
+ * which `scripts/opentui-tests-no-skips.ts` turns into a hard CI failure.
+ */
+const OTUI = await loadOpenTui();
+const otuiTest = test.skipIf(OTUI === undefined);
+
+/** The bundle, inside a body that only runs when it is present. */
+function requireOtui(): NonNullable<Awaited<ReturnType<typeof loadOpenTui>>> {
+  if (OTUI === undefined) {
+    throw new Error("unreachable: otuiTest skips without the optional TUI dependency");
+  }
+  return OTUI;
+}
+
 /** Minimal scripted ProviderPort: replays a fixed event list per stream() call. */
 function scriptedProvider(scripts: Partial<NormalizedEvent>[][]): AgentDeps["provider"] {
   let call = 0;
@@ -93,11 +116,8 @@ const fixedIdSeq = (): (() => string) => {
   return () => `id-${idCounter++}`;
 };
 
-test("driver → TuiShell renders streamed assistant text + a tool line (headless)", async () => {
-  const otui = await loadOpenTui();
-  if (otui === undefined) {
-    return; // optional dependency absent — skip
-  }
+otuiTest("driver → TuiShell renders streamed assistant text + a tool line (headless)", async () => {
+  const otui = requireOtui();
   const { renderer, flush, captureCharFrame } = await otui.testing.createTestRenderer({ width: 80, height: 20 });
   const transcript = new otui.core.BoxRenderable(renderer, { id: "transcript", flexGrow: 1, flexDirection: "column" });
   renderer.root.add(transcript);
@@ -130,11 +150,8 @@ test("driver → TuiShell renders streamed assistant text + a tool line (headles
   renderer.destroy();
 });
 
-test("assistant markdown renders bold/bullets without raw markers (headless, chrome parity)", async () => {
-  const otui = await loadOpenTui();
-  if (otui === undefined) {
-    return;
-  }
+otuiTest("assistant markdown renders bold/bullets without raw markers (headless, chrome parity)", async () => {
+  const otui = requireOtui();
   const { renderer, flush, captureCharFrame } = await otui.testing.createTestRenderer({ width: 80, height: 12 });
   const transcript = new otui.core.BoxRenderable(renderer, { id: "transcript", flexGrow: 1, flexDirection: "column" });
   renderer.root.add(transcript);
@@ -159,11 +176,8 @@ test("assistant markdown renders bold/bullets without raw markers (headless, chr
   renderer.destroy();
 });
 
-test("live /-dropdown filters commands as you type (headless reactivity)", async () => {
-  const otui = await loadOpenTui();
-  if (otui === undefined) {
-    return;
-  }
+otuiTest("live /-dropdown filters commands as you type (headless reactivity)", async () => {
+  const otui = requireOtui();
   const { renderer, mockInput, flush, captureCharFrame } = await otui.testing.createTestRenderer({ width: 80, height: 12 });
   const menu = new otui.core.SelectRenderable(renderer, {
     id: "menu",
