@@ -3,9 +3,9 @@
   "id": "103",
   "slug": "p0-sandbox-credential-auto-mask-resolver",
   "title": "P0 sandbox credential auto-mask resolver + shell/harness wire-up",
-  "status": "in-progress",
+  "status": "done",
   "createdAt": "2026-07-21T15:04:31.260Z",
-  "updatedAt": "2026-07-21T15:08:54.488Z",
+  "updatedAt": "2026-07-21T15:22:29.764Z",
   "source": {
     "type": "description",
     "ref": null
@@ -54,7 +54,7 @@
     }
   },
   "pr": {
-    "url": null
+    "url": "https://github.com/MrCipherSmith/keryx/pull/175"
   },
   "tasks": [
     {
@@ -201,6 +201,34 @@
       "at": "2026-07-21T15:08:54.488Z",
       "event": "ac-confirmed",
       "detail": "AC10: package README P0.a note; P1/P2 not claimed"
+    },
+    {
+      "at": "2026-07-21T15:22:01.036Z",
+      "event": "implemented",
+      "detail": "draft PR: https://github.com/MrCipherSmith/keryx/pull/175 (warning: PR is not a draft)"
+    },
+    {
+      "at": "2026-07-21T15:22:01.129Z",
+      "event": "completing"
+    },
+    {
+      "at": "2026-07-21T15:22:03.222Z",
+      "event": "completion-failed",
+      "detail": "pull-request: PR checks not green"
+    },
+    {
+      "at": "2026-07-21T15:22:27.522Z",
+      "event": "implemented",
+      "detail": "draft PR: https://github.com/MrCipherSmith/keryx/pull/175 (warning: PR is not a draft)"
+    },
+    {
+      "at": "2026-07-21T15:22:27.623Z",
+      "event": "completing"
+    },
+    {
+      "at": "2026-07-21T15:22:29.764Z",
+      "event": "done",
+      "detail": "all gates passed"
     }
   ]
 }
