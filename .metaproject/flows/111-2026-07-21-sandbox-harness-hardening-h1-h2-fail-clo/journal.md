@@ -19,3 +19,14 @@
 - 2026-07-21T18:08:49.319Z - task-done: T7: H2 portable probe script + REPORT + redaction
 - 2026-07-21T18:08:49.384Z - task-done: T8: H2/H3 docs + package/roadmap status
 - 2026-07-21T18:08:49.449Z - task-done: T9: code-verifier + focused tests + review before PR
+- 2026-07-21T18:10:57.359Z - implemented: draft PR: https://github.com/MrCipherSmith/keryx/pull/184 (warning: PR is not a draft)
+- 2026-07-21T18:10:57.468Z - ac-confirmed: AC1: merged PR #184; evidence on main
+- 2026-07-21T18:10:57.532Z - ac-confirmed: AC2: merged PR #184; evidence on main
+- 2026-07-21T18:10:57.600Z - ac-confirmed: AC3: merged PR #184; evidence on main
+- 2026-07-21T18:10:57.665Z - ac-confirmed: AC4: merged PR #184; evidence on main
+- 2026-07-21T18:10:57.731Z - ac-confirmed: AC5: merged PR #184; evidence on main
+- 2026-07-21T18:10:57.795Z - ac-confirmed: AC6: merged PR #184; evidence on main
+- 2026-07-21T18:10:57.861Z - ac-confirmed: AC7: merged PR #184; evidence on main
+- 2026-07-21T18:10:57.926Z - ac-confirmed: AC8: merged PR #184; evidence on main
+- 2026-07-21T18:10:57.993Z - completing
+- 2026-07-21T18:11:00.348Z - done: all gates passed
