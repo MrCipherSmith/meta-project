@@ -3,9 +3,9 @@
   "id": "115",
   "slug": "tui-dim-collapsible-thought-blocks-fix-a",
   "title": "TUI: dim/collapsible thought blocks + fix alignSelf height-measurement breaking transcript layout and scroll",
-  "status": "in-progress",
+  "status": "done",
   "createdAt": "2026-07-21T23:04:33.052Z",
-  "updatedAt": "2026-07-21T23:33:54.941Z",
+  "updatedAt": "2026-07-21T23:49:44.133Z",
   "source": {
     "type": "description",
     "ref": null
@@ -247,6 +247,20 @@
       "at": "2026-07-21T23:33:54.941Z",
       "event": "completion-failed",
       "detail": "pull-request: PR checks not green"
+    },
+    {
+      "at": "2026-07-21T23:49:41.670Z",
+      "event": "implemented",
+      "detail": "draft PR: https://github.com/MrCipherSmith/keryx/pull/193"
+    },
+    {
+      "at": "2026-07-21T23:49:41.823Z",
+      "event": "completing"
+    },
+    {
+      "at": "2026-07-21T23:49:44.133Z",
+      "event": "done",
+      "detail": "all gates passed"
     }
   ]
 }
