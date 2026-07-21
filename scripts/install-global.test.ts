@@ -18,7 +18,7 @@
 // The suite skips cleanly, with a visible reason, when `git` is genuinely absent
 // (install.sh requires it) — it does not silently pass.
 import { afterAll, beforeAll, expect, test } from "bun:test";
-import { mkdtemp, rm, stat, access } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, stat, access } from "node:fs/promises";
 import { constants as FS } from "node:fs";
 import { tmpdir, homedir } from "node:os";
 import { join, resolve } from "node:path";
@@ -67,10 +67,44 @@ beforeAll(async () => {
   binDir = join(workspace, "bin");
   fakeHome = join(workspace, "home");
 
-  // A bare local clone of this checkout, on a throwaway ref: install.sh clones
-  // from here, so no network reaches the published repository.
-  await run(["git", "init", "--bare", "-b", INSTALL_REF, originGit]);
-  await run(["git", "-C", REPO_ROOT, "push", "--quiet", originGit, `HEAD:refs/heads/${INSTALL_REF}`]);
+  // A bare local origin, on a throwaway ref, that install.sh clones from — so no
+  // network reaches the published repository.
+  //
+  // It is built from a SNAPSHOT of HEAD's *tree* (`git archive` → fresh
+  // single-commit repo), NOT by pushing REPO_ROOT's history. That is deliberate
+  // and load-bearing: GitHub Actions (`actions/checkout@v4`) checks the repo out
+  // as a SHALLOW clone by default, and `git push` from a shallow clone is
+  // rejected with exit 128. The previous `git -C REPO_ROOT push … HEAD:…`
+  // therefore failed silently on CI (its exit code was never checked), leaving
+  // this origin empty, so install.sh's `git clone --branch` failed with 128 —
+  // green locally (full history), red in CI (shallow). Snapshotting the tree
+  // sidesteps history entirely, so shallow vs. full makes no difference, and a
+  // real user (who clones GitHub's full history) was never affected. The steps
+  // below use runOk so any future fixture breakage fails LOUDLY instead of
+  // silently emptying the origin again.
+  const snapshot = join(workspace, "snapshot");
+  const snapshotTar = join(workspace, "snapshot.tar");
+  await mkdir(snapshot, { recursive: true });
+
+  await runOk(["git", "init", "--bare", "-b", INSTALL_REF, originGit]);
+  await runOk(["git", "-C", REPO_ROOT, "archive", "--format=tar", "-o", snapshotTar, "HEAD"]);
+  await runOk(["tar", "-xf", snapshotTar, "-C", snapshot]);
+  await runOk(["git", "-c", `init.defaultBranch=${INSTALL_REF}`, "init", snapshot]);
+  await runOk(["git", "-C", snapshot, "add", "-A"]);
+  await runOk([
+    "git",
+    "-C",
+    snapshot,
+    "-c",
+    "user.email=install-global-test@keryx.local",
+    "-c",
+    "user.name=keryx install-global test",
+    "commit",
+    "--quiet",
+    "-m",
+    "flow114 install-global test snapshot",
+  ]);
+  await runOk(["git", "-C", snapshot, "push", "--quiet", originGit, `HEAD:refs/heads/${INSTALL_REF}`]);
 });
 
 afterAll(async () => {
@@ -100,6 +134,23 @@ async function run(argv: string[], opts?: { env?: Record<string, string>; cwd?: 
   return { exitCode: await proc.exited, stdout, stderr };
 }
 
+/**
+ * Like {@link run} but throws — with the captured stderr/stdout — on a non-zero
+ * exit. Used for fixture setup so a broken origin build (e.g. a `git push` that
+ * fails on a shallow CI checkout) fails LOUDLY here instead of silently leaving
+ * an empty origin that only surfaces later as an opaque install.sh exit 128.
+ */
+async function runOk(argv: string[], opts?: { env?: Record<string, string>; cwd?: string }): Promise<Ran> {
+  const result = await run(argv, opts);
+  if (result.exitCode !== 0) {
+    throw new Error(
+      `command failed (exit ${result.exitCode}): ${argv.join(" ")}\n` +
+        `----- stderr -----\n${result.stderr}\n----- stdout -----\n${result.stdout}`,
+    );
+  }
+  return result;
+}
+
 /** The env that pins install.sh to the temp prefix and the local origin. */
 function installEnv(overrides?: Record<string, string>): Record<string, string> {
   return {
@@ -122,6 +173,15 @@ guardedTest(
   async () => {
     const install = await run(["bash", INSTALL_SH, "--global"], { env: installEnv() });
     expect(install.stderr).not.toContain("Missing required command");
+    // Surface WHY install.sh failed in the CI log — a bare `Expected 0` hides the
+    // installer's own stderr, which is exactly what made the original CI-only
+    // failure (git exit 128) undiagnosable from the run log.
+    if (install.exitCode !== 0) {
+      console.error(
+        `[install-global.test] install.sh --global exited ${install.exitCode}\n` +
+          `----- stderr -----\n${install.stderr}\n----- stdout -----\n${install.stdout}`,
+      );
+    }
     expect(install.exitCode).toBe(0);
 
     const wrapper = join(binDir, "keryx");
