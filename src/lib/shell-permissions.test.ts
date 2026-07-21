@@ -41,6 +41,18 @@ test("matchShellPattern: exact, star, and question mark", () => {
   expect(matchShellPattern("ls ?", "ls ab")).toBe(false);
 });
 
+test("matchShellPattern: * matches newlines (heredoc / multiline shell_exec)", () => {
+  const heredoc = "cat > /tmp/run.sh << 'SCRIPT'\n#!/bin/bash\nset -euo pipefail\necho ok\nSCRIPT";
+  expect(matchShellPattern("cat *", heredoc)).toBe(true);
+  expect(matchShellPattern("cat *", "cat /tmp/other.sh")).toBe(true);
+  expect(matchShellPattern("bash *", heredoc)).toBe(false);
+  // exact full multiline
+  expect(matchShellPattern(heredoc, heredoc)).toBe(true);
+  // second similar heredoc still matches prefix after always-allow cat *
+  const heredoc2 = "cat > /tmp/run_all_probes.sh << 'SCRIPT'\n#!/bin/bash\necho B-F\nSCRIPT";
+  expect(isShellCommandAllowed(heredoc2, ["cat *"])).toBe(true);
+});
+
 test("isShellCommandAllowed scans allow list", () => {
   const allow = ["keryx *", "git status"];
   expect(isShellCommandAllowed("keryx wiki index", allow)).toBe(true);
@@ -57,6 +69,11 @@ test("suggestShellPatterns: exact + first-token prefix", () => {
   expect(suggestShellPatterns("  git   status  --short ")).toEqual({
     exact: "git status --short",
     prefix: "git *",
+  });
+  const multi = "cat > /tmp/x.sh << 'EOF'\nline2\nEOF";
+  expect(suggestShellPatterns(multi)).toEqual({
+    exact: multi,
+    prefix: "cat *",
   });
 });
 
