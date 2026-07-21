@@ -120,11 +120,14 @@ describe("S1–S4 reassert (AC-V2)", () => {
       KERYX_SANDBOX_MASK_MODE: "auto",
       DEEPSEEK_API_KEY: FIXTURE_KEY,
     };
-    const shell = resolveMasksFromSandboxEnv({ env, providers });
+    // Empty config dir so a developer sandbox.json cannot affect the unit test.
+    const cfgDir = "/tmp/keryx-dual-axis-no-such-dir-unit";
+    const shell = resolveMasksFromSandboxEnv({ env, providers, sandboxConfigDir: cfgDir });
     const harness = resolveMasksFromSandboxEnv({
       env: { DEEPSEEK_API_KEY: FIXTURE_KEY },
       modeOverride: "auto",
       providers,
+      sandboxConfigDir: cfgDir,
     });
     expect(shell.ok && harness.ok).toBe(true);
     if (!shell.ok || !harness.ok) return;

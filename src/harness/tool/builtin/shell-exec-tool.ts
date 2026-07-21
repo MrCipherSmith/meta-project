@@ -27,6 +27,7 @@ import {
   resolveMasksFromSandboxEnv,
 } from "../../process/sandbox/mask-resolve";
 import { OPENAI_COMPAT_PROVIDERS } from "../../../commands/providers";
+import { loadSandboxDefaults } from "../../../lib/sandbox-config";
 
 /** Runs a shell command string and returns bounded output (or an error result). */
 export type CommandRunner = (command: string) => Promise<InteractiveToolResult>;
@@ -37,16 +38,27 @@ const MAX_OUTPUT_BYTES = 20_000;
 export type ShellSandboxMode = "off" | "workspace" | "strict";
 
 /**
- * Resolve the shell sandbox mode from env. Default `off` (human approval already
- * gates each command, and default-on breaks global-cache tools). `workspace` =
- * FS containment + network on; `strict` = + network off. The global disable
- * escape hatch forces `off`.
+ * Resolve the shell sandbox mode from env, then global sandbox.json (P1), then
+ * built-in `off` (human approval already gates each command; default-on breaks
+ * global-cache tools). `workspace` = FS containment + network on; `strict` = +
+ * network off. The global disable escape hatch forces `off`.
  */
-export function resolveShellSandboxMode(env: Record<string, string | undefined>): ShellSandboxMode {
+export function resolveShellSandboxMode(
+  env: Record<string, string | undefined>,
+  sandboxConfigDir?: string,
+): ShellSandboxMode {
   if (env.KERYX_DANGEROUSLY_DISABLE_SANDBOX === "1") return "off";
-  const raw = (env.KERYX_SANDBOX_SHELL ?? "").toLowerCase();
+  const envRaw = env.KERYX_SANDBOX_SHELL;
+  let raw = "";
+  if (envRaw !== undefined && envRaw.trim().length > 0) {
+    raw = envRaw.toLowerCase();
+  } else {
+    const d = loadSandboxDefaults(sandboxConfigDir).shell;
+    raw = typeof d === "string" ? d.toLowerCase() : "";
+  }
   if (raw === "strict") return "strict";
   if (raw === "workspace" || raw === "1" || raw === "on") return "workspace";
+  if (raw === "off") return "off";
   return "off";
 }
 
@@ -97,11 +109,16 @@ function shellSandboxProfile(root: string, mode: Exclude<ShellSandboxMode, "off"
  */
 export function resolveShellRestrictedMasks(
   env: Record<string, string | undefined>,
+  sandboxConfigDir?: string,
 ):
   | { ok: true; masks: MaskedCredential[]; tlsTerminate: boolean }
   | { ok: false; reason: string } {
   const providers = buildDefaultMaskProviders(OPENAI_COMPAT_PROVIDERS);
-  const result = resolveMasksFromSandboxEnv({ env, providers });
+  const result = resolveMasksFromSandboxEnv({
+    env,
+    providers,
+    ...(sandboxConfigDir !== undefined ? { sandboxConfigDir } : {}),
+  });
   if (!result.ok) {
     return { ok: false, reason: result.reason };
   }

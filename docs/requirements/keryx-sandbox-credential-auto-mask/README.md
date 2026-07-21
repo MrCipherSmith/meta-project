@@ -1,5 +1,5 @@
 # Keryx Sandbox Credential Auto-Mask
-Version: 0.2.0
+Version: 0.3.0
 
 ## Purpose
 
@@ -30,24 +30,29 @@ Recommended delivery order (this package):
 
 ## Status
 
-**draft (P0 + Verify landed; P1/P2 future)**
+**draft (P0 + Verify + P1 landed; P2 future)**
 
 | Phase | Status |
 |-------|--------|
 | **P0** | **landed** (PR #175) — shared resolver + shell/harness wire-up; P0.a default `maskMode=manual` |
-| **Verify** | **landed** — dual-axis contract tests, REPORT/redaction helpers, operator [verification.md](verification.md) |
-| **P1** | not implemented — global `sandbox.json` |
+| **Verify** | **landed** (PR #176) — dual-axis contract tests, REPORT/redaction helpers, operator [verification.md](verification.md) |
+| **P1** | **landed** — global `~/.local/share/keryx/sandbox.json` (`shell`, `maskMode`, `tlsTerminate`); env overrides file |
 | **P2** | not implemented — project policy + init skeleton |
 | **P0.b** | not implemented — product default flip to `auto` |
 
-Opt in to auto-mask:
+Opt in to auto-mask (env **or** sandbox.json):
 
 ```bash
 export KERYX_SANDBOX_MASK_MODE=auto
 # TLS auto-derived when masks apply under auto
 ```
 
-Harness: `--mask-mode auto` or `--auto-mask`.
+```json
+// ~/.local/share/keryx/sandbox.json  (no secrets)
+{ "shell": "workspace", "maskMode": "auto", "tlsTerminate": true }
+```
+
+Harness: `--mask-mode auto` or `--auto-mask`. Resolution: **env > sandbox.json > built-in**.
 
 Live dual-axis network checks are **operator-run / flag-gated** — not required on default CI (see verification.md).
 

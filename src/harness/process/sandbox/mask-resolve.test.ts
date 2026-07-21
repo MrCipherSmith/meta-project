@@ -1,4 +1,8 @@
 import { describe, expect, test } from "bun:test";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { saveSandboxDefaults } from "../../../lib/sandbox-config";
 import {
   buildDefaultMaskProviders,
   parseMaskMode,
@@ -238,5 +242,55 @@ describe("resolveMasksFromSandboxEnv parity (AC8)", () => {
     expect(shell.resolution.masks).toEqual(harness.resolution.masks);
     expect(shell.resolution.tlsTerminate).toBe(true);
     expect(harness.resolution.tlsTerminate).toBe(true);
+  });
+});
+
+describe("P1 sandbox.json defaults (AC-P1-2/3/6)", () => {
+  test("file maskMode=auto used when env unset", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "keryx-sbx-p1-"));
+    saveSandboxDefaults({ maskMode: "auto" }, dir);
+    const r = resolveMasksFromSandboxEnv({
+      env: { DEEPSEEK_API_KEY: FIXTURE_KEY },
+      providers,
+      sandboxConfigDir: dir,
+    });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.resolution.mode).toBe("auto");
+    expect(r.resolution.masks[0]?.name).toBe("DEEPSEEK_API_KEY");
+  });
+
+  test("env overrides file maskMode", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "keryx-sbx-p1-"));
+    saveSandboxDefaults({ maskMode: "auto" }, dir);
+    const r = resolveMasksFromSandboxEnv({
+      env: {
+        KERYX_SANDBOX_MASK_MODE: "manual",
+        DEEPSEEK_API_KEY: FIXTURE_KEY,
+      },
+      providers,
+      sandboxConfigDir: dir,
+    });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.resolution.mode).toBe("manual");
+    expect(r.resolution.masks).toEqual([]);
+  });
+
+  test("file tlsTerminate used when env unset (manual + explicit mask)", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "keryx-sbx-p1-"));
+    saveSandboxDefaults({ maskMode: "manual", tlsTerminate: true }, dir);
+    const r = resolveMasksFromSandboxEnv({
+      env: {
+        KERYX_SANDBOX_MASK_ENV: "DEEPSEEK_API_KEY@api.deepseek.com",
+        DEEPSEEK_API_KEY: FIXTURE_KEY,
+      },
+      providers,
+      sandboxConfigDir: dir,
+    });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.resolution.tlsTerminate).toBe(true);
+    expect(r.resolution.tlsSource).toBe("defaults");
   });
 });
