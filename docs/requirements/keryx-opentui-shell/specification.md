@@ -1,9 +1,9 @@
 # Keryx OpenTUI Interactive Shell — Technical Specification
 Version: 0.1.0
 
-Status: `draft`. Concrete OpenTUI API names below marked `(SPIKE)` are to be
-confirmed in Phase 0 against `@opentui/core`; the architecture does not depend on
-their exact spelling.
+Status: `implemented`. Phases 0-5 shipped (flows 059-067); the `(SPIKE)` items
+were resolved by the flow-059 Phase 0 spike and are recorded as answered in §2.
+Post-migration work continues to amend this document — see §9 Decisions.
 
 ## 1. Guiding principle — swap the IO layer, keep the brain
 
@@ -49,14 +49,28 @@ Verified from OpenTUI docs/repo:
   users should not need Zig.
 - Proven in a Bun coding-agent TUI (`superagent-ai/grok-cli`).
 
-`(SPIKE)` to confirm in Phase 0 (R1–R5 in the PRD):
+`(SPIKE)` items — **resolved** by the flow-059 Phase 0 spike (GO verdict; see
+ADR-0005). Answers as shipped:
 
-- Exact primitives: text/box/group, a text **input** primitive, a **select/list**
-  for the dropdown, and a **scrollable** region.
-- Keyboard + focus API (key event subscription, focus routing to the composer).
-- Inline vs alt-screen (full-screen) mode and scrollback behaviour.
-- Resize handling.
-- Prebuilt-binary platform coverage + the license.
+- **Primitives:** `TextRenderable`, `BoxRenderable`, `InputRenderable`,
+  `SelectRenderable` (the `/` dropdown and every picker), `ScrollBoxRenderable`
+  (the transcript). Later work also uses `TabSelectRenderable` and the testing
+  harness's `captureSpans`.
+- **Keyboard + focus:** declarative `keyBindings` on the composer plus a
+  pre-focus global keypress stream, wrapped once as `onKeypress(renderer, handler)`
+  in `src/tui/tui-shell.ts`. Focus is routed explicitly (`focus()` / `blur()`);
+  ownership is arbitrated by a single `focusOwner` guard — see D-3.
+- **Screen mode:** alternate screen (`screenMode: "alternate-screen"`,
+  `clearOnShutdown: true`). Native scrollback is forfeited by design (R2 accepted,
+  as codex/claude do); everything lives inside the `ScrollBoxRenderable`. This is
+  why D-5 exists.
+- **Resize:** handled by the renderer; pinned by headless `resize()` tests.
+- **Binaries + license:** prebuilt per-platform native binary via npm
+  optionalDependencies (no Zig at install), MIT. darwin-arm64 confirmed in the
+  spike; other targets confirm as they are exercised. Ratified in ADR-0005.
+
+Two harness facts discovered later, during flow 109, are recorded in §7.1 —
+they are not spike items but they constrain how this layer can be tested.
 
 ## 3. Component tree (target)
 
@@ -205,7 +219,10 @@ real debugging time, so they are recorded here.
   when upstream fixes it; delete that test and the corresponding carve-out in
   the AC11 layout test at that point.
 
-## 8. Phase 0 spike — exit criteria
+## 8. Phase 0 spike — exit criteria (**passed**, flow 059)
+
+The gate below was cleared with a GO verdict; ADR-0005 ratifies the dependency.
+Retained as the historical record of what the gate actually required.
 
 Phase 0 produces a short spike report answering, with evidence:
 
@@ -286,3 +303,33 @@ layout has run; the newest block keeps bottom-follow so live output still scroll
 into view. `createBlockNavController` takes an injectable `schedule` so the
 post-layout re-assert is deterministic under test instead of racing a
 `setTimeout`.
+
+### D-6 — the pure render helpers are extended, not frozen (deviation from G3)
+
+**Status:** accepted (flow 109). **Deviates from:** PRD G3 and ADR-0005 §4, both
+of which state that the pure render helpers (`renderMarkdown`, `live-render`,
+`collapseToolOutput`, `indentBlock`, reasoning capture) carry over **unchanged**.
+
+Flow 109 changed them: `renderMarkdown` in `src/lib/ui.ts` became fence-aware
+(it now emits a language tag and routes diff bodies through the new `renderDiff`),
+and `src/lib/md-blocks.ts` was added as a new pure module underneath it. The
+readline shell's `/expand` was rebuilt on the same helpers via
+`expandedToolOutput`. So the helper *layer* grew and its output changed.
+
+**Why this is a deviation worth naming rather than a violation to hide.** G3's
+purpose was to bound the *migration*: OpenTUI must be presentation only, so that
+swapping the IO layer could not perturb agent behavior. That purpose is intact —
+`runAgentTurn`, `ShellIO`/`AgentIO`, the metaproject port, providers and policy
+are untouched by diff, and no helper change is reachable from the driver. What G3
+did not anticipate is post-migration *feature* work whose logic must be shared by
+both shells. Keeping fence segmentation and diff classification inside the TUI
+would have re-created the exact drift G3 was written to prevent: the readline
+`/expand` had already grown its own header format and monochrome diffs by the
+time flow 109 found it.
+
+**The rule that replaces G3's letter, keeping its spirit:** rendering *logic* is
+added to `src/lib` as pure, unit-tested helpers consumed by both shells (this is
+also PRD N2); the OpenTUI layer stays thin presentation. A helper may change when
+both shells change with it and the pure tests are updated in the same commit.
+Anything that would alter driver, port, provider or policy behavior is still out
+of bounds and needs its own ADR.

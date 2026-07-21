@@ -3,18 +3,40 @@ Version: 0.1.0
 
 ## Status
 
-`draft` — requirements gathering. This package specifies migrating the keryx
-interactive shell/agent UI from the current line-based `node:readline` renderer to
-a full-screen **OpenTUI** (`@opentui/core`) terminal UI, to gain a live,
+`implemented` — Phases 0–5 shipped. This package specified migrating the keryx
+interactive shell/agent UI from the line-based `node:readline` renderer to a
+full-screen **OpenTUI** (`@opentui/core`) terminal UI, to gain a live,
 Pi/grok-style command composer (an as-you-type `/` command dropdown), a persistent
 input area, and a component-based rendering model — WITHOUT rewriting the
 deterministic agent driver or the pure render helpers already in place.
 
-No new runtime is implemented yet. The port-based agent driver
-(`src/commands/agent.ts` `runAgentTurn`), the `AgentIO`/`ShellIO` hook surface, and
-the pure render helpers (`renderMarkdown`, `live-render.ts`, `indentBlock`,
-`collapseToolOutput`, `summarizeToolArgs`, reasoning capture) already exist
-(flows 033, 048–057) and are cited as the foundation that carries over unchanged.
+The renderer now lives in `src/tui/` and **the TUI is the default** on an
+interactive TTY (`parseShellCliFlags` defaults `wantTui = true`); `--no-tui`
+opts out and the readline shell remains the fallback whenever there is no TTY,
+the optional dependency is absent, or the renderer fails to initialise.
+
+### Delivery
+
+| Phase | What | Flow(s) |
+|---|---|---|
+| 0 | Spike — native dep, scrollback, primitives, license, latency. GO verdict | 059 |
+| 1 | `TuiShell` renderer skeleton wired to the driver, `--tui` opt-in; ADR-0005 ratifies the dependency | 060 |
+| 2 | Chrome parity — markdown, role headers, tool + collapse, reasoning, usage | 061 |
+| 3 | Live `/` command dropdown + shared command registry | 062 |
+| 4 | Scrollable transcript, default-deny approval, resize | 063 |
+| 5 | TUI default on TTY, `--no-tui` opt-out | 064; reverted by 065 over a stdin-handoff leak, root-caused in 066 and re-landed in 067 |
+
+Post-migration work that amends this package rather than extending the roadmap:
+layout and UX passes (068–079), persistence and provider work (080–086), and
+**flow 109** — the transcript block model (per-block collapse, copyable markdown
+payloads, structural code/diff rendering). See §9 of `specification.md` for the
+decisions those flows recorded.
+
+The foundation this package builds on — the port-based agent driver
+(`src/commands/agent.ts` `runAgentTurn`), the `AgentIO`/`ShellIO` hook surface,
+and the pure render helpers (flows 033, 048–057) — carried over as planned. The
+driver and hook surface are unchanged by diff; the pure helper *layer* has since
+been extended by flow 109, recorded as decision **D-6**.
 
 ## Why
 
@@ -43,16 +65,19 @@ not a dependency add. OpenTUI is the chosen framework because it is Bun-native
   keep the deterministic driver and pure helpers; swap only the IO implementation
   (`createRichIo` / `runAgentRepl` → an OpenTUI renderer implementing the same
   `AgentIO`/`ShellIO` hooks).
-- **Risk R1 (native dependency):** OpenTUI's core is Zig-compiled with prebuilt
-  per-platform binaries shipped via npm (end users should NOT need Zig). MUST be
-  validated for keryx's target platforms and its `scripts/install.sh --global`
-  (Bun) install path — Phase 0 gate.
-- **Risk R2 (scrollback):** a full-screen (alt-screen) TUI may forfeit native
-  terminal scrollback/copy that the line-based shell preserves. Phase 0 confirms
-  OpenTUI's inline-vs-fullscreen options and picks the mode.
-- **Risk R3 (rewrite surface):** every flow-050–057 render feature must be
-  re-homed on components without regressing; mitigated by keeping the logic in the
-  already-pure, unit-tested helpers and treating OpenTUI as presentation only.
+- **Risk R1 (native dependency) — resolved.** Prebuilt per-platform binary via npm
+  optionalDependencies, no Zig at install; MIT. darwin-arm64 confirmed in the
+  Phase 0 spike, other targets confirm as exercised. Ratified in ADR-0005, which
+  also pins the optional-dependency contract (dynamic `import()` only, mandatory
+  fallback, zero-`dependencies` floor untouched).
+- **Risk R2 (scrollback) — resolved, cost accepted.** Alternate-screen mode was
+  chosen, forfeiting native terminal scrollback as codex/claude do. Copy is served
+  instead by OSC-52 (mouse selection, and `y` on a focused block since flow 109),
+  and losing scrollback is precisely why flow 109's decision D-5 has to preserve
+  the scroll offset when a block expands.
+- **Risk R3 (rewrite surface) — held.** Every flow-050–057 feature was re-homed
+  without regression, with the logic kept in pure unit-tested helpers. The one
+  qualification: that helper layer is no longer frozen — see decision **D-6**.
 
 See `prd.md` for goals, requirements, success criteria, and the phased roadmap;
 `specification.md` for the technical architecture, the AgentIO→component mapping,
