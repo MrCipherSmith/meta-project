@@ -234,6 +234,44 @@ test("AC3: `/` opens the menu, printable keys filter it, Esc closes it and retur
   h.destroy();
 });
 
+test("hideMenu: dropping the dropdown for an overlay keeps the draft and re-arms a FOCUSED reopen", async () => {
+  const otui = await loadOpenTui();
+  if (otui === undefined) {
+    return;
+  }
+  const h = await mountChrome(otui, { width: 90, height: 20 });
+
+  // The user typed a `/…` query, then an approval dock / ask_user / resume
+  // picker needs the screen. Those callers used to write `chrome.menu.visible =
+  // false` directly, which left the private `menuNav` true.
+  await h.mockInput.pressKeys(["/"]);
+  await h.flush();
+  expect(h.chrome.menuActive()).toBe(true);
+
+  h.chrome.hideMenu();
+  await h.flush();
+  expect(h.chrome.menu.visible).toBe(false);
+  expect(h.chrome.menuActive()).toBe(false);
+  expect(h.chrome.input.value).toBe("/"); // unlike closeMenu, the draft survives
+
+  // The dock closes and hands focus back (every one of those call sites does).
+  h.chrome.focusComposer();
+  await h.flush();
+  expect(h.chrome.textarea.focused).toBe(true);
+
+  // The next keystroke must reopen a menu that OWNS THE KEYBOARD. With `menuNav`
+  // left stuck true, `refilter` skips its `menu.focus()` and the dropdown comes
+  // back visible but unfocused — ↑/↓/Enter would go to the composer behind it.
+  await h.mockInput.pressKeys(["h"]);
+  await h.flush();
+  expect(h.chrome.input.value).toBe("/h");
+  expect(h.chrome.menu.visible).toBe(true);
+  expect(h.chrome.menuActive()).toBe(true);
+  expect(h.chrome.menu.focused).toBe(true);
+  expect(h.chrome.textarea.focused).toBe(false);
+  h.destroy();
+});
+
 test("AC3: an active overlay suppresses the `/`-menu key router", async () => {
   const otui = await loadOpenTui();
   if (otui === undefined) {

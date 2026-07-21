@@ -186,6 +186,15 @@ export interface ShellChrome {
   menuActive(): boolean;
   /** Close the dropdown and hand the keyboard back to the composer. */
   closeMenu(): void;
+  /**
+   * Hide the dropdown and release its keyboard claim WITHOUT clearing the
+   * composer or grabbing focus — for callers about to raise an overlay (an
+   * approval dock, `ask_user`, the resume picker) over a still-typed `/…`
+   * query. Writing `chrome.menu.visible = false` instead leaves the private
+   * `menuNav` true, and the next keystroke then reopens a VISIBLE BUT UNFOCUSED
+   * menu. Idempotent.
+   */
+  hideMenu(): void;
   /** Re-run the menu filter against the current composer value. */
   refilterMenu(): void;
 
@@ -632,9 +641,17 @@ export async function createShellChrome(
       }
     }
   };
-  const closeMenu = (): void => {
+  /**
+   * Drop the dropdown AND its keyboard claim. The two must always move together:
+   * `menuNav` gates `refilter`'s `menu.focus()`, so hiding the menu on its own
+   * leaves the next reopen visible-but-unfocused.
+   */
+  const hideMenu = (): void => {
     menu.visible = false;
     menuNav = false;
+  };
+  const closeMenu = (): void => {
+    hideMenu();
     input.value = "";
     input.focus();
   };
@@ -665,8 +682,7 @@ export async function createShellChrome(
   textarea.onSubmit = () => {
     const line = input.value.trim();
     input.value = "";
-    menu.visible = false;
-    menuNav = false;
+    hideMenu();
     syncComposerHeight();
     emitSubmit(line);
   };
@@ -730,6 +746,7 @@ export async function createShellChrome(
 
     menuActive: () => menu.visible && menuNav,
     closeMenu,
+    hideMenu,
     refilterMenu: refilter,
 
     overlayActive,

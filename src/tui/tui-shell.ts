@@ -937,7 +937,7 @@ export async function launchTuiAgentShell(opts: {
           );
           return true;
         }
-        chrome.menu.visible = false;
+        chrome.hideMenu(); // hide the dropdown AND release menuNav before the dock takes over
         setMainAgent("blocked", "approval");
         const id = await showComposerChoice(otui, r, chrome.dock, {
           title: "Spawn general subagent?",
@@ -990,7 +990,7 @@ export async function launchTuiAgentShell(opts: {
       );
       setMainAgent("blocked", "approval");
       setBusyPhase("waiting for your approval (menu above input)");
-      chrome.menu.visible = false;
+      chrome.hideMenu(); // hide the dropdown AND release menuNav before the dock takes over
       const choice = await pickShellApproval(otui, r, chrome.dock, cmd);
       input.focus();
 
@@ -1039,7 +1039,7 @@ export async function launchTuiAgentShell(opts: {
       question: string;
       options: Array<{ id: string; label: string; description: string; recommended?: boolean }>;
     }): Promise<string> => {
-      chrome.menu.visible = false;
+      chrome.hideMenu(); // hide the dropdown AND release menuNav before the dock takes over
       setMainAgent("blocked", "ask");
       setBusyPhase("waiting for your answer (menu above input)");
       // Keep a short transcript breadcrumb; the interactive picker is at the input.
@@ -1119,7 +1119,7 @@ export async function launchTuiAgentShell(opts: {
             }),
           );
         } else {
-          chrome.menu.visible = false;
+          chrome.hideMenu(); // hide the dropdown AND release menuNav before the dock takes over
           const pickId = await showComposerChoice(otui, r, chrome.dock, {
             title: "Resume session (this project)",
             subtitle: "Esc = new session",
@@ -1246,7 +1246,7 @@ export async function launchTuiAgentShell(opts: {
         input.focus();
         return;
       }
-      chrome.menu.visible = false;
+      chrome.hideMenu(); // hide the dropdown AND release menuNav before the dock takes over
       const pickId = await showComposerChoice(otui, r, chrome.dock, {
         title: "Resume session (this project only)",
         subtitle: "Esc cancels",

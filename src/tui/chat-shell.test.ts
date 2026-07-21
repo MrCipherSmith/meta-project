@@ -182,6 +182,63 @@ test("AC10: a chat turn runs end to end through the real runShell and the reply 
   h.destroy();
 });
 
+test("a turn settling never steals focus from a `/` dropdown opened while it streamed", async () => {
+  const otui = await loadOpenTui();
+  if (otui === undefined) {
+    return;
+  }
+  // A driver whose turn is held open by the test, so the `/` menu can be opened
+  // in the middle of it. The scripted provider finishes far too fast for that.
+  let releaseTurn: () => void = () => {};
+  const held = new Promise<void>((resolve) => {
+    releaseTurn = resolve;
+  });
+  const heldRunShell = async (io: ShellIO): Promise<void> => {
+    for await (const _line of io.lines) {
+      io.onTurnStart?.();
+      io.write("streaming…");
+      await held;
+      io.onTurnEnd?.("streaming…");
+      io.write("\n\n");
+    }
+  };
+
+  const setup = await otui.testing.createTestRenderer({ width: 90, height: 26 });
+  const handle = await mountChatShell(otui.core, setup.renderer, {
+    deps: chatDeps([]),
+    runShell: heldRunShell,
+    persistSelection: false,
+  });
+  await setup.flush();
+
+  handle.chrome.input.value = "a question";
+  await setup.flush();
+  setup.mockInput.pressEnter();
+  await settle(setup);
+  expect(handle.bridge.turnActive()).toBe(true); // the turn is still running
+
+  // Mid-turn, the user opens the command dropdown: it takes the keyboard.
+  await setup.mockInput.pressKeys(["/"]);
+  await settle(setup);
+  expect(handle.chrome.menuActive()).toBe(true);
+  expect(handle.chrome.menu.focused).toBe(true);
+  expect(handle.chrome.textarea.focused).toBe(false);
+
+  // The turn now settles. The dropdown is still up, so focus must stay with it:
+  // an unconditional `focusComposer()` here leaves the menu on screen swallowing
+  // printable keys while Enter submits the raw filter text instead of selecting
+  // the highlighted command.
+  releaseTurn();
+  await settle(setup);
+  expect(handle.chrome.isBusy()).toBe(false); // the turn really did settle
+  expect(handle.chrome.menuActive()).toBe(true);
+  expect(handle.chrome.menu.focused).toBe(true);
+  expect(handle.chrome.textarea.focused).toBe(false);
+
+  handle.destroy();
+  setup.renderer.destroy();
+});
+
 test("AC13: chat renders a ts fence with its language tag and a diff with distinct colours", async () => {
   const otui = await loadOpenTui();
   if (otui === undefined) {

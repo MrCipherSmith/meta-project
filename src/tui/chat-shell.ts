@@ -360,7 +360,15 @@ export async function mountChatShell(
     },
     onTurnSettled: () => {
       chrome.stopBusy();
-      chrome.focusComposer();
+      // Never steal focus from an OPEN `/` dropdown: the user may have opened it
+      // while the reply streamed, and the dropdown stays on screen either way —
+      // yanking focus to the textarea would leave it swallowing printable keys
+      // while Enter submitted the raw filter text instead of selecting the
+      // highlighted command. Same shape as the agent shell's block-nav guard
+      // (`nav.restoreComposerFocus()`).
+      if (!chrome.menuActive()) {
+        chrome.focusComposer();
+      }
     },
     onSystem: (text) => {
       const body = text.replace(/\n+$/, "");
