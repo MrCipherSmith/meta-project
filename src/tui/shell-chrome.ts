@@ -147,8 +147,15 @@ export interface ShellChrome {
   readonly root: Box;
   /** Left column: header, transcript, dock, menu, composer, footer. */
   readonly main: Box;
-  /** Right status column; the caller owns its panels (toast is pinned last). */
+  /** Right status column: `sidebarTop`, a spacer, then the pinned toast. */
   readonly sidebar: Box;
+  /**
+   * Where caller-owned sidebar panels (model, context, tools, workers) go. A
+   * dedicated slot because the toast is pinned to the BOTTOM by a `flexGrow`
+   * spacer: anything added to `sidebar` itself would land under that spacer,
+   * beside the toast, instead of at the top.
+   */
+  readonly sidebarTop: Box;
   readonly header: Box;
   readonly scroll: ScrollBox;
   /** The scrollbox content the IO renders into. */
@@ -280,8 +287,12 @@ export async function createShellChrome(
   rootRow.add(sidebar);
 
   // --- toast, FIRST so `showToast` is never a no-op -----------------------
-  // Pinned to the bottom of the sidebar; the spacer pushes it down and leaves the
-  // rows above for the caller's panels (model, context, tools, workers).
+  // Pinned to the bottom of the sidebar; the spacer pushes it down and leaves
+  // `sidebarTop` above it for the caller's panels (model, context, tools,
+  // workers). Both slots exist from mount so the caller never has to insert
+  // renderables around a spacer it does not own.
+  const sidebarTop = new otui.BoxRenderable(r, { id: "sb-top", flexShrink: 0, flexDirection: "column" });
+  sidebar.add(sidebarTop);
   const sidebarSpacer = new otui.BoxRenderable(r, { id: "sb-spacer", flexGrow: 1 });
   sidebar.add(sidebarSpacer);
   const toastText = new otui.TextRenderable(r, { id: "sb-toast", content: "" });
@@ -689,6 +700,7 @@ export async function createShellChrome(
     root: rootRow,
     main,
     sidebar,
+    sidebarTop,
     header,
     scroll,
     transcript,
