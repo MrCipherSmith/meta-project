@@ -1,17 +1,38 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "id": "102",
   "slug": "sandbox-v1-x-tls-terminate-proxy-https-c",
   "title": "sandbox v1.x: TLS-terminate proxy → HTTPS credential masking + content filtering",
-  "status": "initializing",
+  "status": "in-progress",
   "createdAt": "2026-07-21T08:33:42.500Z",
-  "updatedAt": "2026-07-21T08:33:42.500Z",
+  "updatedAt": "2026-07-21T09:57:43.286Z",
   "source": {
     "type": "description",
     "ref": null
   },
-  "acChecksum": null,
-  "acConfirmed": {},
+  "acChecksum": "sha256:580e9a6fc5be9e97af6499ec5e33441b01b711a01cfbdd81ff2c8d2cb3cd15f6",
+  "acConfirmed": {
+    "AC1": {
+      "at": "2026-07-21T09:57:27.798Z",
+      "note": "shipped on origin/main (flow 102 slices 1-5, ADR-0007)"
+    },
+    "AC2": {
+      "at": "2026-07-21T09:57:27.882Z",
+      "note": "shipped on origin/main (flow 102 slices 1-5, ADR-0007)"
+    },
+    "AC3": {
+      "at": "2026-07-21T09:57:27.983Z",
+      "note": "shipped on origin/main (flow 102 slices 1-5, ADR-0007)"
+    },
+    "AC4": {
+      "at": "2026-07-21T09:57:28.085Z",
+      "note": "shipped on origin/main (flow 102 slices 1-5, ADR-0007)"
+    },
+    "AC5": {
+      "at": "2026-07-21T09:57:28.165Z",
+      "note": "shipped on origin/main (flow 102 slices 1-5, ADR-0007)"
+    }
+  },
   "pr": {
     "url": null
   },
@@ -20,31 +41,121 @@
       "id": "T1",
       "title": "Collect remaining context",
       "kind": "context",
-      "status": "todo"
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
     },
     {
       "id": "T2",
       "title": "Implement per plan",
       "kind": "implement",
-      "status": "todo"
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
     },
     {
       "id": "T3",
       "title": "Add/adjust tests and make them pass",
       "kind": "test",
-      "status": "todo"
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
     },
     {
       "id": "T4",
       "title": "Self-review and prepare draft PR",
       "kind": "review",
-      "status": "todo"
+      "status": "done",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {},
+      "disposition": "completed"
     }
   ],
   "history": [
     {
       "at": "2026-07-21T08:33:42.500Z",
       "event": "created"
+    },
+    {
+      "at": "2026-07-21T09:57:27.605Z",
+      "event": "frozen",
+      "detail": "5 criteria; checksum recorded"
+    },
+    {
+      "at": "2026-07-21T09:57:27.697Z",
+      "event": "started"
+    },
+    {
+      "at": "2026-07-21T09:57:27.798Z",
+      "event": "ac-confirmed",
+      "detail": "AC1: shipped on origin/main (flow 102 slices 1-5, ADR-0007)"
+    },
+    {
+      "at": "2026-07-21T09:57:27.882Z",
+      "event": "ac-confirmed",
+      "detail": "AC2: shipped on origin/main (flow 102 slices 1-5, ADR-0007)"
+    },
+    {
+      "at": "2026-07-21T09:57:27.983Z",
+      "event": "ac-confirmed",
+      "detail": "AC3: shipped on origin/main (flow 102 slices 1-5, ADR-0007)"
+    },
+    {
+      "at": "2026-07-21T09:57:28.086Z",
+      "event": "ac-confirmed",
+      "detail": "AC4: shipped on origin/main (flow 102 slices 1-5, ADR-0007)"
+    },
+    {
+      "at": "2026-07-21T09:57:28.165Z",
+      "event": "ac-confirmed",
+      "detail": "AC5: shipped on origin/main (flow 102 slices 1-5, ADR-0007)"
+    },
+    {
+      "at": "2026-07-21T09:57:42.848Z",
+      "event": "task-done",
+      "detail": "T1: Collect remaining context"
+    },
+    {
+      "at": "2026-07-21T09:57:42.991Z",
+      "event": "task-done",
+      "detail": "T2: Implement per plan"
+    },
+    {
+      "at": "2026-07-21T09:57:43.162Z",
+      "event": "task-done",
+      "detail": "T3: Add/adjust tests and make them pass"
+    },
+    {
+      "at": "2026-07-21T09:57:43.286Z",
+      "event": "task-done",
+      "detail": "T4: Self-review and prepare draft PR"
     }
   ]
 }
