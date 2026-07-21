@@ -126,6 +126,16 @@ export function createChatBridge(hooks: ChatBridgeHooks = {}): ChatBridge {
   let closed = false;
   let turn = false;
   let streaming = false;
+  /**
+   * A `"\n\n"` that arrived before this turn produced anything else, held back
+   * because it is ambiguous: it is either the trailing separator of a turn that
+   * produced NO text (no `onTurnEnd` fires for those, so "not streaming" cannot
+   * tell them apart) or the first chunk of a reply that genuinely opens with a
+   * blank line. Anything further in the same turn — another write, or
+   * `onTurnEnd` — proves it was content and flushes it; otherwise the next turn
+   * drops it.
+   */
+  let heldSeparator = false;
   /** A `next()` call parked because the queue was empty. */
   let waiting: ((result: IteratorResult<string>) => void) | undefined;
 
@@ -161,6 +171,7 @@ export function createChatBridge(hooks: ChatBridgeHooks = {}): ChatBridge {
         if (turn) {
           turn = false;
           streaming = false;
+          heldSeparator = false; // the turn is over; it was the trailing one
           hooks.onTurnSettled?.();
         }
         const next = queue.shift();
@@ -182,26 +193,44 @@ export function createChatBridge(hooks: ChatBridgeHooks = {}): ChatBridge {
     }),
   };
 
+  /** Emit a held separator as the content it turned out to be. */
+  const flushHeldSeparator = (): void => {
+    if (heldSeparator) {
+      heldSeparator = false;
+      streaming = true;
+      hooks.onText?.(TURN_SEPARATOR);
+    }
+  };
+
   const io: ShellIO = {
     lines,
     write: (s) => {
       if (s.length === 0) {
         return;
       }
-      // Swallow the turn separator — but only OUTSIDE a stream. `runShell`
-      // emits it after `onTurnEnd` (and, for a turn that produced nothing, with
-      // no `onTurnEnd` at all), so "not currently streaming" identifies it
-      // exactly, while a genuine "\n\n" token mid-reply is still rendered.
+      // The turn separator must never reach the transcript: `runShell` emits it
+      // after `onTurnEnd`, and forwarding it would open an empty trailing
+      // message block. Mid-reply it is ordinary content, so only a separator
+      // arriving OUTSIDE a stream is suspect — and that one is held rather than
+      // dropped, because a reply may legitimately open with a blank line.
       if (s === TURN_SEPARATOR && !streaming) {
+        heldSeparator = true;
         return;
       }
+      flushHeldSeparator();
       streaming = true;
       hooks.onText?.(s);
     },
     onTurnStart: () => {
+      // A separator held from the previous turn was that turn's trailing one:
+      // nothing followed it. Drop it before the new turn can flush it.
+      heldSeparator = false;
       hooks.onTurnStart?.();
     },
     onTurnEnd: (full) => {
+      // Reached only for a turn that produced content, so a held separator was
+      // the leading blank line of that content, not a trailing separator.
+      flushHeldSeparator();
       streaming = false;
       hooks.onTurnEnd?.(full);
     },
@@ -314,6 +343,12 @@ export async function mountChatShell(
   // ESTIMATE over what this surface has seen — labelled as one, never a "0" that
   // looks like a measurement.
   const seen: { content: string }[] = [];
+  /**
+   * The commands that make `runShell` drop its history (`/clear` aliases
+   * `/new`). The estimate is this surface's mirror of that history, so it has to
+   * be reset with it or the header's `~N` keeps climbing across a session reset.
+   */
+  const RESET_COMMANDS = new Set(["/new", "/clear"]);
   const paintContext = (): void => {
     const est = estimateContextTokens(seen);
     chrome.setHeaderMeta(`~${fmtTokens(est)}`);
@@ -342,6 +377,9 @@ export async function mountChatShell(
       transcript.add(box);
       if (!line.startsWith("/")) {
         seen.push({ content: line });
+        paintContext();
+      } else if (RESET_COMMANDS.has(line.split(/\s+/)[0] ?? "")) {
+        seen.length = 0;
         paintContext();
       }
     },

@@ -239,6 +239,30 @@ test("a turn settling never steals focus from a `/` dropdown opened while it str
   setup.renderer.destroy();
 });
 
+test("/new resets the estimated context counter instead of letting it keep climbing", async () => {
+  const otui = await loadOpenTui();
+  if (otui === undefined) {
+    return;
+  }
+  const h = await mountChat(otui, { replies: ["A fairly long scripted answer about keryx."] });
+  expect(h.captureCharFrame()).toContain("~0 tokens (est)");
+
+  h.handle.chrome.input.value = "a question long enough to move the estimate";
+  await h.flush();
+  h.mockInput.pressEnter();
+  await settle(h);
+  expect(h.captureCharFrame()).not.toContain("~0 tokens (est)"); // it moved
+
+  // `/new` makes `runShell` drop its history; the estimate mirrors that history,
+  // so it must be dropped too rather than carried into the fresh session.
+  h.handle.chrome.input.value = "/new";
+  await h.flush();
+  h.mockInput.pressEnter();
+  await settle(h);
+  expect(h.captureCharFrame()).toContain("~0 tokens (est)");
+  h.destroy();
+});
+
 test("AC13: chat renders a ts fence with its language tag and a diff with distinct colours", async () => {
   const otui = await loadOpenTui();
   if (otui === undefined) {
@@ -403,4 +427,36 @@ test("AC11: the \"\\n\\n\" turn separator never reaches the transcript as conten
   bridge.io.write("");
   expect(text.length).toBe(5);
   expect(settled).toEqual([]); // nothing settles until the driver pulls again
+});
+
+test("a reply whose FIRST chunk is the separator keeps its leading blank line", () => {
+  const text: string[] = [];
+  const bridge = createChatBridge({ onText: (chunk) => text.push(chunk) });
+
+  // Ambiguous at arrival — identical to the no-content turn above — so it is
+  // held, not dropped. The chunk that follows proves it was content.
+  bridge.io.onTurnStart?.();
+  bridge.io.write("\n\n");
+  expect(text).toEqual([]); // still undecided
+  bridge.io.write("indented block follows");
+  expect(text).toEqual(["\n\n", "indented block follows"]);
+  bridge.io.onTurnEnd?.("\n\nindented block follows");
+  bridge.io.write("\n\n");
+  expect(text).toEqual(["\n\n", "indented block follows"]); // trailing one dropped
+
+  // A reply that is ONLY a blank line is still content: `onTurnEnd` fires (it
+  // only fires when the turn accumulated something), which resolves the hold.
+  bridge.io.onTurnStart?.();
+  bridge.io.write("\n\n");
+  bridge.io.onTurnEnd?.("\n\n");
+  expect(text).toEqual(["\n\n", "indented block follows", "\n\n"]);
+  bridge.io.write("\n\n");
+  expect(text.length).toBe(3);
+
+  // …and a held separator never leaks into the NEXT turn.
+  bridge.io.onTurnStart?.();
+  bridge.io.write("\n\n"); // no content follows: a trailing separator
+  bridge.io.onTurnStart?.();
+  bridge.io.write("plain");
+  expect(text).toEqual(["\n\n", "indented block follows", "\n\n", "plain"]);
 });
