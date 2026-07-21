@@ -134,10 +134,20 @@ async function printCtxStatus(): Promise<void> {
   }
 }
 
+// Bare `git diff` shows ONLY unstaged changes to tracked files, so staged work
+// and brand-new files are invisible to it. In a worktree mid-flow — where
+// workers stage at task boundaries and add new files — that reported
+// "Changed files: 0" while hundreds of changed lines sat in the index and in
+// untracked files, which reads as "this worktree is clean". Default to
+// `git diff HEAD` so staged work is included, and list untracked files
+// separately because no diff form can show them.
 async function diffAndSummarize(args: string[], config: CtxConfig): Promise<void> {
-  const command = ["git", "diff", ...args];
+  const workingTree = isWorkingTreeDiff(args);
+  const base = workingTree ? await defaultDiffBase() : undefined;
+  const command = ["git", "diff", ...args, ...(base ? [base] : [])];
   const result = await runCommand(command);
-  const summary = summarizeDiff(command.join(" "), result, config);
+  const untracked = workingTree ? await listUntrackedFiles() : null;
+  const summary = summarizeDiff(command.join(" "), result, config, untracked);
   const artifact = await writeArtifact({
     kind: "diff",
     command: command.join(" "),
@@ -430,10 +440,36 @@ ${JSON.stringify(artifact, null, 2)}
   return artifact;
 }
 
-function summarizeDiff(
+// True when the invocation means "what is different in this working tree" and
+// we may therefore append a base revision. Anything else — an explicit
+// revision, a `--` pathspec separator, or `--staged`/`--cached` (already
+// explicit about which side it wants) — is passed to git verbatim, since
+// appending a revision after a pathspec would change how git parses the args.
+export function isWorkingTreeDiff(args: string[]): boolean {
+  return args.every(
+    (arg) => arg.startsWith("-") && arg !== "--" && arg !== "--staged" && arg !== "--cached",
+  );
+}
+
+// `HEAD`, unless the repo has no commits yet (fresh `git init`) where it does
+// not resolve and plain `git diff` is the only meaningful form.
+async function defaultDiffBase(): Promise<string | undefined> {
+  const head = await runCommand(["git", "rev-parse", "--verify", "--quiet", "HEAD"]);
+  return head.exitCode === 0 ? "HEAD" : undefined;
+}
+
+async function listUntrackedFiles(): Promise<string[]> {
+  const result = await runCommand(["git", "ls-files", "--others", "--exclude-standard"]);
+  return result.exitCode === 0 ? nonEmptyLines(result.stdout) : [];
+}
+
+// `untracked` is null for explicit invocations (revision/pathspec/--staged),
+// where a working-tree untracked listing would be noise.
+export function summarizeDiff(
   command: string,
   result: CommandResult,
   config: CtxConfig,
+  untracked: string[] | null = null,
 ): string {
   const lines = nonEmptyLines(result.raw);
   const files = parseDiffFiles(lines);
@@ -448,12 +484,12 @@ function summarizeDiff(
 Command: \`${command}\`
 Exit code: \`${result.exitCode}\`
 Changed files: \`${files.length}\`
-Raw lines: \`${lines.length}\`
+${untracked ? `Untracked files: \`${untracked.length}\`\n` : ""}Raw lines: \`${lines.length}\`
 
 ## Files
 
 ${renderDiffFiles(files, config)}
-
+${untracked ? `\n## Untracked\n\n${renderUntrackedFiles(untracked, config)}\n` : ""}
 ## Risk Hints
 
 ${risky.length > 0 ? risky.map((file) => `- ${file.path}`).join("\n") : "- none"}
@@ -671,6 +707,19 @@ function renderDiffFiles(
     .join("\n");
 }
 
+function renderUntrackedFiles(untracked: string[], config: CtxConfig): string {
+  if (untracked.length === 0) {
+    return "- none";
+  }
+
+  const shown = untracked.slice(0, config.maxGroupItems);
+  const omitted = untracked.length - shown.length;
+  return [
+    ...shown.map((file) => `- ${file}`),
+    ...(omitted > 0 ? [`… omitted ${omitted} more`] : []),
+  ].join("\n");
+}
+
 function parseRgMatches(lines: string[]): Array<{ file: string; line: string; column: string; text: string }> {
   return lines.map((line) => {
     const match = line.match(/^(.+?):(\d+):(\d+):(.*)$/);
@@ -802,7 +851,7 @@ function printHelp(): void {
 
 Usage:
   keryx ctx status
-  keryx ctx diff [--staged|--stat]
+  keryx ctx diff [--staged|--stat|<revision>]   # no args: staged + unstaged (git diff HEAD) + untracked list
   keryx ctx rg "<pattern>"
   keryx ctx read <file> [--mode outline|compact|full]
   keryx ctx run -- <command...>

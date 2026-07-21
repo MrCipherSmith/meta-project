@@ -118,7 +118,7 @@ export function classifyCommand(command: string): HookClassification {
     if (first === "git" && tokens[1] && GIT_ROUTABLE.test(tokens[1])) {
       const suggestion =
         tokens[1] === "diff"
-          ? "keryx ctx diff [--staged|--stat]"
+          ? "keryx ctx diff [--staged|--stat|<revision>]"
           : `keryx ctx run -- git ${tokens[1]} …`;
       return { block: true, matched: `git ${tokens[1]}`, suggestion };
     }

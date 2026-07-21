@@ -499,7 +499,7 @@ the supported runtimes listed in section 6.
 | Command | Description |
 |---|---|
 | `keryx ctx status` | Show gdctx configuration and data locations. |
-| `keryx ctx diff [--staged|--stat]` | Summarize Git changes and save raw output. |
+| `keryx ctx diff [--staged\|--stat\|<revision>]` | Summarize Git changes and save raw output. With no arguments this covers staged **and** unstaged changes (`git diff HEAD`) and lists untracked files. |
 | `keryx ctx rg "<pattern>"` | Run bounded repository text search. |
 | `keryx ctx read <file> --mode outline` | Extract structural outline and markers. |
 | `keryx ctx read <file> --mode compact` | Read bounded head/tail context. |
