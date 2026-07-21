@@ -3,6 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from "nod
 import { homedir, tmpdir } from "node:os";
 import http from "node:http";
 import path from "node:path";
+import { saveSandboxDefaults } from "../../../lib/sandbox-config";
 import {
   type CommandRunner,
   makeCommandRunner,
@@ -59,14 +60,26 @@ test("shell_exec propagates a runner failure", async () => {
 
 describe("resolveShellSandboxMode", () => {
   test("default off; workspace/strict opt-in; danger forces off", () => {
-    expect(resolveShellSandboxMode({})).toBe("off");
-    expect(resolveShellSandboxMode({ KERYX_SANDBOX_SHELL: "workspace" })).toBe("workspace");
-    expect(resolveShellSandboxMode({ KERYX_SANDBOX_SHELL: "1" })).toBe("workspace");
-    expect(resolveShellSandboxMode({ KERYX_SANDBOX_SHELL: "strict" })).toBe("strict");
-    expect(resolveShellSandboxMode({ KERYX_SANDBOX_SHELL: "off" })).toBe("off");
+    // Isolate from the developer's real sandbox.json
+    const emptyDir = mkdtempSync(path.join(tmpdir(), "keryx-sbx-empty-"));
+    expect(resolveShellSandboxMode({}, emptyDir)).toBe("off");
+    expect(resolveShellSandboxMode({ KERYX_SANDBOX_SHELL: "workspace" }, emptyDir)).toBe("workspace");
+    expect(resolveShellSandboxMode({ KERYX_SANDBOX_SHELL: "1" }, emptyDir)).toBe("workspace");
+    expect(resolveShellSandboxMode({ KERYX_SANDBOX_SHELL: "strict" }, emptyDir)).toBe("strict");
+    expect(resolveShellSandboxMode({ KERYX_SANDBOX_SHELL: "off" }, emptyDir)).toBe("off");
     expect(
-      resolveShellSandboxMode({ KERYX_SANDBOX_SHELL: "strict", KERYX_DANGEROUSLY_DISABLE_SANDBOX: "1" }),
+      resolveShellSandboxMode(
+        { KERYX_SANDBOX_SHELL: "strict", KERYX_DANGEROUSLY_DISABLE_SANDBOX: "1" },
+        emptyDir,
+      ),
     ).toBe("off");
+  });
+
+  test("P1: sandbox.json shell used when env unset; env wins", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "keryx-sbx-shell-"));
+    saveSandboxDefaults({ shell: "workspace" }, dir);
+    expect(resolveShellSandboxMode({}, dir)).toBe("workspace");
+    expect(resolveShellSandboxMode({ KERYX_SANDBOX_SHELL: "strict" }, dir)).toBe("strict");
   });
 });
 

@@ -6,7 +6,9 @@
 //
 // P0.a migration: unset mask mode defaults to **manual** (explicit MASK_ENV only).
 // Opt in: KERYX_SANDBOX_MASK_MODE=auto (or harness --mask-mode auto / --auto-mask).
+// P1: when env unset, maskMode/tls may come from ~/.local/share/keryx/sandbox.json.
 
+import { envVarIsSet, loadSandboxDefaults } from "../../../lib/sandbox-config";
 import { parseMaskSpec } from "./network-run";
 
 export type MaskMode = "auto" | "manual" | "off";
@@ -281,6 +283,9 @@ export function resolveCredentialMasks(input: {
 /**
  * Shared input builder used by shell_exec and harness so AC8 can compare
  * equivalent env + explicit specs + mode → same MaskResolution.
+ *
+ * Resolution order for mode / tls (P1):
+ *   CLI override → process env → global sandbox.json → built-in (manual / unset).
  */
 export function resolveMasksFromSandboxEnv(input: {
   env: Record<string, string | undefined>;
@@ -291,16 +296,43 @@ export function resolveMasksFromSandboxEnv(input: {
   /** Override TLS flag (e.g. harness --tls-terminate true). */
   tlsFlag?: boolean;
   providers: readonly ProviderMaskSource[];
+  /**
+   * Optional keryx data dir (for tests) so sandbox.json loads from a temp path
+   * instead of the user home. Production callers omit this.
+   */
+  sandboxConfigDir?: string;
 }): MaskResolveResult {
-  const mode = input.modeOverride ?? parseMaskMode(input.env.KERYX_SANDBOX_MASK_MODE);
+  const defaults = loadSandboxDefaults(input.sandboxConfigDir);
+
+  let mode: MaskMode;
+  if (input.modeOverride !== undefined) {
+    mode = input.modeOverride;
+  } else if (envVarIsSet(input.env.KERYX_SANDBOX_MASK_MODE)) {
+    mode = parseMaskMode(input.env.KERYX_SANDBOX_MASK_MODE);
+  } else if (defaults.maskMode !== undefined) {
+    mode = defaults.maskMode;
+  } else {
+    mode = "manual"; // P0.a built-in default
+  }
+
   const explicitSpecs = [
     ...splitMaskEnvSpecs(input.env.KERYX_SANDBOX_MASK_ENV),
     ...(input.extraExplicitSpecs ?? []),
   ];
+
   let tlsExplicit = tlsExplicitFromEnv(input.env);
-  if (input.tlsFlag === true) tlsExplicit = true;
+  let tlsFromDefaults = false;
+  if (tlsExplicit === undefined && typeof defaults.tlsTerminate === "boolean") {
+    tlsExplicit = defaults.tlsTerminate;
+    tlsFromDefaults = true;
+  }
+  if (input.tlsFlag === true) {
+    tlsExplicit = true;
+    tlsFromDefaults = false;
+  }
+
   const allowAutoTls = mode === "auto";
-  return resolveCredentialMasks({
+  const result = resolveCredentialMasks({
     mode,
     env: input.env,
     explicitSpecs,
@@ -308,4 +340,15 @@ export function resolveMasksFromSandboxEnv(input: {
     tlsExplicit,
     allowAutoTls,
   });
+  if (!result.ok || !tlsFromDefaults) {
+    return result;
+  }
+  // Relabel tlsSource when the explicit TLS preference came from sandbox.json.
+  if (result.resolution.tlsTerminate && result.resolution.tlsSource === "env") {
+    return {
+      ok: true,
+      resolution: { ...result.resolution, tlsSource: "defaults" },
+    };
+  }
+  return result;
 }
