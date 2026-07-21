@@ -86,8 +86,28 @@ describe("resolveShellSandboxMode", () => {
 const FIXTURE_KEY = "sk-test-fixture-not-real";
 
 describe("resolveShellRestrictedMasks (AC7)", () => {
-  test("P0.a default manual: key present without MASK_ENV → no masks", () => {
-    const r = resolveShellRestrictedMasks({ DEEPSEEK_API_KEY: FIXTURE_KEY });
+  test("P0.b default auto: key present without MASK_ENV → masks + auto TLS", () => {
+    // Empty config dir so developer sandbox.json cannot affect unit test.
+    const emptyDir = mkdtempSync(path.join(tmpdir(), "keryx-shell-p0b-"));
+    const r = resolveShellRestrictedMasks({ DEEPSEEK_API_KEY: FIXTURE_KEY }, emptyDir);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.masks).toEqual([
+      {
+        name: "DEEPSEEK_API_KEY",
+        realValue: FIXTURE_KEY,
+        injectHosts: ["api.deepseek.com"],
+      },
+    ]);
+    expect(r.tlsTerminate).toBe(true);
+  });
+
+  test("explicit manual: key present without MASK_ENV → no masks", () => {
+    const emptyDir = mkdtempSync(path.join(tmpdir(), "keryx-shell-man-"));
+    const r = resolveShellRestrictedMasks(
+      { KERYX_SANDBOX_MASK_MODE: "manual", DEEPSEEK_API_KEY: FIXTURE_KEY },
+      emptyDir,
+    );
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.masks).toEqual([]);
@@ -95,10 +115,14 @@ describe("resolveShellRestrictedMasks (AC7)", () => {
   });
 
   test("auto mode derives deepseek mask and auto TLS", () => {
-    const r = resolveShellRestrictedMasks({
-      KERYX_SANDBOX_MASK_MODE: "auto",
-      DEEPSEEK_API_KEY: FIXTURE_KEY,
-    });
+    const emptyDir = mkdtempSync(path.join(tmpdir(), "keryx-shell-auto-"));
+    const r = resolveShellRestrictedMasks(
+      {
+        KERYX_SANDBOX_MASK_MODE: "auto",
+        DEEPSEEK_API_KEY: FIXTURE_KEY,
+      },
+      emptyDir,
+    );
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.masks).toEqual([
@@ -112,19 +136,29 @@ describe("resolveShellRestrictedMasks (AC7)", () => {
   });
 
   test("manual MASK_ENV without TLS fails closed", () => {
-    const r = resolveShellRestrictedMasks({
-      KERYX_SANDBOX_MASK_ENV: "DEEPSEEK_API_KEY@api.deepseek.com",
-      DEEPSEEK_API_KEY: FIXTURE_KEY,
-    });
+    const emptyDir = mkdtempSync(path.join(tmpdir(), "keryx-shell-tls-"));
+    const r = resolveShellRestrictedMasks(
+      {
+        KERYX_SANDBOX_MASK_MODE: "manual",
+        KERYX_SANDBOX_MASK_ENV: "DEEPSEEK_API_KEY@api.deepseek.com",
+        DEEPSEEK_API_KEY: FIXTURE_KEY,
+      },
+      emptyDir,
+    );
     expect(r.ok).toBe(false);
   });
 
   test("manual MASK_ENV with TLS=1 wires masks", () => {
-    const r = resolveShellRestrictedMasks({
-      KERYX_SANDBOX_MASK_ENV: "DEEPSEEK_API_KEY@api.deepseek.com",
-      KERYX_SANDBOX_TLS_TERMINATE: "1",
-      DEEPSEEK_API_KEY: FIXTURE_KEY,
-    });
+    const emptyDir = mkdtempSync(path.join(tmpdir(), "keryx-shell-tls1-"));
+    const r = resolveShellRestrictedMasks(
+      {
+        KERYX_SANDBOX_MASK_MODE: "manual",
+        KERYX_SANDBOX_MASK_ENV: "DEEPSEEK_API_KEY@api.deepseek.com",
+        KERYX_SANDBOX_TLS_TERMINATE: "1",
+        DEEPSEEK_API_KEY: FIXTURE_KEY,
+      },
+      emptyDir,
+    );
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.masks[0]?.name).toBe("DEEPSEEK_API_KEY");
@@ -132,10 +166,14 @@ describe("resolveShellRestrictedMasks (AC7)", () => {
   });
 
   test("invalid MASK_ENV fails closed", () => {
-    const r = resolveShellRestrictedMasks({
-      KERYX_SANDBOX_MASK_ENV: "NOHOST",
-      KERYX_SANDBOX_TLS_TERMINATE: "1",
-    });
+    const emptyDir = mkdtempSync(path.join(tmpdir(), "keryx-shell-bad-"));
+    const r = resolveShellRestrictedMasks(
+      {
+        KERYX_SANDBOX_MASK_ENV: "NOHOST",
+        KERYX_SANDBOX_TLS_TERMINATE: "1",
+      },
+      emptyDir,
+    );
     expect(r.ok).toBe(false);
   });
 });

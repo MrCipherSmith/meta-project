@@ -8,8 +8,19 @@ keryx update. Complements automated unit tests in
 `src/harness/process/sandbox/dual-axis-report.test.ts` and
 `mask-resolve.test.ts`.
 
-**Default CI does not run live network dual-axis** (AC-V6). Flag-gate any live
-smokes yourself.
+**Default CI does not run live network dual-axis** (AC-V6 / AC-O4). Flag-gate any live
+smokes yourself:
+
+```bash
+# Dry-run / redaction / Axis C (always runs under normal bun test):
+bun test src/harness/process/sandbox/dual-axis-live.smoke.test.ts
+
+# Live dual-axis block (Axis A may SKIP if multi-agent unavailable):
+KERYX_DUAL_AXIS_LIVE=1 bun test src/harness/process/sandbox/dual-axis-live.smoke.test.ts
+```
+
+Never print real API key values in logs. If a secret substring appears under
+RUN_DIR/REPORT, the run is **FAIL** regardless of axis functional pass.
 
 ## Preflight (required first)
 

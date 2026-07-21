@@ -20,8 +20,8 @@ const providers: ProviderMaskSource[] = [
 
 const FIXTURE_KEY = "sk-test-fixture-not-real";
 
-describe("parseMaskMode (P0.a default manual)", () => {
-  test("unset and empty → manual", () => {
+describe("parseMaskMode (soft-fail empty/invalid → manual)", () => {
+  test("unset and empty → manual (parser soft-fail; product default is resolveMasksFromSandboxEnv)", () => {
     expect(parseMaskMode(undefined)).toBe("manual");
     expect(parseMaskMode("")).toBe("manual");
     expect(parseMaskMode("  ")).toBe("manual");
@@ -202,6 +202,54 @@ describe("buildDefaultMaskProviders", () => {
 });
 
 describe("resolveMasksFromSandboxEnv parity (AC8)", () => {
+  test("AC-O1: fully unset mode → built-in maskMode auto (P0.b)", () => {
+    const globalDir = mkdtempSync(path.join(tmpdir(), "keryx-p0b-global-"));
+    const projectRoot = mkdtempSync(path.join(tmpdir(), "keryx-p0b-proj-"));
+    mkdirSync(path.join(projectRoot, ".git"));
+    const r = resolveMasksFromSandboxEnv({
+      env: { DEEPSEEK_API_KEY: FIXTURE_KEY },
+      providers,
+      sandboxConfigDir: globalDir,
+      projectRoot,
+    });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.resolution.mode).toBe("auto");
+    expect(r.resolution.masks[0]?.name).toBe("DEEPSEEK_API_KEY");
+    expect(r.resolution.tlsTerminate).toBe(true);
+    expect(r.resolution.tlsSource).toBe("auto-derived");
+  });
+
+  test("AC-O2: explicit env manual still forces manual", () => {
+    const globalDir = mkdtempSync(path.join(tmpdir(), "keryx-p0b-man-"));
+    const r = resolveMasksFromSandboxEnv({
+      env: {
+        KERYX_SANDBOX_MASK_MODE: "manual",
+        DEEPSEEK_API_KEY: FIXTURE_KEY,
+      },
+      providers,
+      sandboxConfigDir: globalDir,
+    });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.resolution.mode).toBe("manual");
+    expect(r.resolution.masks).toEqual([]);
+  });
+
+  test("AC-O2: explicit file maskMode=manual still forces manual", () => {
+    const globalDir = mkdtempSync(path.join(tmpdir(), "keryx-p0b-file-"));
+    saveSandboxDefaults({ maskMode: "manual" }, globalDir);
+    const r = resolveMasksFromSandboxEnv({
+      env: { DEEPSEEK_API_KEY: FIXTURE_KEY },
+      providers,
+      sandboxConfigDir: globalDir,
+    });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.resolution.mode).toBe("manual");
+    expect(r.resolution.masks).toEqual([]);
+  });
+
   test("shell-shaped env and harness-shaped extra specs share the same resolution shape", () => {
     const env = {
       KERYX_SANDBOX_MASK_MODE: "auto",
@@ -305,7 +353,7 @@ describe("P2 project policy (AC-P2-1/2/3/6)", () => {
     return root;
   }
 
-  test("AC-P2-1: missing project policy → same as no projectRoot (manual empty)", () => {
+  test("AC-P2-1: missing project policy → same as no projectRoot (P0.b auto)", () => {
     const root = mkdtempSync(path.join(tmpdir(), "keryx-p2-empty-"));
     mkdirSync(path.join(root, ".git"));
     const globalDir = mkdtempSync(path.join(tmpdir(), "keryx-p2-global-"));
@@ -323,6 +371,8 @@ describe("P2 project policy (AC-P2-1/2/3/6)", () => {
     expect(withRoot.ok && without.ok).toBe(true);
     if (!withRoot.ok || !without.ok) return;
     expect(withRoot.resolution).toEqual(without.resolution);
+    expect(withRoot.resolution.mode).toBe("auto");
+    expect(withRoot.resolution.masks[0]?.name).toBe("DEEPSEEK_API_KEY");
   });
 
   test("AC-P2-2: project extraMasks merge as explicit", () => {

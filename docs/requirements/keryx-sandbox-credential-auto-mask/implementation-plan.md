@@ -32,14 +32,15 @@ resolver; default product path masks known provider keys when present.
 
 ### Migration default for maskMode (P0)
 
-| Stage | Default when env unset |
-|-------|------------------------|
-| P0.a (first merge) | `manual` if package wants zero surprise; set `KERYX_SANDBOX_MASK_MODE=auto` in docs |
-| P0.b (preferred product) | `auto` when sandbox restricted is on |
+| Stage | Default when env / project / global unset |
+|-------|-------------------------------------------|
+| P0.a (first merge, PR #175) | `manual` |
+| P0.b (product default) | **`auto`** |
 
-**Package recommendation:** land P0.a behind explicit env in the first PR if
-review prefers caution; flip to P0.b in a follow-up PR with release notes.
-Acceptance SC1 assumes P0.b or explicit `MASK_MODE=auto` in the test harness.
+**Migration (P0.a → P0.b):** restore old behavior with
+`KERYX_SANDBOX_MASK_MODE=manual` or `"maskMode": "manual"` in global
+`sandbox.json` / project `.keryx/sandbox-policy.json`. Shell sandbox remains
+off unless separately enabled.
 
 ### Exit gate
 

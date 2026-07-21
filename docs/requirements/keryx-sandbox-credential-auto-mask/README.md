@@ -1,5 +1,5 @@
 # Keryx Sandbox Credential Auto-Mask
-Version: 0.4.0
+Version: 0.5.0
 
 ## Purpose
 
@@ -30,21 +30,37 @@ Recommended delivery order (this package):
 
 ## Status
 
-**draft (P0 + Verify + P1 + P2 landed; optional P0.b later)**
+**draft (P0 + Verify + P1 + P2 + optional P0.b landed)**
 
 | Phase | Status |
 |-------|--------|
-| **P0** | **landed** (PR #175) — shared resolver + shell/harness wire-up; P0.a default `maskMode=manual` |
+| **P0** | **landed** (PR #175) — shared resolver + shell/harness wire-up |
 | **Verify** | **landed** (PR #176) — dual-axis contract tests, REPORT/redaction helpers, operator [verification.md](verification.md) |
 | **P1** | **landed** (PR #177) — global `~/.local/share/keryx/sandbox.json` |
-| **P2** | **landed** — project `.keryx/sandbox-policy.json` + `keryx init` skeleton (no secrets) |
-| **P0.b** | not implemented — product default flip to `auto` |
+| **P2** | **landed** (PR #178) — project `.keryx/sandbox-policy.json` + `keryx init` skeleton (no secrets) |
+| **P0.b** | **landed** — built-in default `maskMode=auto` when fully unset; live dual-axis flag-gated |
 
-Opt in to auto-mask (env, project policy, **or** global sandbox.json):
+### Product default (P0.b)
+
+When `KERYX_SANDBOX_MASK_MODE` is unset **and** project policy / global
+`sandbox.json` omit `maskMode`, the built-in default is **`auto`**: known
+provider keys present in env/`auth.json` are masked under restricted network,
+with TLS auto-derived when masks are non-empty (ADR-0007). Sandbox **shell**
+is still off unless env/file enables it.
+
+### Restore P0.a (manual) behavior
 
 ```bash
-export KERYX_SANDBOX_MASK_MODE=auto
+export KERYX_SANDBOX_MASK_MODE=manual
 ```
+
+or in `~/.local/share/keryx/sandbox.json` / `.keryx/sandbox-policy.json`:
+
+```json
+{ "maskMode": "manual" }
+```
+
+### Optional overrides
 
 ```json
 // ~/.local/share/keryx/sandbox.json  (no secrets)
@@ -56,12 +72,16 @@ export KERYX_SANDBOX_MASK_MODE=auto
 { "maskMode": "auto", "extraMasks": [], "allowedDomains": ["api.deepseek.com"] }
 ```
 
-API keys: `keryx shell` → `/connect` (user-global `auth.json`) — **never** in project policy.
+### Operator UX (light)
 
-Harness: `--mask-mode auto` or `--auto-mask`.  
-**Resolution order:** env → project policy → global sandbox.json → built-in.
+| Topic | Where |
+|-------|--------|
+| Resolution order | **env → project policy → global sandbox.json → built-in (`auto`)** |
+| Keys | `keryx shell` → `/connect` (user-global `auth.json`) — **never** in project policy |
+| Effective defaults | Inspect `~/.local/share/keryx/sandbox.json` and `.keryx/sandbox-policy.json` (no secrets stored). There is no separate CLI dump in this phase — docs-only. |
+| Live dual-axis | `KERYX_DUAL_AXIS_LIVE=1 bun test src/harness/process/sandbox/dual-axis-live.smoke.test.ts` (default CI off) |
 
-Live dual-axis network checks are **operator-run / flag-gated** — not required on default CI (see verification.md).
+Harness: `--mask-mode auto|manual|off` or `--auto-mask`.
 
 ## Document Index
 
@@ -125,6 +145,7 @@ Live dual-axis network checks are **operator-run / flag-gated** — not required
 | Global `auth.json` API keys | **implemented** |
 | Manual `KERYX_SANDBOX_MASK_ENV` + TLS | **implemented** |
 | Harness `--mask-env` / `--tls-terminate` | **implemented** |
-| Auto-mask from registry | **not implemented** (this package P0) |
-| Global `sandbox.json` defaults | **not implemented** (P1) |
-| Project policy + init scaffold | **not implemented** (P2) |
+| Auto-mask from registry | **implemented** (P0; P0.b built-in default `auto`) |
+| Global `sandbox.json` defaults | **implemented** (P1) |
+| Project policy + init scaffold | **implemented** (P2) |
+| Live dual-axis smoke | **flag-gated** (`KERYX_DUAL_AXIS_LIVE=1`) |
