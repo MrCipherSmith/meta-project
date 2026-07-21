@@ -47,7 +47,8 @@ HELPERS_DIR="${RUN_DIR}/helpers"
 mkdir -p "$HELPERS_DIR"
 
 # Fixture secret for redaction gate only — never a real key (P-SEC-2).
-FIXTURE_SECRET="sk-fixture-probe-redaction-only-not-real"
+# Synthetic only — must not look like a real provider key (no sk- prefix).
+FIXTURE_SECRET="fixture-probe-redaction-only-not-a-real-key"
 printf '%s\n' "$FIXTURE_SECRET" >"${RUN_DIR}/.fixture-secret-marker"
 # Marker file is excluded from scan source list; we inject a deliberate leak only in tests.
 

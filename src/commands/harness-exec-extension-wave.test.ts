@@ -234,7 +234,7 @@ describe("keryx harness exec — AC-H1 mask without TLS fail-closed", () => {
         ],
         {
           ...fixedClockIdEnv(),
-          env: { FIXTURE_TOKEN: "sk-fixture-not-a-real-key" },
+          env: { FIXTURE_TOKEN: "fixture-token-not-a-real-key" },
           processAdapter: adapter,
         },
       );
@@ -267,7 +267,7 @@ describe("keryx harness exec — AC-H1 mask without TLS fail-closed", () => {
         {
           ...fixedClockIdEnv(),
           env: {
-            FIXTURE_TOKEN: "sk-fixture-not-a-real-key",
+            FIXTURE_TOKEN: "fixture-token-not-a-real-key",
             KERYX_SANDBOX_TLS_TERMINATE: "0",
           },
           processAdapter: adapter,
