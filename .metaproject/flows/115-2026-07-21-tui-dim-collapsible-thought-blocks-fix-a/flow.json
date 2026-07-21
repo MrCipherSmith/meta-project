@@ -5,7 +5,7 @@
   "title": "TUI: dim/collapsible thought blocks + fix alignSelf height-measurement breaking transcript layout and scroll",
   "status": "in-progress",
   "createdAt": "2026-07-21T23:04:33.052Z",
-  "updatedAt": "2026-07-21T23:10:23.965Z",
+  "updatedAt": "2026-07-21T23:28:50.599Z",
   "source": {
     "type": "description",
     "ref": null
@@ -35,7 +35,7 @@
       "id": "T2",
       "title": "Implement per plan",
       "kind": "implement",
-      "status": "todo",
+      "status": "done",
       "dependsOn": [],
       "attempts": {
         "count": 0,
@@ -43,13 +43,14 @@
       },
       "acRefs": [],
       "evidenceRefs": [],
-      "budget": {}
+      "budget": {},
+      "disposition": "completed"
     },
     {
       "id": "T3",
       "title": "Add/adjust tests and make them pass",
       "kind": "test",
-      "status": "todo",
+      "status": "done",
       "dependsOn": [],
       "attempts": {
         "count": 0,
@@ -57,13 +58,14 @@
       },
       "acRefs": [],
       "evidenceRefs": [],
-      "budget": {}
+      "budget": {},
+      "disposition": "completed"
     },
     {
       "id": "T4",
       "title": "Self-review and prepare draft PR",
       "kind": "review",
-      "status": "todo",
+      "status": "done",
       "dependsOn": [],
       "attempts": {
         "count": 0,
@@ -71,13 +73,14 @@
       },
       "acRefs": [],
       "evidenceRefs": [],
-      "budget": {}
+      "budget": {},
+      "disposition": "completed"
     },
     {
       "id": "T5",
       "title": "Half B - dim + bounded reasoning body, /think toggle + collapse hint",
       "kind": "implement",
-      "status": "todo",
+      "status": "done",
       "dependsOn": [],
       "attempts": {
         "count": 0,
@@ -85,13 +88,14 @@
       },
       "acRefs": [],
       "evidenceRefs": [],
-      "budget": {}
+      "budget": {},
+      "disposition": "completed"
     },
     {
       "id": "T6",
       "title": "Docs: memory lesson, flow-109 R4 correction, OpenTUI spec + journal",
       "kind": "docs",
-      "status": "todo",
+      "status": "done",
       "dependsOn": [],
       "attempts": {
         "count": 0,
@@ -99,7 +103,8 @@
       },
       "acRefs": [],
       "evidenceRefs": [],
-      "budget": {}
+      "budget": {},
+      "disposition": "completed"
     }
   ],
   "history": [
@@ -130,6 +135,31 @@
       "at": "2026-07-21T23:10:23.965Z",
       "event": "task-done",
       "detail": "T1: Collect remaining context"
+    },
+    {
+      "at": "2026-07-21T23:24:30.132Z",
+      "event": "task-done",
+      "detail": "T3: Add/adjust tests and make them pass"
+    },
+    {
+      "at": "2026-07-21T23:24:30.290Z",
+      "event": "task-done",
+      "detail": "T2: Implement per plan"
+    },
+    {
+      "at": "2026-07-21T23:24:30.417Z",
+      "event": "task-done",
+      "detail": "T5: Half B - dim + bounded reasoning body, /think toggle + collapse hint"
+    },
+    {
+      "at": "2026-07-21T23:28:50.458Z",
+      "event": "task-done",
+      "detail": "T4: Self-review and prepare draft PR"
+    },
+    {
+      "at": "2026-07-21T23:28:50.599Z",
+      "event": "task-done",
+      "detail": "T6: Docs: memory lesson, flow-109 R4 correction, OpenTUI spec + journal"
     }
   ]
 }

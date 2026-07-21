@@ -150,14 +150,30 @@ CliRenderer.root
     Nav keys are inert while the `/` dropdown is in nav state or an approval/
     picker overlay is up, and a turn completing mid-navigation does not steal
     focus back.
-    `/expand` is **not** replaced: it remains in both shells (it expands the
+    `/expand` is **not** replaced: it remains in both shells (it acts on the
     newest tool output without entering nav mode), and `/copy` copies the newest
     block — a thought / tool / output block, since assistant markdown renders as
     segment views and is never registered as a block. Both shells render the
     header through the shared `blockLabel` helper (same form; the readline
     `/expand` header names the tool, the TUI names the block class), so the two
     cannot drift structurally.
-  - reasoning → dim `⋯ thinking` block (from `onReasoning`).
+    **Refined in flow 115:** `/think` and `/expand` **toggle** rather than only
+    expand, and an expanded header carries its own hint (`▾ thought (n lines) ·
+    /think collapse · y copy`) so the way back is advertised where the block is.
+  - reasoning → dim `⋯ thinking` block (from `onReasoning`). **Flow 115:** an
+    expanded reasoning body is rendered dim (secondary) and bounded to
+    `MAX_THOUGHT_LINES` (12) with a `… (n more lines not shown)` notice; the
+    registry still retains the whole payload, so `y` / `/copy` are lossless.
+
+  **Transcript layout invariant (flow 115, D-1).** A box mounted in the
+  transcript ScrollBox hugs its content with `maxWidth: hugWidth(text, chrome)`
+  and **never** with `alignSelf`. `alignSelf` stops a node measuring its
+  intrinsic height: it collapses to the viewport height, squeezes bordered
+  children until their border rows paint over the content row, and makes the
+  ScrollBox under-report `scrollHeight` so every row below a large expanded
+  block becomes unreachable. `flexShrink: 0` and "never `flexGrow`" (flow 075)
+  still hold. Enforced statically by `src/capability/tui-layout.test.ts` and by
+  measurement regressions in `src/tui/tui-shell.test.ts`.
   - system/usage → dim lines (`↑in ↓out tokens`, `[stopped] …`, errors).
 
 ## 4. AgentIO → OpenTUI mapping

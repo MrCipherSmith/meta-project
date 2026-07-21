@@ -30,6 +30,7 @@ import {
   createBlockNavController,
   createBlockRegistry,
   createBlockView,
+  createSegmentView,
   EVICTED_BLOCK_TEXT,
   MAX_THOUGHT_LINES,
   type BlockState,
@@ -1266,4 +1267,33 @@ otuiTest("AC6: toggleNewest expands then collapses the newest reasoning block, a
   expect(h.registry.list().find((b) => b.kind === "output")?.collapsed).toBe(true);
   expect(h.nav.toggleNewest("no-such-kind")).toBeUndefined();
   h.destroy();
+});
+
+test("a streamed fence widens its frame as the payload grows (maxWidth is recomputed, flow 115)", async () => {
+  const otui = await loadOpenTui();
+  if (otui === undefined) {
+    return;
+  }
+  const { renderer, flush, captureCharFrame } = await otui.testing.createTestRenderer({ width: 60, height: 12 });
+  const parent = new otui.core.BoxRenderable(renderer, { id: "p", flexDirection: "column" });
+  renderer.root.add(parent);
+
+  const view = createSegmentView(otui.core, renderer, parent, { kind: "code", lang: "ts", body: "const a = 1" });
+  await flush();
+  const frame = parent.getChildren()[0] as unknown as { width: number; height: number };
+  const narrow = frame.width;
+
+  view.update({
+    kind: "code",
+    lang: "ts",
+    body: "const a = 1\nconst bbbbbbbbbbbbbbbbbbbbbbbbbb = 2\nconst c = 3",
+  });
+  await flush();
+  await flush();
+
+  // A frame frozen at its first hug width would wrap the longer line instead of
+  // growing — the whole point of recomputing `maxWidth` on repaint.
+  expect(frame.width).toBeGreaterThan(narrow);
+  expect(captureCharFrame()).toContain("const bbbbbbbbbbbbbbbbbbbbbbbbbb = 2");
+  renderer.destroy();
 });
