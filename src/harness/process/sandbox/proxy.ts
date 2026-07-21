@@ -51,9 +51,12 @@ export interface ProxyDecision {
 /**
  * A credential to unmask on the wire. The contained process only ever sees
  * `sentinel`; the proxy substitutes `realValue` in the request headers of
- * plaintext HTTP requests to a host matching `injectHosts`. NOTE: substitution
- * is HTTP-only — HTTPS goes through the blind `CONNECT` relay (no TLS
- * termination), so masking does not apply to it in v1.x.
+ * requests to a host matching `injectHosts`.
+ *
+ * Applies to plaintext HTTP always, and to HTTPS ONLY when TLS termination is
+ * enabled (`tlsTerminate`) — a blind `CONNECT` relay cannot rewrite encrypted
+ * bytes, so without termination an HTTPS sentinel would leave the sandbox
+ * unchanged (and fail auth).
  */
 export interface CredentialMask {
   sentinel: string;

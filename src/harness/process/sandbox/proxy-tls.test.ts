@@ -96,6 +96,62 @@ describe("createAllowlistProxy TLS terminate (live loopback)", () => {
     expect(body).toContain("OK-TLS-UPSTREAM");
   });
 
+  /** Start an HTTPS upstream (leaf from the run CA) that echoes Authorization. */
+  async function echoAuthUpstream(runCa: RunCa): Promise<number> {
+    const leaf = await runCa.issueLeaf("localhost");
+    upstream = https.createServer({ key: leaf.keyPem, cert: leaf.certPem }, (q, r) => {
+      r.writeHead(200);
+      r.end(`AUTH=${q.headers.authorization ?? ""}`);
+    });
+    return new Promise((res) =>
+      upstream!.listen(0, "127.0.0.1", () => res((upstream!.address() as { port: number }).port)),
+    );
+  }
+
+  test("credential masking over HTTPS: sentinel is unmasked upstream and never leaks", async () => {
+    ca = await createRunCa();
+    const upPort = await echoAuthUpstream(ca);
+    proxy = await createAllowlistProxy({
+      allowedDomains: ["localhost"],
+      tlsTerminate: ca,
+      upstreamCa: ca.caCertPem,
+      masks: [
+        { sentinel: "SENTINEL-HTTPS", realValue: "real-https-secret", injectHosts: ["localhost"] },
+      ],
+    });
+
+    const body = await httpsViaProxy(proxy.host, proxy.port, "localhost", upPort, ca.caCertPem, {
+      Authorization: "Bearer SENTINEL-HTTPS",
+    });
+    // The upstream saw the REAL credential…
+    expect(body).toContain("AUTH=Bearer real-https-secret");
+    // …and the sentinel never reached it.
+    expect(body).not.toContain("SENTINEL-HTTPS");
+  });
+
+  test("no HTTPS substitution for a host outside injectHosts", async () => {
+    ca = await createRunCa();
+    const upPort = await echoAuthUpstream(ca);
+    proxy = await createAllowlistProxy({
+      allowedDomains: ["localhost"],
+      tlsTerminate: ca,
+      upstreamCa: ca.caCertPem,
+      masks: [
+        {
+          sentinel: "SENTINEL-HTTPS",
+          realValue: "real-https-secret",
+          injectHosts: ["api.github.com"],
+        },
+      ],
+    });
+
+    const body = await httpsViaProxy(proxy.host, proxy.port, "localhost", upPort, ca.caCertPem, {
+      Authorization: "Bearer SENTINEL-HTTPS",
+    });
+    expect(body).toContain("AUTH=Bearer SENTINEL-HTTPS");
+    expect(body).not.toContain("real-https-secret");
+  });
+
   test("a non-allowlisted host is still refused before any TLS work", async () => {
     ca = await createRunCa();
     proxy = await createAllowlistProxy({ allowedDomains: ["allowed.test"], tlsTerminate: ca });
