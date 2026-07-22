@@ -27,6 +27,13 @@ import type { NormalizedMessage, NormalizedRequest, NormalizedUsage, ProviderPor
  * never be treated as a security boundary (ADR-0008).
  */
 export interface ApprovalMeta {
+  /**
+   * Identity of the exact action being approved (tool name + canonical input).
+   * An approver that persists or replays a decision MUST key it on this, and an
+   * approver that answers for a specific action should echo it back (see
+   * {@link ApprovalResponse}) so the driver can refuse a mismatched answer.
+   */
+  fingerprint: string;
   destructive: boolean;
   /**
    * The command mentions the agent's own permission/credential files. Approving
@@ -35,6 +42,17 @@ export interface ApprovalMeta {
    */
   credentials?: boolean;
 }
+
+/**
+ * What an approver may answer.
+ *
+ * A bare `boolean` is the historical form and still works. The object form
+ * BINDS the answer to an action: when `fingerprint` is present it must equal the
+ * fingerprint the approver was given, otherwise the driver treats the answer as
+ * a denial. That closes the gap where "the user said yes" and "this is what
+ * runs" are two independent facts that merely happen to line up.
+ */
+export type ApprovalResponse = boolean | { approved: boolean; fingerprint?: string };
 
 /** Rendering sink for agent mode. Assistant text streams through `write`. */
 export interface AgentIO {
@@ -67,7 +85,7 @@ export interface AgentIO {
    * `meta.destructive` asks the approver to ESCALATE (never auto-approve from an
    * allowlist, never offer "always") — see {@link ApprovalMeta}.
    */
-  requestApproval?: (tool: string, input: string, meta?: ApprovalMeta) => Promise<boolean>;
+  requestApproval?: (tool: string, input: string, meta?: ApprovalMeta) => Promise<ApprovalResponse>;
 }
 
 /** Injected dependencies keeping `runAgentTurn` deterministic + offline. */
@@ -540,6 +558,22 @@ async function finishWithBudgetSummary(
   }
 }
 
+/**
+ * True when `response` authorises THIS action. A bare `true` is accepted (the
+ * historical contract); an object form must either omit the fingerprint or echo
+ * the one it was given. A mismatch is a denial, never a pass — an approver that
+ * answers about a different action has not approved this one.
+ */
+function isApprovalFor(response: ApprovalResponse, fingerprint: string): boolean {
+  if (typeof response === "boolean") {
+    return response;
+  }
+  if (!response.approved) {
+    return false;
+  }
+  return response.fingerprint === undefined || response.fingerprint === fingerprint;
+}
+
 /** Resolve, gate (risk + approval), validate, and invoke a call → a content result. */
 async function executeCall(
   call: PendingCall,
@@ -576,16 +610,23 @@ async function executeCall(
     const command = typeof input.command === "string" ? input.command : "";
     const destructive = risk === "destructive" || isDestructiveCommand(command);
     const credentials = touchesAgentCredentials(command);
-    const approved =
-      requestApproval !== undefined &&
-      (await requestApproval(call.name, call.input, { destructive, ...(credentials ? { credentials } : {}) }));
-    if (!approved) {
+    const fingerprint = toolCallHash(call.name, call.input);
+    const response =
+      requestApproval === undefined
+        ? false
+        : await requestApproval(call.name, call.input, {
+            fingerprint,
+            destructive,
+            ...(credentials ? { credentials } : {}),
+          });
+    if (!isApprovalFor(response, fingerprint)) {
       return { output: `command not approved by the user; not executed`, isError: true };
     }
   } else if (risk === "delegate") {
     if (requestApproval !== undefined) {
-      const approved = await requestApproval(call.name, call.input);
-      if (!approved) {
+      const fingerprint = toolCallHash(call.name, call.input);
+      const response = await requestApproval(call.name, call.input, { fingerprint, destructive: false });
+      if (!isApprovalFor(response, fingerprint)) {
         return { output: `subagent spawn not approved by the user; not executed`, isError: true };
       }
     }
