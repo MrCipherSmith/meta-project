@@ -1,0 +1,217 @@
+{
+  "schemaVersion": 2,
+  "id": "116",
+  "slug": "fix-duplicate-flow-ids-nextflowid-races-",
+  "title": "Fix duplicate flow ids: nextFlowId races on concurrent init and resolveFlowDir silently picks one of the colliding flows",
+  "status": "in-progress",
+  "createdAt": "2026-07-22T12:05:44.354Z",
+  "updatedAt": "2026-07-22T13:43:17.203Z",
+  "source": {
+    "type": "description",
+    "ref": null
+  },
+  "acChecksum": "sha256:1be2c0098b7799f2ceb1b4f878a8b1e5178fb0050e71e830c015a336464fed6e",
+  "acConfirmed": {},
+  "pr": {
+    "url": null
+  },
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Collect remaining context",
+      "kind": "context",
+      "status": "todo",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {}
+    },
+    {
+      "id": "T2",
+      "title": "Implement per plan",
+      "kind": "implement",
+      "status": "todo",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {}
+    },
+    {
+      "id": "T3",
+      "title": "Add/adjust tests and make them pass",
+      "kind": "test",
+      "status": "todo",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {}
+    },
+    {
+      "id": "T4",
+      "title": "Self-review and prepare draft PR",
+      "kind": "review",
+      "status": "todo",
+      "dependsOn": [],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {}
+    },
+    {
+      "id": "T5",
+      "title": "Repo-wide id allocation: shared git-common-dir lock + ledger in nextFlowId/init (with non-git fallback)",
+      "kind": "implement",
+      "status": "todo",
+      "dependsOn": [
+        "T1"
+      ],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {}
+    },
+    {
+      "id": "T6",
+      "title": "Ambiguity-safe resolveFlowDir + fail-closed callers (flow CLI, review --flow, ManagedFlowPort)",
+      "kind": "implement",
+      "status": "todo",
+      "dependsOn": [
+        "T1"
+      ],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {}
+    },
+    {
+      "id": "T7",
+      "title": "Duplicate-id rule in keryx flow check + collision marker in flow list",
+      "kind": "implement",
+      "status": "todo",
+      "dependsOn": [
+        "T1"
+      ],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {}
+    },
+    {
+      "id": "T8",
+      "title": "keryx flow renumber command (move dir, rewrite flow.json id, history event, old->new mapping)",
+      "kind": "implement",
+      "status": "todo",
+      "dependsOn": [
+        "T5"
+      ],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {}
+    },
+    {
+      "id": "T9",
+      "title": "Repair existing collisions 002/084/103 via renumber; handle the 002 AC checksum mismatch explicitly",
+      "kind": "implement",
+      "status": "todo",
+      "dependsOn": [
+        "T8"
+      ],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {}
+    },
+    {
+      "id": "T10",
+      "title": "Document repo-wide allocation + worktree rule in flow skill and project memory",
+      "kind": "docs",
+      "status": "todo",
+      "dependsOn": [
+        "T9"
+      ],
+      "attempts": {
+        "count": 0,
+        "log": []
+      },
+      "acRefs": [],
+      "evidenceRefs": [],
+      "budget": {}
+    }
+  ],
+  "history": [
+    {
+      "at": "2026-07-22T12:05:44.354Z",
+      "event": "created"
+    },
+    {
+      "at": "2026-07-22T12:09:14.640Z",
+      "event": "task-added",
+      "detail": "T5: Repo-wide id allocation: shared git-common-dir lock + ledger in nextFlowId/init (with non-git fallback)"
+    },
+    {
+      "at": "2026-07-22T12:09:14.810Z",
+      "event": "task-added",
+      "detail": "T6: Ambiguity-safe resolveFlowDir + fail-closed callers (flow CLI, review --flow, ManagedFlowPort)"
+    },
+    {
+      "at": "2026-07-22T12:09:14.998Z",
+      "event": "task-added",
+      "detail": "T7: Duplicate-id rule in keryx flow check + collision marker in flow list"
+    },
+    {
+      "at": "2026-07-22T12:09:15.158Z",
+      "event": "task-added",
+      "detail": "T8: keryx flow renumber command (move dir, rewrite flow.json id, history event, old->new mapping)"
+    },
+    {
+      "at": "2026-07-22T12:09:15.299Z",
+      "event": "task-added",
+      "detail": "T9: Repair existing collisions 002/084/103 via renumber; handle the 002 AC checksum mismatch explicitly"
+    },
+    {
+      "at": "2026-07-22T12:09:15.446Z",
+      "event": "task-added",
+      "detail": "T10: Document repo-wide allocation + worktree rule in flow skill and project memory"
+    },
+    {
+      "at": "2026-07-22T13:43:11.496Z",
+      "event": "frozen",
+      "detail": "10 criteria; checksum recorded"
+    },
+    {
+      "at": "2026-07-22T13:43:17.203Z",
+      "event": "started"
+    }
+  ]
+}
