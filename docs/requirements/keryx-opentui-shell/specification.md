@@ -185,11 +185,20 @@ regressions in `src/tui/tui-shell.test.ts`.
 | `write(s)`          | append token to the active assistant block's pending buffer           |
 | `onAssistantText`   | finalize the block: set text to `renderMarkdown(text)`                |
 | `onReasoning`       | prepend a dim `⋯ thinking` block before the answer block              |
-| `onUsage`           | store; render the dim usage line when the turn ends                   |
+| `onUsage`           | store; render the dim usage line when the turn ends — **stale, see below** |
 | `onToolCall`        | append a `⚙ name(args)` block (collapsed)                              |
 | `onToolResult`      | attach full output to the block; show collapsed summary + expander    |
 | `onSystem`          | append a dim/red system line                                          |
 | `requestApproval`   | open the choice dock and resolve on the selected option; default-deny |
+
+The `onUsage` row is **stale as of 2026-07-22**: the shell overrides that hook
+(`src/tui/tui-shell.ts:949-958`) with a cumulative `↑ ↓` header counter and a
+sidebar total, so no per-turn usage line is ever appended to the transcript. The
+code that would append it (`:141-152`) is dead in the running shell. Recorded as
+gap **G-1** of the
+[feature-parity checklist](feature-parity-checklist.md), which audits every
+flow-050–057 feature against the shipped TUI and, on that evidence plus two
+absent features, reports the PRD's parity criterion as **not passing**.
 
 The approval row originally read "resolve on y/N". The TUI **no longer has a
 typed y/N path** — every approval goes through the interactive dock picker

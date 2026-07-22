@@ -124,9 +124,16 @@ not a dependency add. OpenTUI is the chosen framework because it is Bun-native
   instead by OSC-52 (mouse selection, and `y` on a focused block since flow 109),
   and losing scrollback is precisely why flow 109's decision D-5 has to preserve
   the scroll offset when a block expands.
-- **Risk R3 (rewrite surface) — held.** Every flow-050–057 feature was re-homed
-  without regression, with the logic kept in pure unit-tested helpers. The one
-  qualification: that helper layer is no longer frozen — see decision **D-6**.
+- **Risk R3 (rewrite surface) — mostly held, not fully.** The claim that "every
+  flow-050–057 feature was re-homed without regression" was never evidenced, and
+  when it finally was — [feature-parity-checklist.md](feature-parity-checklist.md),
+  2026-07-22 — it turned out to be false in three of twenty-one rows: `cwd`
+  vanished from the header, the agent/chat mode picker is unreachable on the TUI
+  path, and the per-turn usage line was silently replaced by a cumulative header
+  counter. The rest did carry over, with the logic kept in pure unit-tested
+  helpers. Two further qualifications: that helper layer is no longer frozen (see
+  decision **D-6**), and six features were re-implemented rather than re-homed —
+  authorised, and itemised in the checklist.
 
 See `prd.md` for goals, requirements, success criteria, and the phased roadmap;
 `specification.md` for the technical architecture, the AgentIO→component mapping,
