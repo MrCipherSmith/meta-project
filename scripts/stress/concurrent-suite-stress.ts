@@ -29,7 +29,12 @@ interface RunResult {
   failingTests: string[];
   errorLines: string[];
   durationMs: number;
+  transcript: string;
+  logPath?: string;
 }
+
+/** Where transcripts of failing runs are kept (`.tmp-*` is gitignored). */
+const LOG_DIR = ".tmp-stress-logs";
 
 function parseArgs(argv: string[]): { runs: number; repeat: number; filter: string[] } {
   let runs = 6;
@@ -91,7 +96,7 @@ function summarize(index: number, exitCode: number, output: string, durationMs: 
       errorLines.push(trimmed);
     }
   }
-  return { index, exitCode, pass, fail, skip, failingTests, errorLines, durationMs };
+  return { index, exitCode, pass, fail, skip, failingTests, errorLines, durationMs, transcript: output };
 }
 
 async function runOnce(index: number, filter: string[]): Promise<RunResult> {
@@ -108,6 +113,31 @@ async function runOnce(index: number, filter: string[]): Promise<RunResult> {
     proc.exited,
   ]);
   return summarize(index, exitCode, `${stdout}\n${stderr}`, Date.now() - startedAt);
+}
+
+/**
+ * Keep the transcript of any run that failed. A collision is rare and expensive
+ * to reproduce, so the evidence has to survive the run that produced it.
+ */
+async function retainFailingTranscripts(wave: number, results: RunResult[]): Promise<void> {
+  for (const result of results) {
+    if (result.fail === 0) continue;
+    const logPath = `${LOG_DIR}/wave${wave}-run${result.index}.log`;
+    await Bun.write(logPath, result.transcript);
+    result.logPath = logPath;
+  }
+}
+
+/** The `(fail)` marker plus the lines under it, which carry the real message. */
+function failureExcerpt(transcript: string, contextLines = 12): string[] {
+  const lines = transcript.split("\n");
+  const excerpt: string[] = [];
+  for (let i = 0; i < lines.length; i += 1) {
+    if (!FAIL_TEST_LINE.test(lines[i] ?? "")) continue;
+    excerpt.push(...lines.slice(i, i + contextLines).map((line) => `    ${line}`));
+    excerpt.push("    ---");
+  }
+  return excerpt;
 }
 
 function reportWave(wave: number, results: RunResult[]): number {
@@ -144,6 +174,11 @@ function reportWave(wave: number, results: RunResult[]): number {
       console.log(`  ${count}× ${text}`);
     }
   }
+  for (const result of results) {
+    if (result.fail === 0) continue;
+    console.log(`\nrun ${result.index} failure detail (full transcript: ${result.logPath ?? "n/a"}):`);
+    for (const line of failureExcerpt(result.transcript)) console.log(line);
+  }
   console.log(`\nwave ${wave} total failures: ${totalFailures}`);
   return totalFailures;
 }
@@ -158,6 +193,7 @@ async function main(): Promise<void> {
     const results = await Promise.all(
       Array.from({ length: runs }, (_unused, index) => runOnce(index + 1, filter)),
     );
+    await retainFailingTranscripts(wave, results);
     const waveFailures = reportWave(wave, results);
     waveTotals.push(waveFailures);
     grandTotal += waveFailures;
