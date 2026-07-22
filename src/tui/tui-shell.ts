@@ -7,9 +7,16 @@
 // one sibling renderable per markdown segment, styled by the worker-free
 // `markdownToChunks` (the native `MarkdownRenderable` is deliberately NOT used —
 // flow 109 decision D-2); `● keryx` role header; `⚙ tool(args)` (via the pure
-// `summarizeToolArgs`); collapsed tool output (`collapseToolOutput`); dim
-// `⋯ thinking` reasoning; dim `↑in ↓out tokens`. The deterministic driver and the
+// `summarizeToolArgs`); collapsed tool output (`collapseToolOutput`); reasoning
+// as a bounded `▸ thought (n lines)` block. The deterministic driver and the
 // pure helpers are unchanged. Gutter = the transcript box `padding`.
+//
+// Usage is the one place parity DIVERGED. `createTuiAgentIo.onUsage` appends a
+// per-turn `↑in ↓out tokens` transcript line, as flow 050 shipped — but
+// `launchTuiAgentShell` REPLACES that hook (not wraps it) with a cumulative
+// header + sidebar counter, so the per-turn line never renders in the running
+// shell. Recorded as gap G-1 in the feature-parity checklist; the transcript
+// version is kept because `createTuiAgentIo` is used headlessly on its own.
 //
 // Since flow 112 the LAYOUT itself is not built here: `launchTuiAgentShell`
 // mounts `createShellChrome` (./shell-chrome) and keeps only what knows what a
