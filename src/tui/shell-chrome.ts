@@ -87,6 +87,19 @@ export const COMPOSER_MAX_ROWS = 6;
 const MENU_HEIGHT = 10;
 /** Sidebar is a fixed column so the transcript width does not jump. */
 const SIDEBAR_WIDTH = 30;
+const SIDEBAR_BORDER_LEFT = 1;
+const SIDEBAR_PADDING_LEFT = 2;
+const SIDEBAR_PADDING_RIGHT = 1;
+/**
+ * Columns a sidebar panel's TEXT actually gets: the fixed width less the left
+ * border and the horizontal padding (30 - 1 - 2 - 1 = 26). Derived from the very
+ * constants the sidebar box below is built from, so a caller that fits a label to
+ * this budget cannot drift from the layout — and exported because a caller has
+ * to shorten to it: the working directory (`shortenCwd`, `tui-shell.ts`) does not
+ * fit in 26 columns and must be told how much room it has, not guess.
+ */
+export const SIDEBAR_TEXT_WIDTH =
+  SIDEBAR_WIDTH - SIDEBAR_BORDER_LEFT - SIDEBAR_PADDING_LEFT - SIDEBAR_PADDING_RIGHT;
 const SPINNER = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"] as const;
 const SPINNER_MS = 120;
 const TOAST_MS = 5000;
@@ -298,8 +311,8 @@ export async function createShellChrome(
     flexDirection: "column",
     border: ["left"],
     borderColor: "#22333b",
-    paddingLeft: 2,
-    paddingRight: 1,
+    paddingLeft: SIDEBAR_PADDING_LEFT,
+    paddingRight: SIDEBAR_PADDING_RIGHT,
     paddingTop: 1,
   });
   rootRow.add(sidebar);

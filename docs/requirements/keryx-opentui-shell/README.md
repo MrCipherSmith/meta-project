@@ -130,10 +130,13 @@ not a dependency add. OpenTUI is the chosen framework because it is Bun-native
   2026-07-22 — it turned out to be false in three of twenty-one rows: `cwd`
   vanished from the header, the agent/chat mode picker is unreachable on the TUI
   path, and the per-turn usage line was silently replaced by a cumulative header
-  counter. The rest did carry over, with the logic kept in pure unit-tested
-  helpers. Two further qualifications: that helper layer is no longer frozen (see
-  decision **D-6**), and six features were re-implemented rather than re-homed —
-  authorised, and itemised in the checklist.
+  counter. Two of the three were fixed the same day and now carry regression
+  tests — `cwd` as a sidebar `Directory` panel, and the usage hook wrapped rather
+  than assigned so both readings render; the mode picker is still open. The rest
+  did carry over, with the logic kept in pure unit-tested helpers. Two further
+  qualifications: that helper layer is no longer frozen (see decision **D-6**),
+  and seven features were re-implemented rather than re-homed — authorised, and
+  itemised in the checklist.
 
 See `prd.md` for goals, requirements, success criteria, and the phased roadmap;
 `specification.md` for the technical architecture, the AgentIO→component mapping,

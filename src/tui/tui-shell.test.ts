@@ -6,23 +6,28 @@
 // streamed assistant text and a tool line. `@opentui/core` is optional + loaded
 // via dynamic import; the tests skip when it is absent.
 import { expect, test } from "bun:test";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import {
   composerHeightForLines,
+  createShellChrome,
   COMPOSER_MAX_ROWS,
   COMPOSER_MIN_ROWS,
+  SIDEBAR_TEXT_WIDTH,
 } from "./shell-chrome";
 import {
   attachBlockIo,
+  attachUsageIo,
   createTuiAgentIo,
   estimateContextTokens,
   fmtTokens,
   isShellApproved,
+  mountCwdPanel,
   onKeypress,
   pickShellApproval,
   selectBoxHeight,
+  shortenCwd,
   type BlockSink,
 } from "./tui-shell";
 import {
@@ -272,6 +277,223 @@ test("selectBoxHeight: described items need 2 rows each so all stay visible (flo
   // Never returns 0 rows for an empty list.
   expect(selectBoxHeight(0, true)).toBe(2);
   expect(selectBoxHeight(0, false)).toBe(1);
+});
+
+// --- gap G-2: the working directory is visible on the default surface --------
+
+test("shortenCwd: $HOME collapses, a path that fits is untouched", () => {
+  // $HOME → `~`, the same spelling the readline header uses (shared collapseHome).
+  expect(shortenCwd(`${homedir()}/goodea/keryx`, 26)).toBe("~/goodea/keryx");
+  // Outside $HOME and inside the budget: returned verbatim, no marker added.
+  expect(shortenCwd("/etc/hosts", 26)).toBe("/etc/hosts");
+  // Exactly at the budget is still a fit — 26 chars, no truncation.
+  expect(shortenCwd("/aaaaaaaa/bbbbbbbb/cccccccc", 27)).toBe("/aaaaaaaa/bbbbbbbb/cccccccc");
+});
+
+test("shortenCwd: an overlong path drops LEADING segments and keeps the tail", () => {
+  const long = "/Users/someone/work/clients/acme/services/api/src";
+  const short = shortenCwd(long, 26);
+  expect(short.length).toBeLessThanOrEqual(26);
+  // The tail identifies the directory, so it must survive intact…
+  expect(short.endsWith("/api/src")).toBe(true);
+  // …and the head, which does not, is what gets spent.
+  expect(short.startsWith("…/")).toBe(true);
+  expect(short).not.toContain("Users");
+  // Whole segments are dropped, never cut mid-name: every retained segment is a
+  // real segment of the input.
+  for (const seg of short.split("/").slice(1)) {
+    expect(long.split("/")).toContain(seg);
+  }
+  // The budget is spent greedily — one more segment would not have fit.
+  expect(`…/clients/${short.slice(2)}`.length).toBeGreaterThan(26);
+});
+
+test("shortenCwd: a pathological single long segment keeps its own tail", () => {
+  // No separator to cut at, so the segment itself is truncated from the left.
+  const single = `/${"z".repeat(80)}tail`;
+  const short = shortenCwd(single, 26);
+  expect(short.length).toBe(26);
+  expect(short.startsWith("…")).toBe(true);
+  expect(short.endsWith("tail")).toBe(true);
+  // Degenerate budgets never overflow and never throw.
+  expect(shortenCwd("/some/where", 1)).toBe("…");
+  expect(shortenCwd("/some/where", 0)).toBe("");
+  expect(shortenCwd("/some/where", -5)).toBe("");
+});
+
+otuiTest("G-2: the shipped sidebar shows the working directory, tail-first and unclipped", async () => {
+  const otui = requireOtui();
+  const setup = await otui.testing.createTestRenderer({ width: 90, height: 24 });
+  const chrome = await createShellChrome(otui.core, setup.renderer, {
+    title: "keryx · agent",
+    status: "s/m",
+    footerHint: "/ commands",
+    placeholder: "ask keryx",
+    commands: commandsForMode("agent"),
+  });
+  // The SHIPPED panel and the SHIPPED budget — not a replica.
+  //
+  // This cwd sits ON the boundary deliberately: at the correct budget the
+  // greediest fit is exactly 26 chars, and at the next segment out it is 29 — so
+  // a budget that forgot the sidebar's border and padding (30) would pick the
+  // 29-char form, which the 26-column column cannot render. A path whose
+  // shortening happens to be identical at 26 and 30 would let a wrong budget
+  // through, which is precisely what an earlier draft of this test did.
+  const cwd = "/Users/someone/cc/aaaaaaaaaa/bbbbbbbbb/src";
+  mountCwdPanel(otui.core, setup.renderer, chrome.sidebarTop, cwd);
+  await setup.flush();
+  const frame = setup.captureCharFrame();
+
+  expect(frame).toContain("Directory"); // the panel label
+  const expected = shortenCwd(cwd, SIDEBAR_TEXT_WIDTH);
+  expect(expected).toBe("…/aaaaaaaaaa/bbbbbbbbb/src");
+  expect(expected.length).toBe(SIDEBAR_TEXT_WIDTH); // exactly fills the column
+  // Present in full: a value shortened to a wrong budget is cut off by the
+  // layout, and this fails.
+  expect(frame).toContain(expected);
+  expect(expected.endsWith("/src")).toBe(true);
+  // …and on ONE row: a value over budget wraps into a second sidebar line
+  // (measured: `…/cc/aaaaaaaaaa/bbbbbbbbb/` + `src`), which is the visible
+  // symptom `toContain` above rejects.
+  const rows = frame.split("\n").filter((line) => line.includes("…/") || line.includes("/src"));
+  expect(rows.length).toBe(1);
+  // The sidebar CELL — everything right of the column's border rule — stays
+  // inside the text budget.
+  const cell = rows[0]?.slice((rows[0]?.lastIndexOf("│") ?? -1) + 1) ?? "";
+  expect(cell.trim().length).toBeLessThanOrEqual(SIDEBAR_TEXT_WIDTH);
+
+  chrome.destroy();
+  setup.renderer.destroy();
+});
+
+// --- gap G-1: per-turn AND cumulative usage, not one instead of the other ----
+
+otuiTest("G-1: attachUsageIo keeps the per-turn line AND adds the cumulative counter", async () => {
+  const otui = requireOtui();
+  const setup = await otui.testing.createTestRenderer({ width: 90, height: 24 });
+  const chrome = await createShellChrome(otui.core, setup.renderer, {
+    title: "keryx · agent",
+    status: "s/m",
+    footerHint: "/ commands",
+    placeholder: "ask keryx",
+    commands: commandsForMode("agent"),
+    headerMeta: "↑0 ↓0",
+  });
+  // The real composition the shell installs: the base IO, then the wrapper, with
+  // both sinks pointed at real renderables so ONE frame shows both readings.
+  const io = createTuiAgentIo(otui.core, setup.renderer, chrome.transcript);
+  const sbContext = new otui.core.TextRenderable(setup.renderer, { id: "sb-ctx-v", content: "0 tokens" });
+  chrome.sidebarTop.add(sbContext);
+  let exactSeen = 0;
+  attachUsageIo(io, {
+    setHeaderMeta: (text) => chrome.setHeaderMeta(text),
+    setContextTotal: (total) => {
+      sbContext.content = `${total.toLocaleString()} tokens`;
+    },
+    onExactUsage: () => {
+      exactSeen += 1;
+    },
+  });
+
+  const provider = scriptedProvider([
+    [
+      { kind: "usage_update", usage: { inputTokens: 1200, outputTokens: 34 } },
+      { kind: "text_delta", text: "done" },
+      { kind: "model_end" },
+    ],
+  ]);
+  const deps: AgentDeps = {
+    provider,
+    providerId: "scripted",
+    modelId: "m",
+    tools: builtinReadOnlyTools(tmpdir()),
+    systemInstruction: "sys",
+    idSeq: fixedIdSeq(),
+  };
+  await runAgentTurn(io, deps, [], "cost?");
+  await setup.flush();
+  const frame = setup.captureCharFrame();
+
+  // Per-turn: what THIS turn cost, exact numbers, in the transcript (flow 050).
+  expect(frame).toContain("↑1200 ↓34 tokens");
+  // Cumulative: the session's context budget, compacted, in the header + sidebar.
+  expect(frame).toContain("↑1.2K ↓34");
+  expect(frame).toContain("1,234 tokens");
+  expect(exactSeen).toBe(1);
+
+  chrome.destroy();
+  setup.renderer.destroy();
+});
+
+otuiTest("G-1: a 0/0 usage report prints no per-turn line and does not retire the estimate", async () => {
+  const otui = requireOtui();
+  const setup = await otui.testing.createTestRenderer({ width: 90, height: 24 });
+  const chrome = await createShellChrome(otui.core, setup.renderer, {
+    title: "keryx · agent",
+    status: "s/m",
+    footerHint: "/ commands",
+    placeholder: "ask keryx",
+    commands: commandsForMode("agent"),
+  });
+  const io = createTuiAgentIo(otui.core, setup.renderer, chrome.transcript);
+  const metas: string[] = [];
+  let exactSeen = 0;
+  attachUsageIo(io, {
+    setHeaderMeta: (text) => metas.push(text),
+    setContextTotal: () => {},
+    onExactUsage: () => {
+      exactSeen += 1;
+    },
+  });
+
+  const provider = scriptedProvider([
+    [
+      { kind: "usage_update", usage: { inputTokens: 0, outputTokens: 0 } },
+      { kind: "text_delta", text: "done" },
+      { kind: "model_end" },
+    ],
+  ]);
+  const deps: AgentDeps = {
+    provider,
+    providerId: "scripted",
+    modelId: "m",
+    tools: builtinReadOnlyTools(tmpdir()),
+    systemInstruction: "sys",
+    idSeq: fixedIdSeq(),
+  };
+  await runAgentTurn(io, deps, [], "cost?");
+  await setup.flush();
+
+  // The guard runs AHEAD of the call-through, so a useless `↑0 ↓0 tokens` line
+  // is never appended and the shell's estimate fallback still applies.
+  expect(setup.captureCharFrame()).not.toContain("tokens");
+  expect(metas).toEqual([]);
+  expect(exactSeen).toBe(0);
+
+  chrome.destroy();
+  setup.renderer.destroy();
+});
+
+// A provider that reports only one side must not print `↓undefined`: that guard
+// lives in the BASE hook, and wrapping has to leave it intact.
+otuiTest("G-1: wrapping preserves the base hook's report-only-what-you-got guard", async () => {
+  const otui = requireOtui();
+  const setup = await otui.testing.createTestRenderer({ width: 90, height: 24 });
+  const transcript = new otui.core.BoxRenderable(setup.renderer, {
+    id: "transcript",
+    flexGrow: 1,
+    flexDirection: "column",
+  });
+  setup.renderer.root.add(transcript);
+  const io = createTuiAgentIo(otui.core, setup.renderer, transcript);
+  attachUsageIo(io, { setHeaderMeta: () => {}, setContextTotal: () => {} });
+
+  io.onUsage?.({ inputTokens: 5 });
+  await setup.flush();
+  const frame = setup.captureCharFrame();
+  expect(frame).toContain("↑5 tokens");
+  expect(frame).not.toContain("↓");
+  setup.renderer.destroy();
 });
 
 otuiTest("ScrollBox transcript renders appended content (headless)", async () => {
