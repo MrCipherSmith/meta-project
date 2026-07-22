@@ -5,7 +5,7 @@
   "title": "Fix duplicate flow ids: nextFlowId races on concurrent init and resolveFlowDir silently picks one of the colliding flows",
   "status": "in-progress",
   "createdAt": "2026-07-22T12:05:44.354Z",
-  "updatedAt": "2026-07-22T18:57:57.283Z",
+  "updatedAt": "2026-07-22T18:59:56.765Z",
   "source": {
     "type": "description",
     "ref": null
@@ -144,7 +144,7 @@
       "id": "T9",
       "title": "Repair existing collisions 002/084/103 via renumber; handle the 002 AC checksum mismatch explicitly",
       "kind": "implement",
-      "status": "todo",
+      "status": "done",
       "dependsOn": [
         "T8"
       ],
@@ -154,7 +154,8 @@
       },
       "acRefs": [],
       "evidenceRefs": [],
-      "budget": {}
+      "budget": {},
+      "disposition": "completed"
     },
     {
       "id": "T10",
@@ -236,6 +237,11 @@
       "at": "2026-07-22T18:57:57.283Z",
       "event": "task-done",
       "detail": "T8: keryx flow renumber command (move dir, rewrite flow.json id, history event, old->new mapping)"
+    },
+    {
+      "at": "2026-07-22T18:59:56.765Z",
+      "event": "task-done",
+      "detail": "T9: Repair existing collisions 002/084/103 via renumber; handle the 002 AC checksum mismatch explicitly"
     }
   ]
 }

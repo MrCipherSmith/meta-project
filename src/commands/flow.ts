@@ -3,6 +3,7 @@ import { optionValue } from "../lib/args";
 import { writeFileAtomic } from "../lib/fs";
 import { createFlowService } from "../flow/service";
 import { flowStateSchema } from "../flow/schema";
+import { duplicateFlowIds } from "../flow/store";
 import { githubAdapter } from "../flow/tracker/github";
 import { createCodeHealthService } from "../health/service";
 import { securityFlowGate } from "../security/guard";
@@ -192,9 +193,7 @@ async function runList(args: string[] = []): Promise<void> {
   }
   // A number shared by two packages makes every bare-id command ambiguous —
   // say so here, where the listing is what usually reveals it.
-  const shared = new Set(
-    flows.map((flow) => flow.id).filter((id, index, all) => all.indexOf(id) !== index),
-  );
+  const shared = duplicateFlowIds(flows.map((flow) => flow.id));
   heading(`Flows (${flows.length})`);
   for (const flow of flows) {
     const marker = shared.has(flow.id) ? ` ${style.red("⚠ duplicate id")}` : "";

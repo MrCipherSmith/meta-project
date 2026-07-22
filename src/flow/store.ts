@@ -24,6 +24,19 @@ export function flowIdOf(dir: string): string {
   return dir.slice(0, 3);
 }
 
+/** Ids that appear more than once — every bare-id reference to them is ambiguous. */
+export function duplicateFlowIds(ids: string[]): Set<string> {
+  const seen = new Set<string>();
+  const duplicates = new Set<string>();
+  for (const id of ids) {
+    if (seen.has(id)) {
+      duplicates.add(id);
+    }
+    seen.add(id);
+  }
+  return duplicates;
+}
+
 /** Flow dirs grouped by their numeric id; groups of >1 are collisions. */
 export function groupFlowDirsById(dirs: string[]): Map<string, string[]> {
   const groups = new Map<string, string[]>();

@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { createTaskManagerFlowPort } from "../harness/flow/managed-flow-port";
 import { createFlowService } from "./service";
-import { resolveFlowDir } from "./store";
+import { duplicateFlowIds, resolveFlowDir } from "./store";
 import type { FlowServiceDeps, FlowState } from "./types";
 
 // Flow 116 / AC3, AC5-AC7: once two flows share a number, nothing may resolve
@@ -135,6 +135,12 @@ test("flow check reports duplicate ids as a hard failure naming both directories
   expect(duplicates).toHaveLength(2);
   expect(duplicates.map((issue) => issue.flow).sort()).toEqual([kept, clashing].sort());
   expect(duplicates[0]?.message).toContain("001");
+});
+
+test("flow list marks exactly the ids that are shared", () => {
+  // The listing is where a collision usually gets noticed — it must say so.
+  expect(duplicateFlowIds(["001", "002", "003"]).size).toBe(0);
+  expect([...duplicateFlowIds(["001", "002", "001", "003", "003"])].sort()).toEqual(["001", "003"]);
 });
 
 test("renumber moves the package, rewrites the id, and records the mapping", async () => {

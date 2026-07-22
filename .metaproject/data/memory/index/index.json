@@ -1,18 +1,18 @@
 {
-  "generatedAt": "2026-07-22T10:19:19.661Z",
+  "generatedAt": "2026-07-22T19:01:15.853Z",
   "entryCount": 2,
   "entries": [
     {
-      "path": "lessons/allowlist-not-a-boundary.md",
-      "type": "lesson",
+      "path": "constraints/flow-ids-allocated-per-clone.md",
+      "type": "constraint",
       "status": "accepted",
       "confidence": "high",
-      "title": "A shell allowlist matched against the raw command string is not a security boundary",
+      "title": "Flow ids are allocated per clone, not per checkout",
       "updated": "2026-07-22",
       "tags": [],
       "scopes": {
-        "module": "src/lib, src/commands, src/tui",
-        "entity": "shell-permissions, command-risk, approval gate",
+        "module": "tasks",
+        "entity": "flow",
         "files": [],
         "skills": []
       }
