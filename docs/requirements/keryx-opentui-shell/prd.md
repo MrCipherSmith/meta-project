@@ -31,10 +31,11 @@ not TUI output against readline output — escape-freedom and the fallback itsel
 are genuinely proven, the cross-renderer comparison is not. And the "feature-parity
 checklist" named in the success criteria had no artifact in the repository until
 2026-07-22 — parity was asserted in flow 061's task titles only. It is now written
-([feature-parity-checklist.md](feature-parity-checklist.md)) and it **still
-fails**, on one gap rather than the three it opened with — two were fixed on
-2026-07-22. See the success-criteria section below and the checklist's own "Gaps"
-section.
+([feature-parity-checklist.md](feature-parity-checklist.md)) and, as of
+2026-07-22, it **passes** — but only after opening with three gaps: two were
+fixed the same day and the third, the mode picker, was resolved by deciding not
+to carry it over (**D-A5**). See the success-criteria section below and the
+checklist's own "Gaps" section.
 
 ## Problem
 
@@ -135,12 +136,14 @@ is already proven in a coding-agent TUI (`superagent-ai/grok-cli`).
 - Every flow-050–057 feature is visible and correct in the TUI transcript; a
   feature-parity checklist passes. (G2/F2) — **the checklist now exists
   ([feature-parity-checklist.md](feature-parity-checklist.md), 2026-07-22) and it
-  still does NOT pass**, though for one gap instead of three. Fixed the same day:
-  the per-turn usage line (the shell assigned `io.onUsage` instead of wrapping it,
-  so the line never rendered) and `cwd` (now a sidebar `Directory` panel rather
-  than the header — the TUI header row is full). Still open: the agent/chat mode
-  picker is unreachable on the default surface, which is a scope question rather
-  than an omission. 20 of 21 hold, 7 of those as authorised re-implementations.
+  passes**, having opened with three gaps. Fixed the same day: the per-turn usage
+  line (the shell assigned `io.onUsage` instead of wrapping it, so the line never
+  rendered) and `cwd` (now a sidebar `Directory` panel rather than the header —
+  the TUI header row is full). The third, the agent/chat mode picker, is **not
+  carried over by decision D-A5** rather than fixed: agent-as-default plus the
+  mode-labelled header already prevent the confusion it existed for, and a
+  mid-session `/mode` would swap drivers rather than add chrome. All 21 rows
+  hold — 13 present, 7 authorised re-implementations, 1 decided against.
 - `runAgentTurn` and the pure helpers are unchanged by diff; the TUI is a new IO
   implementation only. (G3)
 - `keryx shell` with no TTY / on an unsupported platform falls back to the

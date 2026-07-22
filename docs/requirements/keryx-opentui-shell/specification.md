@@ -500,6 +500,40 @@ leading separator is **held** and flushed as content only if more output follows
 which keeps a legitimate leading blank line while never letting the separator
 open an empty trailing block.
 
+### D-A5 — the startup mode picker does not return to the TUI
+
+**Status:** accepted 2026-07-22, resolving gap **G-3** of the feature-parity
+checklist. Mode is selected by flag (`--chat`, `--agent`) and by the default;
+`pickAgentMode` stays a readline-only affordance.
+
+**The problem the picker solved is already solved another way.** Flow 053 added
+it because users landed in chat mode by accident and were then confused that the
+"agent" ran no tools. Two things address that directly: agent is the default, and
+each shell states its mode in the header — `keryx · agent · <provider>/<model>`
+and `keryx · chat · <provider>/<model>`. The picker was a second belt on the same
+problem. Discoverability of the alternative is covered by `keryx shell --help`
+and the root README, both of which document `--chat`.
+
+**A startup picker would be a regression for the common case.** It puts a
+blocking question between the user and the shell on every launch where the
+default was wanted — which, agent being the default, is most of them.
+
+**A mid-session `/mode` is not chrome; it is flow-sized work.** Switching mode
+means switching *driver*: `runAgentTurn` ↔ `runShell`. Those have different IO
+surfaces (`AgentIO` is pushed by the caller, `ShellIO` pulls its own `lines`),
+different session semantics, and a switch would mean tearing down one mounted
+shell and mounting the other mid-session, with history carry-over unresolved.
+Offering it as a small addition would misrepresent its size.
+
+**Cost accepted:** changing mode requires restarting with a flag. That is a real
+if small cost, and it is the reason this is a decision rather than an oversight.
+
+**Revisit when** the two drivers converge — for example if chat is ever
+re-implemented as a tool-free agent turn, which would make `/mode` a cheap
+in-place switch rather than a remount. That convergence was considered and
+rejected once already (see the path-C discussion in flow 112's description),
+so it is a genuine future fork rather than a formality.
+
 ## 10. Open items
 
 Recorded 2026-07-21 after auditing the package against the code, because "Phases

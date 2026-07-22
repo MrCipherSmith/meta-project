@@ -5,15 +5,22 @@ PRD names "a feature-parity checklist passes" as a success criterion and no such
 checklist had ever been written; parity was asserted in flow 061's task titles
 only.
 
-**Verdict: the criterion still does NOT pass, but for one reason instead of
-three.** The first audit found three features absent or silently changed on the
-default (TUI) surface with none of them recorded in a decision or an open item.
-Two — the per-turn usage line (**G-1**) and the missing working directory
-(**G-2**) — were fixed on 2026-07-22 and now carry regression tests; rows 2 and
-12 record how. The third, the mode picker (**G-3**), is unresolved and is a scope
-question rather than an omission. The remaining features are present, several
-deliberately re-implemented — those are listed as *changed* with the decision
-that authorises the change.
+**Verdict: the criterion PASSES, with one feature deliberately not carried over.**
+
+The first audit found three features absent or silently changed on the default
+(TUI) surface, none of them recorded in a decision or an open item. All three are
+now resolved. The per-turn usage line (**G-1**) and the missing working directory
+(**G-2**) were fixed on 2026-07-22 and carry regression tests; rows 2 and 12
+record how. The mode picker (**G-3**) is **not coming back**, by decision
+**D-A5** — the confusion it existed to prevent is addressed by the default plus
+the mode-labelled header, a startup prompt would be a regression for the common
+case, and a mid-session `/mode` would mean swapping drivers rather than adding
+chrome.
+
+That is what makes this a pass rather than a fudge: the one non-carried feature
+is a recorded decision with a stated cost and a revisit condition, not an
+omission nobody noticed. The remaining features are present, several deliberately
+re-implemented — listed as *changed*, each with the decision that authorises it.
 
 ## Method and its limits
 
@@ -53,7 +60,7 @@ exists but differs · **absent** — not on the TUI path.
 | 11 | Minimal one-line launch header (052 AC2) | present | `title: "keryx · agent · <provider>/<model>"` at `src/tui/tui-shell.ts:792`, painted dim at `src/tui/shell-chrome.ts:361`. No `banner()`, no rules. |
 | 12 | …including `cwd` in the header meta (052 AC2) | changed | **Fixed 2026-07-22 (was: absent — gap G-2).** Shown, but in the SIDEBAR rather than the header: `mountCwdPanel` (`src/tui/tui-shell.ts`) adds a `Directory` panel directly under `Model`, mirroring the readline header's `provider/model … · <cwd>` order. The header is one row already carrying session title, short id, compaction count and provider/model on the left plus the token counter on the right, inside `terminal width - 30`; a path there would push that identity line out. The value is fitted to the sidebar's exact text budget (`SIDEBAR_TEXT_WIDTH = 26`, derived in `shell-chrome.ts` from the width and paddings the sidebar box is built from) by the pure `shortenCwd`: `$HOME` → `~`, then whole LEADING segments dropped behind `…/` because the tail is what identifies a directory. Pinned by four tests in `src/tui/tui-shell.test.ts` (three pure, one on a captured frame); a budget that ignores the border/padding renders `…/cc/aaaaaaaaaa/bbbbbbbbb/` + `src` across two rows and fails the frame test. |
 | 13 | Explicit `· agent` / `· chat` mode label (053 AC3) | present | Carried by the TUI title (`src/tui/tui-shell.ts:792`; chat's equivalent in `src/tui/chat-shell.ts`). Never blank. |
-| 14 | Interactive agent/chat mode picker (053 AC1, AC2) | **absent** | `pickAgentMode` still exists and is tested (`src/commands/select.ts:190`) but its only call site is `src/commands/shell.ts:1366`, inside the readline branch. The TUI branch returns at `src/commands/shell.ts:1220` before that line, and `chooseShellSurface` (`:1174-1182`) reads `flags.modeFlag` alone. There is also no `/mode` command in `AGENT_SLASH_COMMANDS` (`src/commands/agent-commands.ts:59-113`). On the default surface the mode is reachable only via `--chat`/`--agent`. See gap **G-3**. |
+| 14 | Interactive agent/chat mode picker (053 AC1, AC2) | **not carried over, by decision** | `pickAgentMode` still exists and is tested (`src/commands/select.ts`) but its only call site is in the readline branch of `src/commands/shell.ts`; `chooseShellSurface` reads `flags.modeFlag` alone, and there is no `/mode` in `AGENT_SLASH_COMMANDS`. On the default surface the mode is set by `--chat`/`--agent` and by the default. **Decision D-A5** (specification §9) records why it is not returning: the accident it prevented is covered by agent-as-default plus the mode-labelled header (`keryx · agent · …` / `keryx · chat · …`), a startup prompt would block the common case, and a mid-session `/mode` would swap drivers (`runAgentTurn` ↔ `runShell`) rather than add chrome. |
 | 15 | `--chat` flag forces chat mode (053 AC3) | present | Parsed at `src/commands/shell.ts:1125-1126`; routed to `"tui-chat"` at `:1181` and dispatched at `:1290`. |
 | 16 | Consistent left gutter (054 AC1–AC3) | changed | Provided by layout instead of string padding: the transcript box carries `padding` (`src/tui/tui-shell.ts:12` states the mapping; block bodies add their own `paddingLeft` at `src/tui/transcript-blocks.ts:567, 845`). `indentBlock` (`src/lib/ui.ts:190`) survives for the readline path only (`src/commands/shell.ts:524, 754, 800`). Behaviourally equivalent and better — the gutter cannot desynchronise from the repaint math because there is no repaint math. |
 | 17 | Collapsed multi-line tool output with hidden count (055 AC1, AC2) | present | `collapseToolOutput` (`src/lib/ui.ts:178`) drives both the default line (`src/tui/tui-shell.ts:158-163`) and the retained block (`:224-237`), rendering `↳ <summary> · +N more`. |
@@ -62,14 +69,14 @@ exists but differs · **absent** — not on the TUI path.
 | 20 | Reasoning section rendered before the answer (056 AC2, AC3) | changed | The `onReasoning` hook fires unchanged (`src/commands/agent.ts:526`). Presentation differs: not a dim `⋯ thinking` section but a collapsed `▸ thought (n lines) · /think · ctrl+o` block (`src/tui/tui-shell.ts:193-209`, label built by `blockLabel` at `src/lib/md-blocks.ts:166-170`), dim and bounded to `MAX_THOUGHT_LINES = 12` when expanded, with the full payload retained for `y`/`/copy`. Authorised: specification §3 (flow 115) and §9 **D-2**. |
 | 21 | Runaway tool-loop guard (057 AC1–AC3) | changed | Driver-side and therefore identical on both surfaces, but it has moved on from flow 057: the budget is now *unique tool signatures* (`DEFAULT_MAX_TOOL_CALLS = 48`, `src/commands/agent.ts:117`) with `MAX_ATTEMPTS_PER_HASH = 3` retries per signature counting as one slot (`:150`), and exhaustion no longer emits `[stopped]` and returns — it emits `[budget] Stopping tools: …` and forces one tool-free wrap-up round (`:480-515`). AC3's actionable `(required: …)` suffix survives verbatim (`:594`). This is post-057 evolution unrelated to the TUI migration — flow 057 itself listed the wrap-up round as a possible later refinement — and the TUI surfaces the notice through `io.onSystem`, which matches `[budget]` explicitly (`src/tui/tui-shell.ts:981-987`). |
 
-**Tally: 13 present · 7 changed-and-authorised · 0 changed-and-undocumented · 1
-absent.** (First audit: 12 · 6 · 1 · 2 — G-1 moved row 2 to present, G-2 moved
-row 12 to changed.)
+**Tally: 13 present · 7 changed-and-authorised · 0 changed-and-undocumented · 0
+absent · 1 not carried over by decision.** (First audit: 12 · 6 · 1 · 2 — G-1
+moved row 2 to present, G-2 moved row 12 to changed, and D-A5 moved row 14 from
+*absent* to *decided*.)
 
 ## Gaps
 
-One row still makes the criterion fail. It is not recorded in a decision, an ADR,
-or specification §10's open items.
+All three are resolved — two by fixing the code, one by deciding not to.
 
 ### Closed 2026-07-22
 
@@ -89,18 +96,30 @@ or specification §10's open items.
   sidebar rather than flow 052 AC2's header because the TUI header row is already
   full; see row 12 for the reasoning and the tests.
 
-### Open
+### Decided 2026-07-22 — not carried over
 
 - **G-3 — the mode picker is unreachable on the default surface.** Flow 053
   existed because a picker-launched session silently ran chat mode and
-  hallucinated; the fix was to *ask*. The TUI does not ask, and offers no
-  in-session way to switch. The default is agent, so flow 053's actual bug has
-  not regressed — but the picker it shipped is gone from the path users take.
+  hallucinated; its fix was to *ask*. The TUI does not ask, and offers no
+  in-session way to switch.
 
-The two that closed were omissions of a line of chrome each, and both took a
-regression test rather than only a patch. G-3 is a genuine scope question: it may
-be that the picker should not return, and the right resolution is a decision
-saying so.
+  **Decision D-A5: it is not coming back.** Flow 053's actual bug has not
+  regressed — agent is the default — and the confusion is now addressed twice
+  over, since each shell states its mode in the header (`keryx · agent · …` /
+  `keryx · chat · …`) and `--chat` is documented in both `keryx shell --help` and
+  the root README. A startup prompt would block the common case on every launch,
+  and a mid-session `/mode` would mean swapping drivers (`runAgentTurn` ↔
+  `runShell`, push versus pull IO) and remounting the shell — flow-sized work
+  presented as chrome. The cost accepted is that changing mode needs a restart
+  with a flag. Revisit if the two drivers ever converge.
+
+The two that closed by code were omissions of a line of chrome each, and both
+took a regression test rather than only a patch. G-3 closed the other way: it was
+a scope question, and the resolution is a decision saying the picker should not
+return — which is why row 14 reads *not carried over* rather than *absent*. The
+distinction is the point of this document: a feature nobody chose to drop is a
+defect; a feature someone chose to drop, with the reason and the cost written
+down, is a design.
 
 ## What this checklist does not settle
 

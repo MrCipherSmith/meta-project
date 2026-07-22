@@ -132,7 +132,11 @@ not a dependency add. OpenTUI is the chosen framework because it is Bun-native
   path, and the per-turn usage line was silently replaced by a cumulative header
   counter. Two of the three were fixed the same day and now carry regression
   tests — `cwd` as a sidebar `Directory` panel, and the usage hook wrapped rather
-  than assigned so both readings render; the mode picker is still open. The rest
+  than assigned so both readings render. The mode picker was resolved the other
+  way: decision **D-A5** records that it is not coming back, since the confusion
+  it prevented is already covered by agent-as-default plus the mode-labelled
+  header, and a mid-session `/mode` would swap drivers rather than add chrome.
+  The rest
   did carry over, with the logic kept in pure unit-tested helpers. Two further
   qualifications: that helper layer is no longer frozen (see decision **D-6**),
   and seven features were re-implemented rather than re-homed — authorised, and
