@@ -43,6 +43,7 @@ import {
   allowShellPattern,
   isShellCommandAllowed,
   loadShellPermissionsWithAudit,
+  shellPermissionsFingerprint,
   shellPermissionsPath,
   loadShellPermissions,
   parseShellExecCommand,
@@ -324,6 +325,7 @@ export async function pickShellApproval(
   command: string,
   loadContext: ApprovalContextLoader,
   destructive = false,
+  credentials = false,
 ): Promise<ShellApprovalChoice> {
   let context: Promise<string> | undefined;
   try {
@@ -367,7 +369,11 @@ export async function pickShellApproval(
     },
   ];
   const id = await showComposerChoice(otui, r, dock, {
-    title: destructive ? "⚠ DESTRUCTIVE command — allow?" : "Allow shell command?",
+    title: credentials
+      ? "⚠ touches keryx's OWN permissions/credentials — allow?"
+      : destructive
+        ? "⚠ DESTRUCTIVE command — allow?"
+        : "Allow shell command?",
     subtitle: command.length > 120 ? `${command.slice(0, 117)}…` : command,
     ...(context !== undefined ? { context } : {}),
     cancelId: "deny",
@@ -739,6 +745,14 @@ export async function launchTuiAgentShell(opts: {
   const sessionShellAllow = new Set<string>(loadShellPermissions().allow);
   /** The stored-permission migration warning is shown at most once per session. */
   let permissionMigrationShown = false;
+  /**
+   * Fingerprint of permissions.json as it was when the session started. If it
+   * changes mid-session the allowlist was rewritten by something other than the
+   * approval UI — the self-grant path — and the user is told before the next
+   * auto-approve acts on it.
+   */
+  const permissionsFingerprintAtStart = shellPermissionsFingerprint();
+  let permissionTamperShown = false;
   // The chrome can only be mounted once a provider/model is chosen (the startup
   // picker runs on the bare renderer), yet `onDestroy` may fire before that —
   // Ctrl+C at the picker. A nullable handle is the honest shape for that window;
@@ -1072,6 +1086,17 @@ export async function launchTuiAgentShell(opts: {
           }),
         );
       }
+      if (!permissionTamperShown && shellPermissionsFingerprint() !== permissionsFingerprintAtStart) {
+        permissionTamperShown = true;
+        transcript.add(
+          new otui.TextRenderable(r, {
+            id: `ap${uid++}`,
+            content: otui.t`${otui.red(
+              "⚠ the saved shell permissions changed outside this approval UI — review them before trusting an auto-approve",
+            )}`,
+          }),
+        );
+      }
       if (!destructive && isShellCommandAllowed(cmd, [...sessionShellAllow])) {
         transcript.add(
           new otui.TextRenderable(r, {
@@ -1091,7 +1116,15 @@ export async function launchTuiAgentShell(opts: {
       setMainAgent("blocked", "approval");
       setBusyPhase("waiting for your approval (menu above input)");
       chrome.hideMenu(); // hide the dropdown AND release menuNav before the dock takes over
-      const choice = await pickShellApproval(otui, r, chrome.dock, cmd, approvalContext, destructive);
+      const choice = await pickShellApproval(
+        otui,
+        r,
+        chrome.dock,
+        cmd,
+        approvalContext,
+        destructive,
+        meta?.credentials === true,
+      );
       input.focus();
 
       if (choice === "deny") {

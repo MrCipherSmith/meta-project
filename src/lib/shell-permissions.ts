@@ -14,7 +14,8 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { shellConfigPath } from "./shell-config";
-import { isDestructiveCommand } from "./command-risk";
+import { isDestructiveCommand, touchesAgentCredentials } from "./command-risk";
+import { createHash } from "node:crypto";
 import { hasUnquotedMetacharacter } from "./shell-syntax";
 
 export { hasUnquotedMetacharacter };
@@ -105,6 +106,13 @@ export function validateShellPattern(pattern: string): PatternValidation {
   }
   if (isDestructiveCommand(trimmed)) {
     return { ok: false, reason: "destructive commands always require explicit confirmation and are never remembered" };
+  }
+  if (touchesAgentCredentials(trimmed)) {
+    return {
+      ok: false,
+      reason:
+        "touches the agent's own permission/credential files; remembering it would let one approved command disable the approval gate for every future session",
+    };
   }
   const banned = bannedPrefixGrant(trimmed, firstToken);
   if (banned !== undefined) {
@@ -302,7 +310,30 @@ export function isShellCommandAllowed(command: string, allow: readonly string[])
   if (isDestructiveCommand(cmd)) {
     return false;
   }
+  if (touchesAgentCredentials(cmd)) {
+    return false;
+  }
   return allow.some((pat) => matchShellPattern(pat, cmd));
+}
+
+/**
+ * Content fingerprint of the stored permission file (`""` when it does not
+ * exist). A session captures this once and compares before each auto-approve:
+ * a change mid-session means the allowlist was rewritten by something other
+ * than the approval UI, which is exactly the self-grant path this flow closes.
+ *
+ * Never throws.
+ */
+export function shellPermissionsFingerprint(dir?: string): string {
+  try {
+    const file = shellPermissionsPath(dir);
+    if (!existsSync(file)) {
+      return "";
+    }
+    return createHash("sha256").update(readFileSync(file)).digest("hex");
+  } catch {
+    return "";
+  }
 }
 
 /** What the approval UI may offer for one command. */

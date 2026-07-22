@@ -13,7 +13,7 @@
 // injected `InteractiveTool` executors.
 
 import { validateAgainstSchemaObject } from "../contracts/validator";
-import { isDestructiveCommand } from "../lib/command-risk";
+import { isDestructiveCommand, touchesAgentCredentials } from "../lib/command-risk";
 import type { InteractiveTool, InteractiveToolResult } from "../harness/tool/builtin/interactive-tools";
 import type { NormalizedMessage, NormalizedRequest, NormalizedUsage, ProviderPort } from "../harness/provider/types";
 
@@ -28,6 +28,12 @@ import type { NormalizedMessage, NormalizedRequest, NormalizedUsage, ProviderPor
  */
 export interface ApprovalMeta {
   destructive: boolean;
+  /**
+   * The command mentions the agent's own permission/credential files. Approving
+   * it may hand the agent authority it did not have; it is never auto-approved
+   * and never remembered, whatever the user picks.
+   */
+  credentials?: boolean;
 }
 
 /** Rendering sink for agent mode. Assistant text streams through `write`. */
@@ -569,8 +575,10 @@ async function executeCall(
     // because a "safe" verdict from an incomplete list must never read as a grant.
     const command = typeof input.command === "string" ? input.command : "";
     const destructive = risk === "destructive" || isDestructiveCommand(command);
+    const credentials = touchesAgentCredentials(command);
     const approved =
-      requestApproval !== undefined && (await requestApproval(call.name, call.input, { destructive }));
+      requestApproval !== undefined &&
+      (await requestApproval(call.name, call.input, { destructive, ...(credentials ? { credentials } : {}) }));
     if (!approved) {
       return { output: `command not approved by the user; not executed`, isError: true };
     }

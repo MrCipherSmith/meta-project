@@ -246,3 +246,36 @@ export function classifyCommand(command: string): CommandRiskClass {
 export function isDestructiveCommand(command: string): boolean {
   return classifyCommand(command) === "destructive";
 }
+
+/**
+ * Files and directories that hold the agent's OWN permission and credential
+ * state. A command that touches any of them can grant the agent new authority
+ * (or read its keys), so it must never be auto-approved and never remembered.
+ *
+ * Matched on the command TEXT, not on a resolved path, because the resolution
+ * happens inside `sh -c` where we cannot see it: `$HOME/.local/share/keryx`,
+ * `~/.local/share/keryx`, and a `cd`-relative `permissions.json` must all be
+ * caught. The file basenames alone are therefore enough to trigger.
+ */
+const CREDENTIAL_MARKERS: readonly string[] = [
+  "permissions.json",
+  "auth.json",
+  ".local/share/keryx",
+  ".config/keryx",
+];
+
+/**
+ * True when `command` mentions the agent's own permission/credential state.
+ *
+ * Deliberately over-broad: it matches the file name anywhere in the command,
+ * including inside a quoted argument, and it does not care whether the command
+ * reads or writes. A false positive costs one confirmation; a false negative
+ * costs the approval gate itself, permanently and for every future session.
+ *
+ * This is the barrier that holds in the DEFAULT configuration, where OS
+ * containment is off (ADR-0006) or unavailable. Pure.
+ */
+export function touchesAgentCredentials(command: string): boolean {
+  const text = command.toLowerCase();
+  return CREDENTIAL_MARKERS.some((marker) => text.includes(marker));
+}
