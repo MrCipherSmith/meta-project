@@ -11,12 +11,21 @@
 // as a bounded `▸ thought (n lines)` block. The deterministic driver and the
 // pure helpers are unchanged. Gutter = the transcript box `padding`.
 //
-// Usage is the one place parity DIVERGED. `createTuiAgentIo.onUsage` appends a
-// per-turn `↑in ↓out tokens` transcript line, as flow 050 shipped — but
-// `launchTuiAgentShell` REPLACES that hook (not wraps it) with a cumulative
-// header + sidebar counter, so the per-turn line never renders in the running
-// shell. Recorded as gap G-1 in the feature-parity checklist; the transcript
-// version is kept because `createTuiAgentIo` is used headlessly on its own.
+// Usage is rendered TWICE, on purpose, because the two readings answer different
+// questions. `createTuiAgentIo.onUsage` appends the per-turn `↑in ↓out tokens`
+// transcript line flow 050 shipped — what THIS turn cost, the point of a metered
+// provider — and `attachUsageIo` WRAPS that hook (it does not replace it) to add
+// the cumulative header + sidebar counter, which tracks the context budget across
+// the session. `launchTuiAgentShell` used to ASSIGN `io.onUsage`, which deleted
+// the per-turn line from the running shell while leaving its code in place and
+// apparently working; that was gap G-1 in the feature-parity checklist, now
+// closed. Assigning the hook again would silently reopen it.
+//
+// The working directory the agent acts on is the sidebar `Directory` panel
+// (`mountCwdPanel`), shortened to the sidebar's fixed 26-column text budget by
+// the pure `shortenCwd`. It was absent from the TUI entirely — gap G-2, also
+// closed: an agent holding `shell_exec` acts on a directory, and the operator
+// approving that command has to be able to see which one.
 //
 // Since flow 112 the LAYOUT itself is not built here: `launchTuiAgentShell`
 // mounts `createShellChrome` (./shell-chrome) and keeps only what knows what a
@@ -45,6 +54,7 @@ import {
 import type { DetectedProvider } from "../commands/select";
 import { resolveModelsForPicker } from "../commands/providers";
 import { collapseToolOutput, summarizeToolArgs } from "../lib/ui";
+import { collapseHome } from "../lib/statusbar";
 import { saveApiKey, saveShellConfig } from "../lib/shell-config";
 import {
   allowShellPattern,
@@ -69,7 +79,7 @@ import {
 } from "../session";
 import { setAskUserHost } from "./ask-user-bridge";
 import { showComposerChoice, type ChoiceOption } from "./composer-choice";
-import { createShellChrome, createShellRenderer, type ShellChrome } from "./shell-chrome";
+import { createShellChrome, createShellRenderer, SIDEBAR_TEXT_WIDTH, type ShellChrome } from "./shell-chrome";
 import {
   buildSideWorkerPrompt,
   buildSideWorkerSystemInstruction,
@@ -246,6 +256,89 @@ export function attachBlockIo(io: AgentIO, addBlock: BlockSink, chrome: BlockIoC
 }
 
 /**
+ * Mount the sidebar's `Directory` panel — the working directory the agent's
+ * `shell_exec` and write tools actually act on (gap G-2).
+ *
+ * The readline header prints it (`src/commands/shell.ts`, `◆ keryx … · <cwd>`);
+ * the TUI showed model / context / tools / status and no directory at all, so an
+ * operator approving a shell command could not see where it would run. That is
+ * the reason this exists — not symmetry with the old header.
+ *
+ * It goes in the SIDEBAR rather than the header because the header is a single
+ * row already carrying the session title, the short id, the compaction count and
+ * the provider/model on the left with the token counter on the right, all inside
+ * `terminal width - 30`; a path there would either push that identity line out or
+ * be truncated to nothing. The sidebar's panels are exactly the persistent facts
+ * about the session, its width is a known constant, and one more label/value pair
+ * costs two rows in a column that has spare height.
+ *
+ * Exported so the headless test mounts the SHIPPED panel — including the budget
+ * it is shortened to — instead of a replica.
+ */
+export function mountCwdPanel(otui: OpenTui, r: Renderer, sidebarTop: Box, cwd: string): void {
+  sidebarTop.add(new otui.TextRenderable(r, { id: "sb-cwd-k", content: otui.t`${otui.dim("Directory")}`, marginTop: 1 }));
+  sidebarTop.add(
+    new otui.TextRenderable(r, {
+      id: "sb-cwd-v",
+      content: otui.t`${otui.dim(shortenCwd(cwd, SIDEBAR_TEXT_WIDTH))}`,
+    }),
+  );
+}
+
+/** Cumulative-counter sinks the shell owns; `attachUsageIo` drives them. */
+export interface UsageChrome {
+  /** Header right slot, e.g. `↑1.2K ↓340`. */
+  setHeaderMeta: (text: string) => void;
+  /** Sidebar Context panel: the running in+out total. */
+  setContextTotal: (total: number) => void;
+  /** Called once a provider reports real numbers (retires the estimate). */
+  onExactUsage?: () => void;
+}
+
+/**
+ * Add the shell's CUMULATIVE token counter on top of `io.onUsage` without
+ * destroying the per-turn transcript line underneath it (gap G-1).
+ *
+ * The shell used to ASSIGN `io.onUsage`, which silently deleted the per-turn
+ * `↑in ↓out tokens` line flow 050 shipped. The two are not alternatives and
+ * neither replaces the other: the cumulative counter tracks the CONTEXT BUDGET
+ * across a session, while the per-turn line is the only place an operator can
+ * see what THIS turn cost — flow 050's stated motivation (a metered provider).
+ * So the base hook is called through, not over-written.
+ *
+ * Two guards, and both are load-bearing:
+ *
+ *  - A `0/0` report is dropped BEFORE either sink. It is not usable for the
+ *    counter (it would retire a working estimate in favour of zero) and it is
+ *    not worth a transcript line reading `↑0 ↓0 tokens`, so the guard is placed
+ *    ahead of the call-through rather than duplicated inside it.
+ *  - The base hook's own guard — print only the fields the provider actually
+ *    reported — survives untouched, so a usage event carrying just
+ *    `inputTokens` still renders `↑5 tokens` and never `↓undefined`.
+ *
+ * Exported, and the shell's ONLY wiring for this, so a headless test can drive
+ * `runAgentTurn` through the real composition and see both outputs in one frame
+ * rather than proving a replica.
+ */
+export function attachUsageIo(io: AgentIO, chrome: UsageChrome): AgentIO {
+  const base = io.onUsage?.bind(io);
+  let totalIn = 0;
+  let totalOut = 0;
+  io.onUsage = (usage) => {
+    if ((usage.inputTokens ?? 0) === 0 && (usage.outputTokens ?? 0) === 0) {
+      return; // a 0/0 report is not usable — keep the estimate, print nothing
+    }
+    base?.(usage); // per-turn `↑in ↓out tokens` transcript line (flow 050)
+    chrome.onExactUsage?.();
+    totalIn += usage.inputTokens ?? 0;
+    totalOut += usage.outputTokens ?? 0;
+    chrome.setHeaderMeta(`↑${fmtTokens(totalIn)} ↓${fmtTokens(totalOut)}`);
+    chrome.setContextTotal(totalIn + totalOut);
+  };
+  return io;
+}
+
+/**
  * True only for an explicit `y`/`yes` (case-insensitive). Default-deny otherwise.
  * The TUI itself no longer has a typed y/N approval path — every approval goes
  * through the interactive dock picker — so this is kept as the shared
@@ -395,6 +488,46 @@ export async function pickShellApproval(
 /** Compact token count for the header counter: 1234 → "1.2K", else the number. */
 export function fmtTokens(n: number): string {
   return n >= 1000 ? `${(n / 1000).toFixed(1)}K` : String(n);
+}
+
+/**
+ * Fit a working directory into `max` columns for the sidebar's Directory panel.
+ *
+ * Two reductions, in order, both of which discard the LEAST identifying part
+ * first:
+ *
+ *  1. `$HOME` → `~` (the shared `collapseHome`, so the TUI and the readline
+ *     header spell the same path the same way).
+ *  2. Drop whole leading segments behind a `…/` marker until the rest fits. The
+ *     TAIL is what identifies a directory — `…/keryx/src/tui` tells an operator
+ *     where the agent's `shell_exec` will land; `/Users/someone/dev/proj…` tells
+ *     them almost nothing. Middle-truncation (what `formatStatusBar` does for a
+ *     much wider bar) would keep a useless head at the cost of the tail, so it is
+ *     deliberately not reused here.
+ *
+ * A pathological single segment longer than the budget has no separator to cut
+ * at, so its own tail is kept behind the same marker. Never returns more than
+ * `max` chars; `max <= 0` returns "". Pure.
+ */
+export function shortenCwd(cwd: string, max: number): string {
+  if (max <= 0) {
+    return "";
+  }
+  const full = collapseHome(cwd);
+  if (full.length <= max) {
+    return full;
+  }
+  const segments = full.split("/").filter((s) => s.length > 0);
+  for (let i = 1; i < segments.length; i++) {
+    const candidate = `…/${segments.slice(i).join("/")}`;
+    if (candidate.length <= max) {
+      return candidate;
+    }
+  }
+  // Even the last segment alone overflows (no separator left to cut at): keep
+  // its tail, which is still the most specific thing available.
+  const last = segments[segments.length - 1] ?? full;
+  return `…${last.slice(last.length - (max - 1))}`;
 }
 
 /**
@@ -836,6 +969,9 @@ export async function launchTuiAgentShell(opts: {
     sidebar.add(new otui.TextRenderable(r, { id: "sb-model-k", content: otui.t`${otui.dim("Model")}`, marginTop: 1 }));
     const sbModelV = new otui.TextRenderable(r, { id: "sb-model-v", content: otui.t`${otui.dim(`${sel.provider}/${sel.model}`)}` });
     sidebar.add(sbModelV);
+    // The directory the agent's tools act on — directly under Model, matching the
+    // readline header's `provider/model … · <cwd>` order (gap G-2).
+    mountCwdPanel(otui, r, sidebar, opts.session?.cwd ?? process.cwd());
     sidebar.add(new otui.TextRenderable(r, { id: "sb-ctx-k", content: otui.t`${otui.dim("Context")}`, marginTop: 1 }));
     const sbContext = new otui.TextRenderable(r, { id: "sb-ctx-v", content: otui.t`${otui.dim("0 tokens")}` });
     sidebar.add(sbContext);
@@ -900,9 +1036,10 @@ export async function launchTuiAgentShell(opts: {
     const io = createTuiAgentIo(otui, r, transcript);
     // Cumulative token usage → the header counter + sidebar. Prefer the provider's
     // EXACT `usage`; fall back to an estimate (see the turn `finally` below) for
-    // providers that report nothing (e.g. local Ollama models).
-    let totalIn = 0;
-    let totalOut = 0;
+    // providers that report nothing (e.g. local Ollama models). `attachUsageIo`
+    // WRAPS the base hook rather than replacing it, so the per-turn transcript
+    // line survives alongside the cumulative counter (gap G-1 — the two answer
+    // different questions).
     let hasExactUsage = false;
     const baseWrite = io.write.bind(io);
     const baseOnSystem = io.onSystem?.bind(io);
@@ -953,16 +1090,15 @@ export async function launchTuiAgentShell(opts: {
       }
       baseWrite(s);
     };
-    io.onUsage = (u) => {
-      if ((u.inputTokens ?? 0) === 0 && (u.outputTokens ?? 0) === 0) {
-        return; // a 0/0 report is not usable — keep the estimate
-      }
-      hasExactUsage = true;
-      totalIn += u.inputTokens ?? 0;
-      totalOut += u.outputTokens ?? 0;
-      chrome.setHeaderMeta(`↑${fmtTokens(totalIn)} ↓${fmtTokens(totalOut)}`);
-      sbContext.content = otui.t`${otui.dim(`${(totalIn + totalOut).toLocaleString()} tokens`)}`;
-    };
+    attachUsageIo(io, {
+      setHeaderMeta: (text) => chrome.setHeaderMeta(text),
+      setContextTotal: (total) => {
+        sbContext.content = otui.t`${otui.dim(`${total.toLocaleString()} tokens`)}`;
+      },
+      onExactUsage: () => {
+        hasExactUsage = true;
+      },
+    });
     // Reasoning / tool call / tool result all render as collapsed BLOCKS whose
     // full text is retained (AC1). The event → block mapping itself lives in the
     // exported `attachBlockIo` (headlessly testable); the closure contributes

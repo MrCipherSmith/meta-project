@@ -185,20 +185,32 @@ regressions in `src/tui/tui-shell.test.ts`.
 | `write(s)`          | append token to the active assistant block's pending buffer           |
 | `onAssistantText`   | finalize the block: set text to `renderMarkdown(text)`                |
 | `onReasoning`       | prepend a dim `⋯ thinking` block before the answer block              |
-| `onUsage`           | store; render the dim usage line when the turn ends — **stale, see below** |
+| `onUsage`           | append the dim per-turn `↑in ↓out tokens` line, **and** advance the cumulative header/sidebar counter — see below |
 | `onToolCall`        | append a `⚙ name(args)` block (collapsed)                              |
 | `onToolResult`      | attach full output to the block; show collapsed summary + expander    |
 | `onSystem`          | append a dim/red system line                                          |
 | `requestApproval`   | open the choice dock and resolve on the selected option; default-deny |
 
-The `onUsage` row is **stale as of 2026-07-22**: the shell overrides that hook
-(`src/tui/tui-shell.ts:949-958`) with a cumulative `↑ ↓` header counter and a
-sidebar total, so no per-turn usage line is ever appended to the transcript. The
-code that would append it (`:141-152`) is dead in the running shell. Recorded as
-gap **G-1** of the
-[feature-parity checklist](feature-parity-checklist.md), which audits every
-flow-050–057 feature against the shipped TUI and, on that evidence plus two
-absent features, reports the PRD's parity criterion as **not passing**.
+The `onUsage` row renders **two** things, and they are not alternatives. The base
+hook (`createTuiAgentIo`) appends the per-turn `↑in ↓out tokens` transcript line —
+what THIS turn cost, flow 050's motivation on a metered provider — and
+`attachUsageIo` (`src/tui/tui-shell.ts`) WRAPS it to also advance the cumulative
+`↑ ↓` header counter and the sidebar Context total, which track the context budget
+across the session. Neither answers the other's question.
+
+This row was stale until 2026-07-22: the shell ASSIGNED `io.onUsage`, which
+deleted the per-turn line from the running surface while leaving its code in
+place and apparently working. That was gap **G-1** of the
+[feature-parity checklist](feature-parity-checklist.md) and is now closed —
+`attachUsageIo` is the shell's only wiring for this hook, and
+`src/tui/tui-shell.test.ts` pins both readings in one captured frame. Assigning
+the hook again would silently reopen the gap.
+
+Two guards are load-bearing and are pinned by their own tests: a `0/0` usage
+report is dropped BEFORE either sink (it is not worth a `↑0 ↓0 tokens` line and
+must not retire the D-A2 estimator), and the base hook still prints only the
+fields the provider actually reported, so a usage event carrying just
+`inputTokens` renders `↑5 tokens` rather than `↓undefined`.
 
 The approval row originally read "resolve on y/N". The TUI **no longer has a
 typed y/N path** — every approval goes through the interactive dock picker
