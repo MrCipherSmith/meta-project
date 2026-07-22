@@ -215,6 +215,26 @@ test("collapseToolOutput: empty input", () => {
   expect(collapseToolOutput("")).toEqual({ summary: "", lineCount: 0, hidden: 0 });
 });
 
+// A CRLF tool result (Windows tooling, or a model echoing CRLF) must not leak a
+// carriage return into the summary: printed to a terminal, a stray "\r" returns
+// the cursor to column 0 and overwrites the line the shell already drew.
+test("collapseToolOutput: a CRLF result carries no carriage return into the summary", () => {
+  const r = collapseToolOutput("first line\r\nsecond\r\nthird\r\n");
+  expect(r.summary).toBe("first line");
+  expect(r.summary).not.toContain("\r");
+  expect(r).toEqual({ summary: "first line", lineCount: 3, hidden: 2 });
+});
+
+test("collapseToolOutput: the CR does not consume a maxWidth character", () => {
+  // "abcde" is exactly maxWidth; with the CR still attached the value would be
+  // six characters long and get clipped to "abcde…".
+  expect(collapseToolOutput("abcde\r\nnext", 5).summary).toBe("abcde");
+});
+
+test("collapseToolOutput: a CRLF-only blank line is still skipped for the summary", () => {
+  expect(collapseToolOutput("\r\n\r\nreal first\r\nmore").summary).toBe("real first");
+});
+
 // --- flow 054: indentBlock (pure left gutter) ---
 
 test("indentBlock prefixes non-empty lines and leaves empty lines untouched", () => {

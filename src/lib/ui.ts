@@ -168,9 +168,16 @@ export function renderMarkdown(md: string): string {
 // (for a line-based "collapsible panel"): `summary` is the first NON-empty line
 // clipped to `maxWidth`; `lineCount` is the total lines (trailing blank lines
 // ignored); `hidden` is the count of lines beyond the first. Pure + deterministic.
+//
+// CRLF matters here, and not merely cosmetically. Splitting on "\n" alone leaves
+// a trailing "\r" on every line of a Windows-style tool result; carried into the
+// summary it moves the cursor back to column 0 mid-line, overwriting whatever the
+// shell already drew — and it consumes one of the `maxWidth` characters. Both
+// shells render through this helper, so `splitLines` (which strips the CR) is the
+// single place to get it right.
 export function collapseToolOutput(text: string, maxWidth = 100): { summary: string; lineCount: number; hidden: number } {
-  const trimmed = text.replace(/\n+$/, "");
-  const lines = trimmed.length === 0 ? [] : trimmed.split("\n");
+  const trimmed = text.replace(/\r?\n+$/, "");
+  const lines = trimmed.length === 0 ? [] : splitLines(trimmed);
   const firstNonEmpty = lines.find((line) => line.trim().length > 0) ?? "";
   const summary = firstNonEmpty.length > maxWidth ? `${firstNonEmpty.slice(0, maxWidth)}…` : firstNonEmpty;
   const lineCount = lines.length;
