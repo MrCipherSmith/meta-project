@@ -62,3 +62,4 @@ Recorded here so no partial/broken code is left for them:
 - 2026-07-23T21:18:42.904Z - ac-confirmed: AC3: wikiBacklinks port method + wiki_backlinks descriptor (module gdwiki, risk read) in all 3 projections; wiki-backlinks-result.schema.json; adapter+operations+mcp tests
 - 2026-07-23T21:18:43.054Z - ac-confirmed: AC4: tsc --noEmit exit 0; touched 41 pass/0 fail; run+policy+mcp regression 89 pass/0 fail; package.json dependencies {}
 - 2026-07-23T21:18:43.218Z - ac-confirmed: AC5: 3 deferred items (flow-transition write, legacy MCP adapter retirement, in-process search facade) documented with rationale in journal.md; no partial code left
+- 2026-07-23T21:40:22.859Z - implemented: draft PR: https://github.com/MrCipherSmith/keryx/pull/207 (warning: PR is not a draft)

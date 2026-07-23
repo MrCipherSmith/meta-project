@@ -3,9 +3,9 @@
   "id": "122",
   "slug": "metaproject-native-followups",
   "title": "metaproject-native follow-ups: RunDeps.metaprojectPort seam (S1) + MP-6 blast-radius escalation wiring + MP-5 wikiBacklinks op",
-  "status": "in-progress",
+  "status": "implemented",
   "createdAt": "2026-07-23T20:59:09.021Z",
-  "updatedAt": "2026-07-23T21:18:43.218Z",
+  "updatedAt": "2026-07-23T21:40:22.859Z",
   "source": {
     "type": "description",
     "ref": null
@@ -34,7 +34,7 @@
     }
   },
   "pr": {
-    "url": null
+    "url": "https://github.com/MrCipherSmith/keryx/pull/207"
   },
   "tasks": [
     {
@@ -318,6 +318,11 @@
       "at": "2026-07-23T21:18:43.218Z",
       "event": "ac-confirmed",
       "detail": "AC5: 3 deferred items (flow-transition write, legacy MCP adapter retirement, in-process search facade) documented with rationale in journal.md; no partial code left"
+    },
+    {
+      "at": "2026-07-23T21:40:22.859Z",
+      "event": "implemented",
+      "detail": "draft PR: https://github.com/MrCipherSmith/keryx/pull/207 (warning: PR is not a draft)"
     }
   ]
 }
