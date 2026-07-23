@@ -1,5 +1,6 @@
 import { mkdir, readFile, readdir } from "node:fs/promises";
 import path from "node:path";
+import { validateAgainstSchemaObject } from "../contracts/validator";
 import { pathExists, writeFileAtomic } from "../lib/fs";
 import { flowsRoot, listFlowDirs, readFlow, resolveFlowDir, slugify } from "../flow/store";
 import type { FlowState } from "../flow/types";
@@ -119,8 +120,21 @@ export async function validateManagedReviewManifest(
   cwd: string,
   manifest: ManagedReviewManifest,
 ): Promise<ManagedReviewValidationResult> {
-  await loadDocpackSchema(cwd);
   const errors: ManagedReviewValidationResult["errors"] = [];
+
+  // The committed JSON Schema is the source of truth. When it is present we run
+  // the deterministic in-repo validator (src/contracts/validator) against it so
+  // the schema file — not the hand-rolled checks below — governs the required
+  // fields, enums, and additionalProperties rules. The hand-rolled checks are
+  // kept as a floor: they still run so behavior does not regress if the schema
+  // file is absent, and they catch cases the schema does not model (e.g. empty
+  // artifact paths). Errors from both layers are merged and de-duplicated.
+  const schema = await loadDocpackSchema(cwd);
+  if (schema) {
+    for (const error of validateAgainstSchemaObject(schema, manifest).errors) {
+      errors.push(error);
+    }
+  }
 
   if (manifest.schemaVersion !== 1) {
     errors.push({ path: "$.schemaVersion", message: "Expected 1" });
@@ -157,7 +171,16 @@ export async function validateManagedReviewManifest(
     }
   }
 
-  return { valid: errors.length === 0, errors };
+  const seen = new Set<string>();
+  const deduped = errors.filter((error) => {
+    const key = `${error.path}${error.message}`;
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+  return { valid: deduped.length === 0, errors: deduped };
 }
 
 async function resolvePackageFlow(input: ManagedReviewInput): Promise<FlowMatchResult | null> {
@@ -416,7 +439,7 @@ async function resolveReviewPackagePath(cwd: string, ref: string): Promise<strin
   throw new Error(`Managed review package not found: ${ref}`);
 }
 
-async function loadDocpackSchema(cwd: string): Promise<unknown> {
+async function loadDocpackSchema(cwd: string): Promise<Record<string, unknown> | null> {
   const schemaPath = path.join(
     cwd,
     "docs",
@@ -428,7 +451,10 @@ async function loadDocpackSchema(cwd: string): Promise<unknown> {
   if (!(await pathExists(schemaPath))) {
     return null;
   }
-  return JSON.parse(await readFile(schemaPath, "utf8")) as unknown;
+  const parsed = JSON.parse(await readFile(schemaPath, "utf8")) as unknown;
+  return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
+    ? (parsed as Record<string, unknown>)
+    : null;
 }
 
 export function isFindingClassification(value: string): boolean {

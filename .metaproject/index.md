@@ -143,8 +143,9 @@ the registry (`src/standard/command-registry.ts`) is the source of truth.
 ## Refresh
 
 ```bash
-keryx index refresh
+# Use only supported refresh commands:
 keryx gdgraph build
+keryx wiki index
 keryx test analyze
 keryx memory index
 ```

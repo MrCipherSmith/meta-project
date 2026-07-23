@@ -6,8 +6,14 @@ on:
   pull_request:
 
 jobs:
-  check:
-    name: typecheck, tests, standard
+  # --- Execution Observability CI Protocol (ci-protocol.md) -----------------
+  # Four jobs replace the former single `check`. The point is the baseline gate:
+  # a PR's `standard validate` result is only trustworthy once the SAME check has
+  # been run independently on `main` and the two statuses classified, so a
+  # pre-existing main defect is not misread as a PR regression.
+
+  typecheck-and-tests:
+    name: typecheck-and-tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,11 +29,95 @@ jobs:
       - name: Typecheck and tests
         run: bun run check
 
-      - name: Validate Metaproject Standard compliance
-        run: bun ./src/cli.ts standard validate
-
       - name: Security red-team FN-rate gate (Block E / E6)
         run: bun ./src/cli.ts security eval --corpus all
+
+  standard-baseline:
+    # Independently measure `main` so `standard-pr` can classify against it.
+    name: standard-baseline
+    runs-on: ubuntu-latest
+    outputs:
+      status: ${{ steps.baseline.outputs.status }}
+    steps:
+      - name: Check out main (independent baseline)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      # A red baseline is DATA (baseline-red), not a job failure: it tells
+      # `standard-pr` that a PR failure is diagnostic, not an isolated regression.
+      # So capture pass/fail into a job output and never let a non-zero
+      # `standard validate` exit fail this job.
+      - name: Validate main and publish provenance
+        id: baseline
+        run: |
+          if bun ./src/cli.ts standard validate; then
+            echo "status=pass" >> "$GITHUB_OUTPUT"
+          else
+            echo "status=fail" >> "$GITHUB_OUTPUT"
+          fi
+
+  standard-pr:
+    name: standard-pr
+    runs-on: ubuntu-latest
+    needs: standard-baseline
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      # Measure the PR status independently; the classification step below owns
+      # this job's verdict, so do not hard-fail here.
+      - name: Validate the PR
+        id: pr
+        run: |
+          if bun ./src/cli.ts standard validate; then
+            echo "status=pass" >> "$GITHUB_OUTPUT"
+          else
+            echo "status=fail" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Classification-only. CI owns both independently measured statuses and
+      # passes them in. This step exits non-zero ONLY for baseline-green + pr-fail
+      # (an isolated PR regression); baseline-red / baseline-unknown exit zero.
+      - name: Classify the PR against the main baseline
+        run: |
+          bun ./src/cli.ts standard baseline \
+            --baseline "${{ needs.standard-baseline.outputs.status }}" \
+            --pr "${{ steps.pr.outputs.status }}"
+
+  metrics-contract:
+    # Schema, provenance, latest-pointer, worktree-safe hook, and lightweight-mode
+    # tests for the execution-observability runtime.
+    name: metrics-contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Observability contract tests
+        run: bun test src/metrics/service.test.ts src/lib/git-hooks.test.ts src/lib/templates.test.ts
 
   tui-pty-launch:
     # O-6. Every other check that touches the TUI runs without a controlling
