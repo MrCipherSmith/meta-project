@@ -33,3 +33,5 @@
 - 2026-07-23T18:52:56.487Z - ac-confirmed: AC8: 002-gdgraph AC checksum mismatch left untouched (pre-existing on main); documented in flow 116 journal; no acceptance-criteria.md rewritten by renumber
 - 2026-07-23T18:52:56.678Z - ac-confirmed: AC9: keryx health run PASS (score 93); bun test 2111 pass/0 fail; new tests use OS tmpdirs (security-gate fixture moved out of repo)
 - 2026-07-23T18:52:56.832Z - ac-confirmed: AC10: .metaproject/skills/flow/SKILL.md 'Flow ids' section + memory constraint flow-ids-allocated-per-clone.md (accepted, indexed)
+- 2026-07-23T18:53:19.052Z - completing
+- 2026-07-23T18:53:21.017Z - completion-failed: pull-request: PR checks not green

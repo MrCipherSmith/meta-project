@@ -3,9 +3,9 @@
   "id": "116",
   "slug": "fix-duplicate-flow-ids-nextflowid-races-",
   "title": "Fix duplicate flow ids: nextFlowId races on concurrent init and resolveFlowDir silently picks one of the colliding flows",
-  "status": "implemented",
+  "status": "in-progress",
   "createdAt": "2026-07-22T12:05:44.354Z",
-  "updatedAt": "2026-07-23T18:52:56.832Z",
+  "updatedAt": "2026-07-23T18:53:21.017Z",
   "source": {
     "type": "description",
     "ref": null
@@ -362,6 +362,15 @@
       "at": "2026-07-23T18:52:56.832Z",
       "event": "ac-confirmed",
       "detail": "AC10: .metaproject/skills/flow/SKILL.md 'Flow ids' section + memory constraint flow-ids-allocated-per-clone.md (accepted, indexed)"
+    },
+    {
+      "at": "2026-07-23T18:53:19.052Z",
+      "event": "completing"
+    },
+    {
+      "at": "2026-07-23T18:53:21.017Z",
+      "event": "completion-failed",
+      "detail": "pull-request: PR checks not green"
     }
   ]
 }
