@@ -3,9 +3,9 @@
   "id": "120",
   "slug": "fix-duplicate-flow-ids-nextflowid-races-",
   "title": "Fix duplicate flow ids: nextFlowId races on concurrent init and resolveFlowDir silently picks one of the colliding flows",
-  "status": "in-progress",
+  "status": "done",
   "createdAt": "2026-07-22T12:05:44.354Z",
-  "updatedAt": "2026-07-23T19:03:17.533Z",
+  "updatedAt": "2026-07-23T19:07:37.764Z",
   "source": {
     "type": "description",
     "ref": null
@@ -106,7 +106,7 @@
       "id": "T4",
       "title": "Self-review and prepare draft PR",
       "kind": "review",
-      "status": "todo",
+      "status": "done",
       "dependsOn": [],
       "attempts": {
         "count": 0,
@@ -114,7 +114,8 @@
       },
       "acRefs": [],
       "evidenceRefs": [],
-      "budget": {}
+      "budget": {},
+      "disposition": "completed"
     },
     {
       "id": "T5",
@@ -376,6 +377,25 @@
       "at": "2026-07-23T19:03:17.533Z",
       "event": "renumbered",
       "detail": "116 -> 120: collided with main's flow 116 (test-suite-isolation) created earlier; this flow chose 116 before that one was visible in the checkout — the very bug it fixes — flow 116/120"
+    },
+    {
+      "at": "2026-07-23T19:06:24.361Z",
+      "event": "task-done",
+      "detail": "T4: Self-review and prepare draft PR"
+    },
+    {
+      "at": "2026-07-23T19:07:34.967Z",
+      "event": "implemented",
+      "detail": "draft PR: https://github.com/MrCipherSmith/keryx/pull/205"
+    },
+    {
+      "at": "2026-07-23T19:07:35.311Z",
+      "event": "completing"
+    },
+    {
+      "at": "2026-07-23T19:07:37.764Z",
+      "event": "done",
+      "detail": "all gates passed"
     }
   ]
 }

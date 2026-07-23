@@ -36,3 +36,7 @@
 - 2026-07-23T18:53:19.052Z - completing
 - 2026-07-23T18:53:21.017Z - completion-failed: pull-request: PR checks not green
 - 2026-07-23T19:03:17.533Z - renumbered: 116 -> 120: collided with main's flow 116 (test-suite-isolation) created earlier; this flow chose 116 before that one was visible in the checkout — the very bug it fixes — flow 116/120
+- 2026-07-23T19:06:24.361Z - task-done: T4: Self-review and prepare draft PR
+- 2026-07-23T19:07:34.967Z - implemented: draft PR: https://github.com/MrCipherSmith/keryx/pull/205
+- 2026-07-23T19:07:35.311Z - completing
+- 2026-07-23T19:07:37.764Z - done: all gates passed
