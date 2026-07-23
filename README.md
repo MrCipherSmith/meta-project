@@ -20,7 +20,11 @@ The core is deterministic, local, and offline — with zero runtime dependencies
 
 ## Quick Start
 
-**Requirements:** `git` and `bun` (>= 1.1.0).
+**Requirements:** `git` and `bun` (>= 1.1.0). Code search (`keryx ctx rg` and the
+agent's `search_code` tool) additionally requires [ripgrep](https://github.com/BurntSushi/ripgrep)
+(`rg`) on `PATH` — install it with `brew install ripgrep` (macOS) or `apt install ripgrep`
+(Debian/Ubuntu). Without it, code search is unavailable and the harness falls back to
+reading files directly.
 
 ### Install / update (global)
 

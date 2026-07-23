@@ -1,5 +1,10 @@
 import { expect, test } from "bun:test";
-import { type KeryxRunner, builtinMetaprojectTools } from "./metaproject-tools";
+import {
+  type KeryxRunner,
+  builtinMetaprojectTools,
+  normalizeSearchResult,
+  SEARCH_CODE_RG_UNAVAILABLE_MESSAGE,
+} from "./metaproject-tools";
 import type { InteractiveTool } from "./interactive-tools";
 import type { MetaprojectPort } from "../metaproject-port";
 
@@ -81,6 +86,35 @@ test("a runner failure is propagated as an error result", async () => {
   expect(result.output).toBe("boom");
 });
 
+// --- P0-2: ripgrep-missing → actionable, model-facing error ---
+
+test("normalizeSearchResult rewrites rg-missing errors and passes others through", () => {
+  // The bare Bun.spawn throw, and the graceful `keryx ctx rg` exit message.
+  for (const output of [
+    'Executable not found in $PATH: "rg"',
+    "ripgrep (rg) is not installed or not on PATH. `keryx ctx rg` needs it.",
+    'spawn rg ENOENT',
+  ]) {
+    expect(normalizeSearchResult({ output, isError: true }).output).toBe(SEARCH_CODE_RG_UNAVAILABLE_MESSAGE);
+  }
+  // An unrelated failure (e.g. a bad regex) is untouched — no false positives.
+  expect(normalizeSearchResult({ output: "regex parse error: unclosed group", isError: true })).toEqual({
+    output: "regex parse error: unclosed group",
+    isError: true,
+  });
+  // A successful result is never rewritten, even if it mentions "rg".
+  expect(normalizeSearchResult({ output: "src/rg.ts:1: match", isError: false }).output).toBe("src/rg.ts:1: match");
+});
+
+test("search_code surfaces the actionable message when ripgrep is missing (subprocess path)", async () => {
+  const { run } = recordingRunner({ output: 'Executable not found in $PATH: "rg"', isError: true });
+  const tools = builtinMetaprojectTools(ROOT, run);
+  const result = await tool(tools, "search_code").invoke({ pattern: "x" });
+  expect(result.isError).toBe(true);
+  expect(result.output).toBe(SEARCH_CODE_RG_UNAVAILABLE_MESSAGE);
+  expect(result.output).toContain("read_file and list_dir");
+});
+
 // --- flow 037: port-aware in-process path ---
 
 /** A fake port that records the calls it received and returns canned structured results. */
@@ -157,4 +191,13 @@ test("search_code falls back to the subprocess runner when the port has no in-pr
 
   expect(calls.searchCode).toEqual([{ pattern: "foo" }]); // the port was consulted
   expect(runnerCalls[0]).toEqual(["ctx", "rg", "foo"]); // then it fell back to subprocess
+});
+
+test("search_code surfaces the actionable message when ripgrep is missing (port fallback path)", async () => {
+  const { run } = recordingRunner({ output: "spawn rg ENOENT", isError: true });
+  const { port } = recordingPort(); // its searchCode has no in-process backing → falls back
+  const tools = builtinMetaprojectTools(ROOT, run, port);
+  const result = await tool(tools, "search_code").invoke({ pattern: "foo" });
+  expect(result.isError).toBe(true);
+  expect(result.output).toBe(SEARCH_CODE_RG_UNAVAILABLE_MESSAGE);
 });

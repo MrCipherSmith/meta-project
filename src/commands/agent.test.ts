@@ -3,10 +3,13 @@ import { tmpdir } from "node:os";
 import {
   buildAgentSystemInstruction,
   DEFAULT_MAX_TOOL_CALLS,
+  ENV_AGENT_MAX_ATTEMPTS_PER_HASH,
   ENV_AGENT_MAX_TOOL_CALLS,
+  MAX_AGENT_MAX_ATTEMPTS_PER_HASH,
   MAX_AGENT_MAX_TOOL_CALLS,
   MAX_ATTEMPTS_PER_HASH,
   reserveToolAttempt,
+  resolveAgentMaxAttemptsPerHash,
   resolveAgentMaxToolCalls,
   runAgentTurn,
   toolCallHash,
@@ -36,6 +39,23 @@ test("resolveAgentMaxToolCalls: env override clamped to ceiling", () => {
   expect(resolveAgentMaxToolCalls({ [ENV_AGENT_MAX_TOOL_CALLS]: String(MAX_AGENT_MAX_TOOL_CALLS + 50) })).toBe(
     MAX_AGENT_MAX_TOOL_CALLS,
   );
+});
+
+test("resolveAgentMaxAttemptsPerHash: unset/empty/invalid falls back to the default", () => {
+  expect(resolveAgentMaxAttemptsPerHash({})).toBe(MAX_ATTEMPTS_PER_HASH);
+  expect(resolveAgentMaxAttemptsPerHash({ [ENV_AGENT_MAX_ATTEMPTS_PER_HASH]: "" })).toBe(MAX_ATTEMPTS_PER_HASH);
+  expect(resolveAgentMaxAttemptsPerHash({ [ENV_AGENT_MAX_ATTEMPTS_PER_HASH]: "  " })).toBe(MAX_ATTEMPTS_PER_HASH);
+  expect(resolveAgentMaxAttemptsPerHash({ [ENV_AGENT_MAX_ATTEMPTS_PER_HASH]: "nope" })).toBe(MAX_ATTEMPTS_PER_HASH);
+  expect(resolveAgentMaxAttemptsPerHash({ [ENV_AGENT_MAX_ATTEMPTS_PER_HASH]: "0" })).toBe(MAX_ATTEMPTS_PER_HASH);
+  expect(resolveAgentMaxAttemptsPerHash({ [ENV_AGENT_MAX_ATTEMPTS_PER_HASH]: "-4" })).toBe(MAX_ATTEMPTS_PER_HASH);
+});
+
+test("resolveAgentMaxAttemptsPerHash: valid env override clamped to ceiling", () => {
+  expect(resolveAgentMaxAttemptsPerHash({ [ENV_AGENT_MAX_ATTEMPTS_PER_HASH]: "6" })).toBe(6);
+  expect(resolveAgentMaxAttemptsPerHash({ [ENV_AGENT_MAX_ATTEMPTS_PER_HASH]: " 8 " })).toBe(8);
+  expect(
+    resolveAgentMaxAttemptsPerHash({ [ENV_AGENT_MAX_ATTEMPTS_PER_HASH]: String(MAX_AGENT_MAX_ATTEMPTS_PER_HASH + 5) }),
+  ).toBe(MAX_AGENT_MAX_ATTEMPTS_PER_HASH);
 });
 
 // A minimal scripted ProviderPort: each `stream()` call replays the next scripted
@@ -363,6 +383,17 @@ test("reserveToolAttempt: same hash costs 1 budget slot for up to MAX_ATTEMPTS_P
   expect(a3.ok && a3.attempt).toBe(MAX_ATTEMPTS_PER_HASH);
 });
 
+test("reserveToolAttempt: state.maxAttempts overrides the per-signature cap and refusal message", () => {
+  const state = { charged: new Set<string>(), attempts: new Map<string, number>(), maxUnique: 4, maxAttempts: 2 };
+  const a1 = reserveToolAttempt(state, "search_code", '{"pattern":"x"}');
+  const a2 = reserveToolAttempt(state, "search_code", '{"pattern":"x"}');
+  const a3 = reserveToolAttempt(state, "search_code", '{"pattern":"x"}');
+  expect(a1.ok).toBe(true);
+  expect(a2.ok).toBe(true);
+  expect(a3.ok).toBe(false);
+  expect(!a3.ok && a3.reason).toContain("already tried 2×");
+});
+
 test("runAgentTurn: unique-signature budget; wrap-up turn without tools when exhausted", async () => {
   // Two DIFFERENT signatures fill budget of 2; then wrap-up text (no tools).
   const r1: Partial<NormalizedEvent>[] = [
@@ -426,6 +457,109 @@ test("runAgentTurn: identical failing calls only burn one unique slot; after 3 a
   // wait - round 4 still has tool call → skip. Round 5 is text "gave up".
   expect(toolResultCount).toBeGreaterThanOrEqual(3);
   expect(results.some((r) => /already tried|unknown tool/.test(r))).toBe(true);
+});
+
+test("runAgentTurn injects a switch-approach hint after a tool fails identically N× in a row", async () => {
+  // The same failing call three times, then a text finish. The tool always fails
+  // with the SAME error → the driver should nudge the model to switch after the
+  // second identical failure, ONCE, before the hard hash-budget skip.
+  const round: Partial<NormalizedEvent>[] = [
+    { kind: "tool_call_start", toolCallId: "c", toolName: "flaky_search" },
+    { kind: "tool_call_end", toolCallId: "c", input: '{"pattern":"x"}' },
+    { kind: "model_end" },
+  ];
+  const done: Partial<NormalizedEvent>[] = [{ kind: "text_delta", text: "switching" }, { kind: "model_end" }];
+  const { provider } = scriptedProvider([round, round, round, done]);
+  const flaky: import("../harness/tool/builtin/interactive-tools").InteractiveTool = {
+    definition: {
+      name: "flaky_search",
+      description: "always fails the same way",
+      inputSchema: { type: "object", properties: { pattern: { type: "string" } }, required: ["pattern"], additionalProperties: false },
+      risk: "read",
+    },
+    invoke: async () => ({ output: 'Executable not found in $PATH: "rg"', isError: true }),
+  };
+  const systemMsgs: string[] = [];
+  const io: AgentIO = { write: () => {}, onSystem: (t) => systemMsgs.push(t) };
+  const history: NormalizedMessage[] = [];
+  await runAgentTurn(
+    io,
+    { provider, providerId: "s", modelId: "m", tools: [flaky], systemInstruction: "sys", idSeq: fixedIdSeq() },
+    history,
+    "find x",
+  );
+
+  const hints = systemMsgs.filter((m) => /is failing repeatedly with the same error/.test(m));
+  expect(hints).toHaveLength(1); // fires once per signature, not on every attempt
+  expect(hints[0]).toContain('tool "flaky_search"');
+  expect(hints[0]).toContain("Switch to a different tool or ask the user");
+  // The hint is also fed back to the model as a project-provenance message.
+  const hintMsg = history.find((m) => m.role === "user" && /is failing repeatedly/.test(m.content));
+  expect(hintMsg?.provenance).toBe("project");
+});
+
+test("runAgentTurn does not hint after a single tool failure", async () => {
+  // One failing call, then a text finish → below the threshold, no hint.
+  const round: Partial<NormalizedEvent>[] = [
+    { kind: "tool_call_start", toolCallId: "c", toolName: "flaky_search" },
+    { kind: "tool_call_end", toolCallId: "c", input: '{"pattern":"x"}' },
+    { kind: "model_end" },
+  ];
+  const done: Partial<NormalizedEvent>[] = [{ kind: "text_delta", text: "ok" }, { kind: "model_end" }];
+  const { provider } = scriptedProvider([round, done]);
+  const flaky: import("../harness/tool/builtin/interactive-tools").InteractiveTool = {
+    definition: {
+      name: "flaky_search",
+      description: "fails once",
+      inputSchema: { type: "object", properties: { pattern: { type: "string" } }, required: ["pattern"], additionalProperties: false },
+      risk: "read",
+    },
+    invoke: async () => ({ output: "boom", isError: true }),
+  };
+  const systemMsgs: string[] = [];
+  const io: AgentIO = { write: () => {}, onSystem: (t) => systemMsgs.push(t) };
+  await runAgentTurn(
+    io,
+    { provider, providerId: "s", modelId: "m", tools: [flaky], systemInstruction: "sys", idSeq: fixedIdSeq() },
+    [],
+    "find x",
+  );
+  expect(systemMsgs.some((m) => /is failing repeatedly/.test(m))).toBe(false);
+});
+
+test("KERYX_AGENT_MAX_ATTEMPTS_PER_HASH changes the per-signature cap end to end", async () => {
+  const prev = process.env[ENV_AGENT_MAX_ATTEMPTS_PER_HASH];
+  process.env[ENV_AGENT_MAX_ATTEMPTS_PER_HASH] = "2";
+  try {
+    const round: Partial<NormalizedEvent>[] = [
+      { kind: "tool_call_start", toolCallId: "c", toolName: "always_fails" },
+      { kind: "tool_call_end", toolCallId: "c", input: "{}" },
+      { kind: "model_end" },
+    ];
+    const done: Partial<NormalizedEvent>[] = [{ kind: "text_delta", text: "stopping" }, { kind: "model_end" }];
+    // With cap 2: attempts 1 & 2 execute, the 3rd identical call is skipped.
+    const { provider } = scriptedProvider([round, round, round, done]);
+    const alwaysFails: import("../harness/tool/builtin/interactive-tools").InteractiveTool = {
+      definition: {
+        name: "always_fails",
+        description: "always errors",
+        inputSchema: { type: "object", properties: {}, additionalProperties: false },
+        risk: "read",
+      },
+      invoke: async () => ({ output: "boom", isError: true }),
+    };
+    const results: string[] = [];
+    const io: AgentIO = { write: () => {}, onToolResult: (_n, r) => results.push(r.output) };
+    await runAgentTurn(io, baseDeps(provider, 8), [], "x");
+    expect(results.some((r) => /already tried 2×/.test(r))).toBe(true);
+    expect(results.some((r) => /already tried 3×/.test(r))).toBe(false);
+  } finally {
+    if (prev === undefined) {
+      delete process.env[ENV_AGENT_MAX_ATTEMPTS_PER_HASH];
+    } else {
+      process.env[ENV_AGENT_MAX_ATTEMPTS_PER_HASH] = prev;
+    }
+  }
 });
 
 test("a validation error message lists the tool's required fields", async () => {

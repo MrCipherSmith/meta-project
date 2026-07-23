@@ -179,7 +179,20 @@ async function rgAndSummarize(args: string[], config: CtxConfig): Promise<void> 
   const command = listMode
     ? ["rg", "--no-heading", ...rgArgs]
     : ["rg", "--line-number", "--column", "--no-heading", ...rgArgs];
-  const result = await runCommand(command);
+  let result: CommandResult;
+  try {
+    result = await runCommand(command);
+  } catch (cause) {
+    // `keryx ctx rg` (and thus the agent's search_code) hard-depends on ripgrep.
+    // When it is absent `Bun.spawn` throws a bare `Executable not found …` — a
+    // signal the model cannot act on. Emit a diagnosis + fix instead of crashing.
+    if (isMissingExecutableError(cause)) {
+      console.error(MISSING_RG_MESSAGE);
+      process.exitCode = 127;
+      return;
+    }
+    throw cause;
+  }
 
   if (wantsJson) {
     const lines = nonEmptyLines(result.raw);
@@ -347,6 +360,20 @@ async function handleUninstallHook(args: string[]): Promise<void> {
     );
   }
   reportUnsupported(unsupported);
+}
+
+// Actionable guidance when ripgrep is missing. Kept as a shared constant so the
+// exit message here and the agent-tool normalizer (metaproject-tools.ts) stay in
+// lockstep — the tool layer keys its "rg unavailable" detection on this text.
+export const MISSING_RG_MESSAGE =
+  'ripgrep (rg) is not installed or not on PATH. `keryx ctx rg` (and the agent\'s ' +
+  "search_code) needs it. Install it: `brew install ripgrep` (macOS) or " +
+  "`apt install ripgrep` (Debian/Ubuntu).";
+
+/** True when an error is a "binary not found on PATH" spawn failure. */
+export function isMissingExecutableError(cause: unknown): boolean {
+  const message = cause instanceof Error ? cause.message : String(cause);
+  return /Executable not found|\bENOENT\b|not found in \$?PATH/i.test(message);
 }
 
 async function runCommand(command: string[]): Promise<CommandResult> {
