@@ -22,5 +22,21 @@
     "toDir": "119-2026-07-21-p0-sandbox-credential-auto-mask-resolver",
     "at": "2026-07-22T18:58:46.736Z",
     "reason": "duplicate of flow 103 (sandbox network audit runbook); ids collided because allocation was per working copy — flow 116"
+  },
+  {
+    "from": "116",
+    "to": "120",
+    "fromDir": "116-2026-07-22-fix-duplicate-flow-ids-nextflowid-races-",
+    "toDir": "120-2026-07-22-fix-duplicate-flow-ids-nextflowid-races-",
+    "at": "2026-07-23T19:03:17.533Z",
+    "reason": "collided with main's flow 116 (test-suite-isolation) created earlier; this flow chose 116 before that one was visible in the checkout — the very bug it fixes — flow 116/120"
+  },
+  {
+    "from": "115",
+    "to": "121",
+    "fromDir": "115-2026-07-21-tui-dim-collapsible-thought-blocks-fix-a",
+    "toDir": "121-2026-07-21-tui-dim-collapsible-thought-blocks-fix-a",
+    "at": "2026-07-23T19:03:24.158Z",
+    "reason": "duplicate of flow 115 (shell-approval-hardening, created earlier); ids collided because allocation was per working copy — flow 120"
   }
 ]

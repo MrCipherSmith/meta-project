@@ -35,3 +35,4 @@
 - 2026-07-23T18:52:56.832Z - ac-confirmed: AC10: .metaproject/skills/flow/SKILL.md 'Flow ids' section + memory constraint flow-ids-allocated-per-clone.md (accepted, indexed)
 - 2026-07-23T18:53:19.052Z - completing
 - 2026-07-23T18:53:21.017Z - completion-failed: pull-request: PR checks not green
+- 2026-07-23T19:03:17.533Z - renumbered: 116 -> 120: collided with main's flow 116 (test-suite-isolation) created earlier; this flow chose 116 before that one was visible in the checkout — the very bug it fixes — flow 116/120
