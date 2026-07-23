@@ -30,6 +30,10 @@ done
 # --- paths (portable, absolute) ------------------------------------------------
 SCRIPT_PATH="${BASH_SOURCE[0]:-$0}"
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+# Redaction scan (R1 gate) lives in a sourceable lib so its FAIL branch is
+# unit-testable without launching the full probe. Behavior is unchanged.
+# shellcheck source=lib/redaction-scan.sh
+source "${SCRIPT_DIR}/lib/redaction-scan.sh"
 if ROOT_CANDIDATE="$(cd "$SCRIPT_DIR/.." && pwd)"; then
   ROOT="${ROOT:-$ROOT_CANDIDATE}"
 else
@@ -304,18 +308,7 @@ fi
 # Scan RUN_DIR for fixture secret (should not appear in evidence dumps).
 # The marker file under RUN_DIR/.fixture-secret-marker is intentional source only —
 # we exclude it and only fail if secret appears elsewhere (REPORT, evidence, helpers).
-REDACTION_HITS=0
-while IFS= read -r -d '' f; do
-  base="$(basename "$f")"
-  case "$base" in
-    .fixture-secret-marker) continue ;;
-  esac
-  # Skip the probe script itself if copied
-  if grep -F -q -- "$FIXTURE_SECRET" "$f" 2>/dev/null; then
-    REDACTION_HITS=$((REDACTION_HITS + 1))
-    echo "leak:$f" >>"${EVIDENCE_DIR}/redaction-hits.txt"
-  fi
-done < <(find "$RUN_DIR" -type f -print0 2>/dev/null)
+REDACTION_HITS="$(keryx_redaction_scan "$RUN_DIR" "$FIXTURE_SECRET" "${EVIDENCE_DIR}/redaction-hits.txt")"
 
 if [[ "$REDACTION_HITS" -eq 0 ]]; then
   add_row "R1" "PASS" "no fixture secret substrings under RUN_DIR (marker excluded)" "n/a" "evidence/"

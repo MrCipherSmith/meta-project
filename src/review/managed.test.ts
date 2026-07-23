@@ -11,10 +11,59 @@ import {
   findRelatedFlow,
   validateManagedReviewManifest,
 } from "./managed";
+import {
+  MANAGED_REVIEW_MODES,
+  REVIEW_COVERAGE_STATUSES,
+  REVIEW_PACKAGE_STATUSES,
+  REVIEW_TARGET_KINDS,
+} from "./types";
 import type { ManagedReviewManifest } from "./types";
 
 let ROOT = "";
 const ORIGINAL_CWD = process.cwd();
+
+const REAL_SCHEMA_PATH = path.join(
+  ORIGINAL_CWD,
+  "docs",
+  "requirements",
+  "managed-review-feedback-loop",
+  "schemas",
+  "managed-review-package.schema.json",
+);
+
+// Copy the committed JSON Schema (source of truth) into ROOT, replacing the
+// trivial `{"type":"object"}` stub `fresh()` writes, so schema-driven validation
+// is exercised against the real contract.
+async function useRealSchema(): Promise<Record<string, unknown>> {
+  const raw = await readFile(REAL_SCHEMA_PATH, "utf8");
+  await writeFile(
+    path.join(ROOT, "docs", "requirements", "managed-review-feedback-loop", "schemas", "managed-review-package.schema.json"),
+    raw,
+    "utf8",
+  );
+  return JSON.parse(raw) as Record<string, unknown>;
+}
+
+function validManifest(): ManagedReviewManifest {
+  return {
+    schemaVersion: 1,
+    reviewId: "2026-07-09-pr-1",
+    mode: "attach-review",
+    status: "draft",
+    target: { kind: "pr", ref: "https://github.com/acme/app/pull/1" },
+    artifacts: {
+      scope: "scope.md",
+      coverage: "coverage.md",
+      report: "report.md",
+      findings: "findings.json",
+      learning: "learning.md",
+      decisions: "decisions.md",
+    },
+    coverage: [{ reviewer: "review-logic", status: "run", reason: "selected" }],
+    createdAt: "2026-07-09T11:00:00Z",
+    updatedAt: "2026-07-09T11:00:00Z",
+  };
+}
 
 function fakeTracker(): TrackerAdapter {
   return {
@@ -212,4 +261,51 @@ test("lightweight CLI mode creates no managed review artifacts", async () => {
   await reviewCommand(["lightweight"]);
 
   await expect(stat(path.join(ROOT, ".metaproject", "reviews"))).rejects.toThrow();
+});
+
+test("validation is driven by the committed JSON Schema (accepts valid, rejects schema violations)", async () => {
+  await fresh();
+  await useRealSchema();
+
+  // A manifest that satisfies the real schema must pass.
+  expect((await validateManagedReviewManifest(ROOT, validManifest())).valid).toBe(true);
+
+  // The real schema sets `additionalProperties: false`; the hand-rolled checks
+  // never inspected unknown keys, so this case can ONLY be caught by wiring the
+  // loaded schema through the validator. Proves the schema file is enforced.
+  const withExtra = { ...validManifest(), unexpectedKey: "nope" } as unknown as ManagedReviewManifest;
+  const extraResult = await validateManagedReviewManifest(ROOT, withExtra);
+  expect(extraResult.valid).toBe(false);
+  expect(extraResult.errors.some((error) => error.path === "$.unexpectedKey")).toBe(true);
+
+  // A schema enum the code also knows about: an out-of-enum coverage status is
+  // rejected via the schema's `coverage.items.status` enum.
+  const badCoverage = validManifest();
+  badCoverage.coverage = [{ reviewer: "review-logic", status: "bogus" as never, reason: "x" }];
+  expect((await validateManagedReviewManifest(ROOT, badCoverage)).valid).toBe(false);
+});
+
+test("committed JSON Schema and code constants stay consistent (drift guard)", async () => {
+  const schema = JSON.parse(await readFile(REAL_SCHEMA_PATH, "utf8")) as {
+    required: string[];
+    properties: {
+      mode: { enum: string[] };
+      status: { enum: string[] };
+      target: { properties: { kind: { enum: string[] } } };
+      coverage: { items: { properties: { status: { enum: string[] } } } };
+    };
+  };
+
+  // The set of required top-level fields the schema enforces.
+  expect([...schema.required].sort()).toEqual(
+    ["artifacts", "coverage", "mode", "reviewId", "schemaVersion", "status", "target"].sort(),
+  );
+
+  // Enums in the schema must match the TypeScript constants the runtime uses, so
+  // a future edit to one without the other fails this test rather than silently
+  // drifting.
+  expect(schema.properties.mode.enum).toEqual([...MANAGED_REVIEW_MODES]);
+  expect(schema.properties.status.enum).toEqual([...REVIEW_PACKAGE_STATUSES]);
+  expect(schema.properties.target.properties.kind.enum).toEqual([...REVIEW_TARGET_KINDS]);
+  expect(schema.properties.coverage.items.properties.status.enum).toEqual([...REVIEW_COVERAGE_STATUSES]);
 });
