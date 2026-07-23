@@ -7,11 +7,11 @@ Version: 0.4.0
 |---|---|
 | Name | `keryx-project-agent-harness` |
 | Kind | standard capability / core runtime |
-| Status | draft — contract remediation; future implementation |
+| Status | implemented (Release 0 + most of Release 1/2); Release 2+ (harness TUI, full-strength executable extensions) remain open |
 | Product role | project-oriented agent operating system |
 | State owner | `.metaproject/` plus declared session roots |
 | Runtime owner | Keryx harness core |
-| Default mode | disabled; deterministic Keryx floor unchanged |
+| Default mode | opt-in; model runtime off unless explicitly enabled; deterministic Keryx floor unchanged |
 | Primary transport | CLI; JSONL/RPC is required for headless use |
 
 ## Design Principles

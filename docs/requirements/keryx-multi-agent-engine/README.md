@@ -39,12 +39,19 @@ Runtime evidence:
 - **Phase C3 — worktrees + peer messaging:** `src/harness/child/worktree.ts`
   (`needsWorktree`, `WorktreePort` seam, flow 096); `src/harness/child/peer.ts`
   (artifact-ref-only payload, pure-fold inboxes, fail-closed admission, flow 097).
-- **Monitoring fold:** `src/harness/monitor/reduce.ts` (`reduceAgents`,
+- **Monitoring fold (agents):** `src/harness/monitor/reduce.ts` (`reduceAgents`,
   `diffAgents`, pure); CLI wired as `keryx agents monitor <events-file> [--json]`
   via `src/cli.ts:150-151` → `src/commands/agents.ts`. NOTE: the actual CLI
   surface is `keryx agents monitor <events-file>` (offline fold against a captured
   events file), not the `keryx agents --json` live-snapshot form sketched in the
   spec — a deliberate drift; the spec text is retained below for history.
+- **Event-sourced orchestrator-state fold:** `src/harness/monitor/reduce-state.ts`
+  (`reduceState` / `initialOrchestratorState` + pure left-fold `applyEvents`,
+  flow 095, Phase 6a) folds the append-only `agent-event` stream into a
+  schema-valid `OrchestratorState`
+  (`.metaproject/core/gdskills/contracts/orchestrator-state.schema.json`),
+  giving crash-safe resume, deterministic replay, and a live projection — covered
+  by `src/harness/monitor/reduce-state.test.ts`.
 - **Dispatch contract extensions:** `model` block added to
   `.metaproject/core/gdskills/contracts/subagent-dispatch.schema.json:85-91` and
   `modelSelection` on `ChildContractExtension` at `src/harness/child/contract.ts:42`
@@ -57,10 +64,9 @@ Runtime evidence:
   extension point; it has since been implemented as an optional hook.
 
 Genuinely remaining (not implemented): an in-process live event tap that would
-let `keryx agents` produce a live snapshot against a *running* run (today the
-fold operates on a captured events file); and a distinct `reduceState` module
-that folds `agent-event` into `orchestrator-state` (the agents-fold exists, the
-orchestrator-state-fold does not).
+let `keryx agents` produce a live snapshot against a *running* run — today both
+folds (`reduceAgents` and `reduceState`) operate on a captured events file, not a
+live in-process stream.
 
 Builds on the existing harness primitives in `src/harness/` (child spawn +
 isolation + contract, `planWaves` scheduler, provider port, canonical
