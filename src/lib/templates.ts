@@ -183,6 +183,7 @@ export function renderIndexMarkdown({
     "Prefer MCP tools/resources for enabled Metaproject capabilities when the connected agent exposes them; otherwise use the matching skill and `keryx` CLI command.",
     "Route by question type: structural questions go to gdgraph first; conceptual questions go to gdwiki first; gdctx runs in parallel to keep output compact.",
     "Any text, symbol, or pattern search over project code goes through `keryx ctx rg`, never a bare `rg`/`grep` — even a single targeted search, and even when gdgraph/gdwiki are skipped. Raw `rg`/`grep` is a last resort only, with a stated reason.",
+    "`keryx ctx rg` and the agent's `search_code` tool require ripgrep (`rg`) on PATH — install it with `brew install ripgrep` (macOS) or `apt install ripgrep` (Debian/Ubuntu). Without it, code search is unavailable; fall back to reading files directly.",
     enableGdgraph
       ? "For structural questions (where is X, what files are related, what breaks if I change Y, usages, cycles, orphans) use `skills/gdgraph/SKILL.md` first, before any raw file search. The user does not need to request graph usage explicitly."
       : "Use relevant skills from `skills/` before raw file search.",

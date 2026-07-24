@@ -37,6 +37,38 @@ export type KeryxRunner = (args: string[]) => Promise<InteractiveToolResult>;
 const MAX_OUTPUT_BYTES = 20_000;
 
 /**
+ * Signature of "ripgrep is unavailable" across the paths it can surface on: the
+ * bare `Bun.spawn` throw (`Executable not found in $PATH: "rg"`), a generic
+ * ENOENT, and the graceful `keryx ctx rg` exit message (see `MISSING_RG_MESSAGE`
+ * in commands/ctx.ts). Matched only against ALREADY-failing results, so a normal
+ * search result that merely contains "not found" is never rewritten.
+ */
+const RG_UNAVAILABLE_SIGNATURE =
+  /ripgrep \(rg\) is not installed|Executable not found[^\n]*\brg\b|\brg\b[^\n]*\bENOENT\b|\bENOENT\b[^\n]*\brg\b/i;
+
+/**
+ * The model-facing diagnosis when `search_code` cannot run because ripgrep is
+ * missing. Unlike the CLI message it names the *tools* the model can fall back
+ * to, so the model changes approach instead of hammering a dead tool.
+ */
+export const SEARCH_CODE_RG_UNAVAILABLE_MESSAGE =
+  "ripgrep (rg) is not installed or not on PATH, and search_code needs it. Install it " +
+  "(`brew install ripgrep` / `apt install ripgrep`), or use read_file and list_dir to " +
+  "inspect files directly instead of retrying search_code.";
+
+/**
+ * Rewrite a failed `search_code` result whose error is "ripgrep missing" into the
+ * actionable {@link SEARCH_CODE_RG_UNAVAILABLE_MESSAGE}; pass anything else through
+ * unchanged. Only error results are inspected, so successful searches are untouched.
+ */
+export function normalizeSearchResult(result: InteractiveToolResult): InteractiveToolResult {
+  if (result.isError && RG_UNAVAILABLE_SIGNATURE.test(result.output)) {
+    return { output: SEARCH_CODE_RG_UNAVAILABLE_MESSAGE, isError: true };
+  }
+  return result;
+}
+
+/**
  * The default runner: invoke `keryx` via an argv array (NO shell string) from the
  * project root, capturing bounded stdout. Never throws — a failure or a missing
  * binary becomes `{ isError: true }`.
@@ -97,12 +129,12 @@ function withSearchFallback(port: MetaprojectPort, run: KeryxRunner): Metaprojec
       if (input.path !== undefined) {
         args.push(input.path);
       }
-      const fallback = await run(args);
+      const normalized = normalizeSearchResult(await run(args));
       return {
         pattern: input.pattern,
         ...(input.path !== undefined ? { path: input.path } : {}),
-        output: fallback.output,
-        isError: fallback.isError,
+        output: normalized.output,
+        isError: normalized.isError,
       };
     },
   };
@@ -149,7 +181,7 @@ export function builtinMetaprojectTools(
       if (path !== undefined) {
         args.push(path);
       }
-      return run(args);
+      return normalizeSearchResult(await run(args));
     },
   };
 

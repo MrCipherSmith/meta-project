@@ -144,10 +144,68 @@ export function resolveAgentMaxToolCalls(
 }
 
 /**
- * Max attempts for the same tool signature (name + input hash). All attempts of
- * one signature share a single budget slot.
+ * Default max attempts for the same tool signature (name + input hash). All
+ * attempts of one signature share a single budget slot. Overridable per turn via
+ * {@link resolveAgentMaxAttemptsPerHash} / `KERYX_AGENT_MAX_ATTEMPTS_PER_HASH`.
  */
 export const MAX_ATTEMPTS_PER_HASH = 3;
+
+/** Env override for {@link MAX_ATTEMPTS_PER_HASH} (positive integer). */
+export const ENV_AGENT_MAX_ATTEMPTS_PER_HASH = "KERYX_AGENT_MAX_ATTEMPTS_PER_HASH";
+
+/** Hard ceiling when env requests an extreme per-signature attempt count. */
+export const MAX_AGENT_MAX_ATTEMPTS_PER_HASH = 10;
+
+/**
+ * Resolve the per-signature attempt cap for an interactive agent turn.
+ * - unset / empty / invalid env → {@link MAX_ATTEMPTS_PER_HASH}
+ * - valid integer ≥ 1 → clamped to {@link MAX_AGENT_MAX_ATTEMPTS_PER_HASH}
+ *
+ * Callers pass `process.env` in production; tests inject a stub map.
+ */
+export function resolveAgentMaxAttemptsPerHash(
+  env: Record<string, string | undefined> = process.env,
+): number {
+  const raw = env[ENV_AGENT_MAX_ATTEMPTS_PER_HASH];
+  if (raw === undefined || raw.trim().length === 0) {
+    return MAX_ATTEMPTS_PER_HASH;
+  }
+  const n = Number.parseInt(raw.trim(), 10);
+  if (!Number.isFinite(n) || n < 1) {
+    return MAX_ATTEMPTS_PER_HASH;
+  }
+  return Math.min(n, MAX_AGENT_MAX_ATTEMPTS_PER_HASH);
+}
+
+/**
+ * How many times a signature must fail with the *same* error, back to back,
+ * before the driver injects a "this tool is failing, switch approach" hint. Set
+ * BELOW {@link MAX_ATTEMPTS_PER_HASH} so the model gets a chance to adapt before
+ * the hard hash-budget skip trips. A single retry can be a transient hiccup; a
+ * second identical failure signals an unavailable/misconfigured tool.
+ */
+export const REPEAT_FAILURE_HINT_THRESHOLD = 2;
+
+/** Collapse whitespace so "same error" comparisons ignore incidental formatting. */
+function normalizeToolError(output: string): string {
+  return output.trim().replace(/\s+/g, " ");
+}
+
+/**
+ * The hint injected when a tool keeps failing identically. It names the tool and
+ * echoes the (bounded) error so the model has an explicit signal to change tool
+ * or ask the user, instead of blindly re-issuing the same doomed call until the
+ * hash budget stops it with no diagnosis.
+ */
+export function buildRepeatedFailureHint(name: string, error: string): string {
+  const trimmed = error.trim();
+  const shown = trimmed.length > 200 ? `${trimmed.slice(0, 199)}…` : trimmed;
+  return (
+    `[system] tool "${name}" is failing repeatedly with the same error: ${shown} — ` +
+    `it is likely unavailable or misconfigured in this environment. Switch to a different ` +
+    `tool or ask the user; do not retry the same call.`
+  );
+}
 
 /** Optional session context baked into the system instruction (provider/model). */
 export interface AgentInstructionContext {
@@ -262,9 +320,11 @@ export function toolCallHash(name: string, input: string): string {
 interface ToolBudgetState {
   /** Unique signatures that have consumed a budget slot. */
   charged: Set<string>;
-  /** Attempt count per signature (capped at {@link MAX_ATTEMPTS_PER_HASH}). */
+  /** Attempt count per signature (capped at {@link maxAttempts}). */
   attempts: Map<string, number>;
   maxUnique: number;
+  /** Per-signature attempt cap; defaults to {@link MAX_ATTEMPTS_PER_HASH} when absent. */
+  maxAttempts?: number;
 }
 
 function budgetUsed(state: ToolBudgetState): number {
@@ -282,12 +342,13 @@ export function reserveToolAttempt(
   input: string,
 ): { ok: true; hash: string; attempt: number; chargedNew: boolean } | { ok: false; hash: string; reason: string } {
   const hash = toolCallHash(name, input);
+  const maxAttempts = state.maxAttempts ?? MAX_ATTEMPTS_PER_HASH;
   const prev = state.attempts.get(hash) ?? 0;
-  if (prev >= MAX_ATTEMPTS_PER_HASH) {
+  if (prev >= maxAttempts) {
     return {
       ok: false,
       hash,
-      reason: `same tool call already tried ${MAX_ATTEMPTS_PER_HASH}× (hash budget); change the arguments or a different tool`,
+      reason: `same tool call already tried ${maxAttempts}× (hash budget); change the arguments or a different tool`,
     };
   }
   const isNew = !state.charged.has(hash);
@@ -295,7 +356,7 @@ export function reserveToolAttempt(
     return {
       ok: false,
       hash,
-      reason: `tool-call budget exhausted (${state.maxUnique} unique signatures per turn; same call may retry up to ${MAX_ATTEMPTS_PER_HASH}× as one slot)`,
+      reason: `tool-call budget exhausted (${state.maxUnique} unique signatures per turn; same call may retry up to ${maxAttempts}× as one slot)`,
     };
   }
   if (isNew) {
@@ -322,14 +383,24 @@ export async function runAgentTurn(
   const toolByName = new Map(deps.tools.map((t) => [t.definition.name, t]));
   const toolDefs = deps.tools.map((t) => t.definition);
   const maxToolCalls = deps.maxToolCalls ?? resolveAgentMaxToolCalls();
+  const maxAttempts = resolveAgentMaxAttemptsPerHash();
   const parentRunId = deps.idSeq();
   const budget: ToolBudgetState = {
     charged: new Set(),
     attempts: new Map(),
     maxUnique: maxToolCalls,
+    maxAttempts,
   };
   /** Short log of tool outcomes for the budget-exhausted wrap-up. */
   const toolLog: string[] = [];
+  /**
+   * Per-signature repeated-failure tracking: the last normalized error and how
+   * many times in a row it recurred, plus the signatures already warned about
+   * (so the hint fires once per signature, not on every subsequent attempt).
+   */
+  const lastErrorByHash = new Map<string, string>();
+  const errorStreakByHash = new Map<string, number>();
+  const warnedFailingHashes = new Set<string>();
 
   const system = (text: string): void => {
     if (io.onSystem !== undefined) {
@@ -439,8 +510,31 @@ export async function runAgentTurn(
       history.push({ role: "tool", content: result.output, provenance: "tool" });
       const shortIn = call.input.length > 80 ? `${call.input.slice(0, 77)}…` : call.input;
       toolLog.push(
-        `${call.name}(${shortIn}) → ${result.isError ? "error" : "ok"} [attempt ${reservation.attempt}/${MAX_ATTEMPTS_PER_HASH}, unique ${budgetUsed(budget)}/${maxToolCalls}]`,
+        `${call.name}(${shortIn}) → ${result.isError ? "error" : "ok"} [attempt ${reservation.attempt}/${maxAttempts}, unique ${budgetUsed(budget)}/${maxToolCalls}]`,
       );
+
+      // Preventive hint: a tool failing identically N× in a row is almost never
+      // "the model is being stubborn" — it is an unavailable/misconfigured tool.
+      // Give the model an explicit signal to switch BEFORE the hard hash-budget
+      // skip (which otherwise stops with no diagnosis).
+      if (result.isError) {
+        const normalized = normalizeToolError(result.output);
+        const streak = lastErrorByHash.get(reservation.hash) === normalized
+          ? (errorStreakByHash.get(reservation.hash) ?? 0) + 1
+          : 1;
+        lastErrorByHash.set(reservation.hash, normalized);
+        errorStreakByHash.set(reservation.hash, streak);
+        if (streak >= REPEAT_FAILURE_HINT_THRESHOLD && !warnedFailingHashes.has(reservation.hash)) {
+          warnedFailingHashes.add(reservation.hash);
+          const hint = buildRepeatedFailureHint(call.name, result.output);
+          system(`\n${hint}\n`);
+          history.push({ role: "user", content: hint, provenance: "project" });
+        }
+      } else {
+        // A success resets the streak so a later, unrelated failure starts fresh.
+        lastErrorByHash.delete(reservation.hash);
+        errorStreakByHash.delete(reservation.hash);
+      }
     }
 
     // Stop when unique budget is full, OR the model only re-issued exhausted
@@ -449,6 +543,7 @@ export async function runAgentTurn(
     if (stopForBudget || budgetUsed(budget) >= maxToolCalls || noProgress) {
       await finishWithBudgetSummary(io, deps, history, parentRunId, {
         maxUnique: maxToolCalls,
+        maxAttempts,
         used: budgetUsed(budget),
         toolLog,
         noProgress,
@@ -467,7 +562,7 @@ async function finishWithBudgetSummary(
   deps: AgentDeps,
   history: NormalizedMessage[],
   parentRunId: string,
-  info: { maxUnique: number; used: number; toolLog: string[]; noProgress?: boolean },
+  info: { maxUnique: number; maxAttempts?: number; used: number; toolLog: string[]; noProgress?: boolean },
 ): Promise<void> {
   const system = (text: string): void => {
     if (io.onSystem !== undefined) {
@@ -477,9 +572,10 @@ async function finishWithBudgetSummary(
     }
   };
 
+  const maxAttempts = info.maxAttempts ?? MAX_ATTEMPTS_PER_HASH;
   const why = info.noProgress
-    ? `no progress (only repeated/exhausted tool signatures; max ${MAX_ATTEMPTS_PER_HASH} attempts each)`
-    : `unique signature budget ${info.used}/${info.maxUnique} (same call may retry up to ${MAX_ATTEMPTS_PER_HASH}× as one slot)`;
+    ? `no progress (only repeated/exhausted tool signatures; max ${maxAttempts} attempts each)`
+    : `unique signature budget ${info.used}/${info.maxUnique} (same call may retry up to ${maxAttempts}× as one slot)`;
 
   system(`\n[budget] Stopping tools: ${why}. Asking the model for a short wrap-up…\n`);
 
