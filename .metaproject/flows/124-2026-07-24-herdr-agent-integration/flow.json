@@ -3,9 +3,9 @@
   "id": "124",
   "slug": "herdr-agent-integration",
   "title": "herdr agent-state integration for keryx shell: report working/idle/blocked to herdr via pane socket",
-  "status": "implemented",
+  "status": "done",
   "createdAt": "2026-07-24T00:19:06.977Z",
-  "updatedAt": "2026-07-24T00:36:06.240Z",
+  "updatedAt": "2026-07-24T00:51:14.627Z",
   "source": {
     "type": "description",
     "ref": null
@@ -161,6 +161,30 @@
       "at": "2026-07-24T00:36:06.240Z",
       "event": "ac-confirmed",
       "detail": "AC5: bun test herdr-report 7/7; tui-shell 37/37; tsc --noEmit exit=0, 0 error TS; live socket smoke: keryx working then agent=None"
+    },
+    {
+      "at": "2026-07-24T00:49:05.822Z",
+      "event": "completing"
+    },
+    {
+      "at": "2026-07-24T00:49:05.833Z",
+      "event": "completion-failed",
+      "detail": "health: no report; run `keryx health run` first"
+    },
+    {
+      "at": "2026-07-24T00:51:14.620Z",
+      "event": "completing",
+      "detail": "merged commit: a9211d9c4c9de8d0ee40442d2f540265de8ce474"
+    },
+    {
+      "at": "2026-07-24T00:51:14.627Z",
+      "event": "done",
+      "detail": "all gates passed"
     }
-  ]
+  ],
+  "merged": {
+    "commit": "a9211d9c4c9de8d0ee40442d2f540265de8ce474",
+    "ref": "origin/main",
+    "at": "2026-07-24T00:51:14.627Z"
+  }
 }

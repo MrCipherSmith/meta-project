@@ -13,3 +13,7 @@
 - 2026-07-24T00:36:06.082Z - ac-confirmed: AC3: payload/dedup/release tests assert source herdr:keryx, agent keryx, pane_id, state; dedup + pane.release_agent
 - 2026-07-24T00:36:06.160Z - ac-confirmed: AC4: tui-shell.ts diff: herdr.report(herdrStateFor(status)) in setMainAgent; await herdr.release() in finally
 - 2026-07-24T00:36:06.240Z - ac-confirmed: AC5: bun test herdr-report 7/7; tui-shell 37/37; tsc --noEmit exit=0, 0 error TS; live socket smoke: keryx working then agent=None
+- 2026-07-24T00:49:05.822Z - completing
+- 2026-07-24T00:49:05.833Z - completion-failed: health: no report; run `keryx health run` first
+- 2026-07-24T00:51:14.620Z - completing: merged commit: a9211d9c4c9de8d0ee40442d2f540265de8ce474
+- 2026-07-24T00:51:14.627Z - done: all gates passed
